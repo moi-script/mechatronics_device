@@ -6,7 +6,7 @@ export interface Point {
 }
 
 export const BOARD_W = 2010;
-export const BOARD_H = 920;
+export const BOARD_H = 2010;
 
 /** Vertical rise of each stacked lead, so a tower of plugs is visible. */
 export const STACK_DY = 13;
