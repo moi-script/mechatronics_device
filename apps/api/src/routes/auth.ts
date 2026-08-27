@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
-import { User } from '../models';
+import { Circuit, User } from '../models';
 import { COOKIE, cookieOptions, readUser, requireUser, signToken, type AuthedRequest } from '../auth-middleware';
 
 export const authRouter = Router();
@@ -89,6 +89,9 @@ authRouter.get('/me', readUser, async (req: AuthedRequest, res) => {
 });
 
 authRouter.delete('/me', readUser, requireUser, async (req: AuthedRequest, res) => {
+  // Circuits go with the account. Leaving them behind would keep any share
+  // link the account had published readable forever.
+  await Circuit.deleteMany({ ownerId: req.userId });
   await User.deleteOne({ _id: req.userId });
   res.clearCookie(COOKIE, cookieOptions);
   res.json({ ok: true });
