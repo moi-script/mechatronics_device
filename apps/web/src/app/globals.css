@@ -1,7 +1,10 @@
 @import 'tailwindcss';
 
+/* The theme is an explicit attribute, set before paint so nothing flashes. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
 @theme {
-  /* Powder-coated panel steel, engraved carbon, and the two rail signals. */
+  /* Light: powder-coated panel steel, engraved carbon, and the two rail signals. */
   --color-steel-50: #f8fafc;
   --color-steel-100: #f4f7fa;
   --color-steel-200: #e7ecf2;
@@ -19,6 +22,42 @@
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono), ui-monospace, monospace;
   --font-cond: var(--font-cond), var(--font-sans), sans-serif;
+}
+
+/* Light is the default; the dark block below overrides it by attribute. */
+:root {
+  --bench-base: #d3dae2;
+  --bench-a: #dfe5ec;
+  --bench-b: #cdd5de;
+  --bench-c: #d8dee6;
+  --bench-line: rgba(255, 255, 255, 0.26);
+}
+
+/*
+ * Dark inverts the steel ramp rather than renaming it, so every utility built
+ * on these tokens keeps meaning what it meant: steel-50 is still the quietest
+ * surface, carbon-900 is still the strongest text.
+ */
+[data-theme='dark'] {
+  --color-steel-50: #131a24;
+  --color-steel-100: #1b2431;
+  --color-steel-200: #242f3e;
+  --color-steel-300: #2c3849;
+  --color-steel-400: #3d4b5e;
+  --color-steel-500: #64748b;
+  --color-carbon-600: #94a5b8;
+  --color-carbon-800: #cbd5e1;
+  --color-carbon-900: #e8eef5;
+  --color-signal-amber: #f59e0b;
+  --color-signal-blue: #38bdf8;
+  --color-safety-red: #f05252;
+  --color-run-green: #22c55e;
+
+  --bench-base: #0f1622;
+  --bench-a: #1b2431;
+  --bench-b: #121926;
+  --bench-c: #182131;
+  --bench-line: rgba(148, 163, 184, 0.09);
 }
 
 html,
@@ -45,10 +84,10 @@ body {
 
 /* The bench the panel is mounted on: brushed steel, not a blank page. */
 .board-grid {
-  background-color: #d3dae2;
+  background-color: var(--bench-base);
   background-image:
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.26) 0 1px, transparent 1px 7px),
-    linear-gradient(160deg, #dfe5ec 0%, #cdd5de 55%, #d8dee6 100%);
+    repeating-linear-gradient(90deg, var(--bench-line) 0 1px, transparent 1px 7px),
+    linear-gradient(160deg, var(--bench-a) 0%, var(--bench-b) 55%, var(--bench-c) 100%);
 }
 
 /* Keep the wiring canvas from hijacking a touch scroll on small screens. */
@@ -62,6 +101,11 @@ body {
   font-family: var(--font-cond);
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+:where(button, a, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-signal-amber);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

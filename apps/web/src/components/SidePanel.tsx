@@ -50,7 +50,7 @@ function Faults() {
 
   if (errors.length === 0) {
     return (
-      <p className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+      <p className="flex items-center gap-2 rounded-lg border border-run-green/35 bg-run-green/10 px-3 py-2 text-xs text-run-green">
         <CheckCircle2 className="h-4 w-4 shrink-0" />
         No faults detected.
       </p>
@@ -66,7 +66,7 @@ function Faults() {
             key={i}
             className={clsx(
               'rounded-lg border px-3 py-2 text-xs leading-relaxed',
-              hard ? 'border-red-200 bg-red-50 text-red-800' : 'border-amber-200 bg-amber-50 text-amber-800',
+              hard ? 'border-safety-red/35 bg-safety-red/10 text-safety-red' : 'border-signal-amber/35 bg-signal-amber/10 text-signal-amber',
             )}
           >
             <span className="mb-1 flex items-center gap-1.5 font-bold uppercase tracking-wide">
@@ -113,13 +113,13 @@ function Exercises() {
       {exercises.map((ex) => {
         const g = grade[ex.id];
         return (
-          <li key={ex.id} className="rounded-lg border border-steel-300 bg-steel-100 p-3">
+          <li key={ex.id} className="rounded-sm border border-steel-300 bg-steel-100 p-3">
             <div className="text-xs font-bold text-carbon-900">{ex.title}</div>
             <p className="mt-1 text-[11px] leading-relaxed text-carbon-600">{ex.brief}</p>
             <button
               type="button"
               onClick={() => check(ex.id)}
-              className="mt-2 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700 hover:bg-sky-100"
+              className="mt-2 rounded-sm border border-signal-blue/35 bg-signal-blue/10 px-2.5 py-1 text-[11px] font-semibold text-signal-blue hover:bg-signal-blue/20"
             >
               Check my wiring
             </button>
@@ -128,17 +128,17 @@ function Exercises() {
                 {g.results.map((r, i) => (
                   <li key={i} className="flex items-start gap-1.5 text-[11px]">
                     {r.ok ? (
-                      <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600" />
+                      <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-run-green" />
                     ) : (
-                      <XCircle className="mt-0.5 h-3 w-3 shrink-0 text-red-600" />
+                      <XCircle className="mt-0.5 h-3 w-3 shrink-0 text-safety-red" />
                     )}
-                    <span className={r.ok ? 'text-carbon-600' : 'text-red-700'}>
+                    <span className={r.ok ? 'text-carbon-600' : 'text-safety-red'}>
                       {r.label}
                       {!r.ok && ' — ' + r.detail}
                     </span>
                   </li>
                 ))}
-                <li className={clsx('pt-1 text-[11px] font-bold', g.passed ? 'text-emerald-600' : 'text-amber-600')}>
+                <li className={clsx('pt-1 text-[11px] font-bold', g.passed ? 'text-run-green' : 'text-signal-amber')}>
                   {g.passed ? 'All checks passed.' : 'Not there yet.'}
                 </li>
               </ul>
@@ -166,7 +166,7 @@ export function SidePanel({ open, onClose }: { open: boolean; onClose: () => voi
       {open && <div className="fixed inset-0 z-30 bg-carbon-900/30 xl:hidden" onClick={onClose} />}
       <aside
         className={clsx(
-          'z-40 flex w-80 max-w-[88vw] shrink-0 flex-col overflow-y-auto border-l border-steel-400 bg-white',
+          'z-40 flex w-80 max-w-[88vw] shrink-0 flex-col overflow-y-auto border-l border-steel-400 bg-steel-50',
           'fixed inset-y-0 right-0 shadow-2xl transition-transform duration-200',
           'xl:static xl:translate-x-0 xl:shadow-none',
           open ? 'translate-x-0' : 'translate-x-full',
@@ -194,7 +194,7 @@ export function SidePanel({ open, onClose }: { open: boolean; onClose: () => voi
           onto it. Drag a module to move it. Esc cancels, Del removes the selected lead.
         </div>
         {hint && (
-          <div className="sticky bottom-0 border-t border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-800">{hint}</div>
+          <div className="sticky bottom-0 border-t border-signal-blue/35 bg-signal-blue/10 px-4 py-3 text-xs text-signal-blue">{hint}</div>
         )}
       </aside>
     </>

@@ -25,7 +25,7 @@ function AuthForm({ onDone }: { onDone: (u: User) => void }) {
     }
   };
 
-  const field = 'w-full rounded-lg border border-steel-400 bg-white px-3 py-2 text-sm outline-none focus:border-amber-500';
+  const field = 'w-full rounded-sm border border-steel-400 bg-steel-100 px-3 py-2 text-sm text-carbon-900 outline-none focus:border-signal-amber';
 
   return (
     <form onSubmit={submit} className="space-y-3">
@@ -56,11 +56,11 @@ function AuthForm({ onDone }: { onDone: (u: User) => void }) {
         required
         minLength={6}
       />
-      {error && <p className="text-xs text-red-700">{error}</p>}
+      {error && <p className="text-xs text-safety-red">{error}</p>}
       <button
         type="submit"
         disabled={busy}
-        className="w-full rounded-lg border border-emerald-200 bg-emerald-50 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+        className="w-full rounded-sm border border-run-green/40 bg-run-green/10 py-2 text-sm font-semibold text-run-green hover:bg-run-green/20 disabled:opacity-50"
       >
         {mode === 'login' ? 'Sign in' : 'Create account'}
       </button>
@@ -111,7 +111,7 @@ export function Library({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-carbon-900/45 p-4 sm:p-6" onClick={onClose}>
       <div
-        className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-2xl border border-steel-400 bg-white p-5 shadow-2xl"
+        className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-lg border border-steel-400 bg-steel-50 p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -121,7 +121,7 @@ export function Library({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        {error && <p className="text-xs text-red-700">{error}</p>}
+        {error && <p className="text-xs text-safety-red">{error}</p>}
 
         {!error && !user && <AuthForm onDone={(u) => { setUser(u); void refresh(); }} />}
 
@@ -147,7 +147,7 @@ export function Library({ onClose }: { onClose: () => void }) {
             ) : (
               <ul className="max-h-[50dvh] space-y-1.5 overflow-y-auto">
                 {circuits.map((c) => (
-                  <li key={c.id} className="flex items-center gap-2 rounded-lg border border-steel-300 bg-steel-100 px-3 py-2">
+                  <li key={c.id} className="flex items-center gap-2 rounded-sm border border-steel-300 bg-steel-100 px-3 py-2">
                     <button type="button" onClick={() => open(c.id)} className="flex-1 text-left">
                       <div className="text-xs font-semibold text-carbon-900">{c.name}</div>
                       <div className="text-[10px] text-carbon-600">{new Date(c.updatedAt).toLocaleString()}</div>
@@ -158,7 +158,7 @@ export function Library({ onClose }: { onClose: () => void }) {
                         await api.deleteCircuit(c.id);
                         void refresh();
                       }}
-                      className="text-carbon-600 hover:text-red-600"
+                      className="text-carbon-600 hover:text-safety-red"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>

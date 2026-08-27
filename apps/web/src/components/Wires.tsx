@@ -3,11 +3,13 @@
 import { useMemo } from 'react';
 import type { EndRef, WireEnd } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
-import { STACK_DY, WIRE_HEX, WIRE_HI, endPos, wirePath } from '@/lib/geometry';
+import { STACK_DY, endPos, wirePath } from '@/lib/geometry';
+import { usePalette, useWireColors, useWireHighlights } from '@/store/useTheme';
 
 /** The exposed male on top of a plugged lead, ready for another to stack on it. */
 function Male({ x, y, wireId, end, taken }: { x: number; y: number; wireId: string; end: WireEnd; taken: boolean }) {
   const pending = useBoard((s) => s.pending);
+  const p = usePalette();
   if (taken) return null;
 
   const ref: EndRef = { kind: 'stack', wireId, end };
@@ -29,7 +31,7 @@ function Male({ x, y, wireId, end, taken }: { x: number; y: number; wireId: stri
         height={STACK_DY}
         rx={1.5}
         fill="url(#brass)"
-        stroke="#6b5210"
+        stroke={p.plugPin}
         strokeWidth={0.6}
       />
       <rect x={x - 3} y={y - STACK_DY} width={2} height={STACK_DY} fill="#ffffff" opacity={0.35} />
@@ -39,11 +41,12 @@ function Male({ x, y, wireId, end, taken }: { x: number; y: number; wireId: stri
 
 /** A banana plug: a coloured insulator boot over a brass pin. */
 function Plug({ x, y, color }: { x: number; y: number; color: string }) {
+  const p = usePalette();
   return (
     <g pointerEvents="none">
       <rect x={x - 6} y={y - 3} width={12} height={15} rx={3} fill={color} />
       <rect x={x - 6} y={y - 3} width={4} height={15} rx={2} fill="#ffffff" opacity={0.28} />
-      <circle cx={x} cy={y} r={4.5} fill="url(#brass)" stroke="#6b5210" strokeWidth={0.6} />
+      <circle cx={x} cy={y} r={4.5} fill="url(#brass)" stroke={p.plugPin} strokeWidth={0.6} />
     </g>
   );
 }
@@ -55,6 +58,8 @@ export function Wires() {
   const pending = useBoard((s) => s.pending);
   const cursor = useBoard((s) => s.cursor);
   const wireColor = useBoard((s) => s.wireColor);
+  const WIRE_HEX = useWireColors();
+  const WIRE_HI = useWireHighlights();
 
   const takenMales = useMemo(() => {
     const set = new Set<string>();

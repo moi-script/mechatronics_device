@@ -91,7 +91,7 @@ export function Board() {
   );
 
   const zoomBtn =
-    'flex h-9 w-9 items-center justify-center rounded-md border border-steel-400 bg-steel-50/95 text-carbon-600 shadow-sm transition hover:bg-white hover:text-carbon-900';
+    'flex h-9 w-9 items-center justify-center rounded-md border border-steel-400 bg-steel-50/95 text-carbon-600 shadow-sm transition hover:bg-steel-200 hover:text-carbon-900';
 
   return (
     <ScaleContext.Provider value={getScale}>

@@ -1,4 +1,4 @@
-import { PARTS, type Circuit, type EndRef, type WireColor } from '@mech/sim';
+import { PARTS, type Circuit, type EndRef } from '@mech/sim';
 
 export interface Point {
   x: number;
@@ -12,23 +12,6 @@ export const BOARD_H = 920;
 export const STACK_DY = 13;
 
 /** Lead colours, picked to stay legible against the light board. */
-export const WIRE_HEX: Record<WireColor, string> = {
-  blue: '#1d4ed8',
-  green: '#15803d',
-  red: '#dc2626',
-  black: '#1e293b',
-  yellow: '#ca8a04',
-};
-
-/** The lengthwise highlight on each lead, so cable reads as round. */
-export const WIRE_HI: Record<WireColor, string> = {
-  blue: '#60a5fa',
-  green: '#4ade80',
-  red: '#fca5a5',
-  black: '#64748b',
-  yellow: '#fde047',
-};
-
 export function pinPos(circuit: Circuit, moduleId: string, pinId: string): Point {
   const m = circuit.modules.find((x) => x.id === moduleId);
   if (!m) return { x: 0, y: 0 };

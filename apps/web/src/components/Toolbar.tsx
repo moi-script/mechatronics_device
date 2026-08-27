@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import clsx from 'clsx';
-import { FolderOpen, PanelRight, Power, RotateCcw, Save, Share2, Trash2, Zap } from 'lucide-react';
+import { FolderOpen, Monitor, Moon, PanelRight, Power, RotateCcw, Save, Share2, Sun, Trash2, Zap } from 'lucide-react';
 import { WIRE_COLORS, type WireColor } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
-import { WIRE_HEX } from '@/lib/geometry';
+import { useTheme, useWireColors } from '@/store/useTheme';
 import { api } from '@/lib/api';
 
 function Btn({
@@ -30,9 +30,9 @@ function Btn({
       className={clsx(
         'inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1.5 text-xs font-semibold transition',
         'disabled:cursor-not-allowed disabled:opacity-40',
-        tone === 'danger' && 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100',
-        tone === 'go' && 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
-        tone === 'plain' && 'border-steel-400 bg-white text-carbon-800 hover:bg-steel-100',
+        tone === 'danger' && 'border-safety-red/40 bg-safety-red/10 text-safety-red hover:bg-safety-red/20',
+        tone === 'go' && 'border-run-green/40 bg-run-green/10 text-run-green hover:bg-run-green/20',
+        tone === 'plain' && 'border-steel-400 bg-steel-50 text-carbon-800 hover:bg-steel-200',
       )}
     >
       {children}
@@ -54,6 +54,9 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
   const delayMs = useBoard((s) => s.circuit.timerDelayMs);
   const setTimerDelay = useBoard((s) => s.setTimerDelay);
   const setHint = useBoard((s) => s.setHint);
+  const WIRE_HEX = useWireColors();
+  const choice = useTheme((s) => s.choice);
+  const setChoice = useTheme((s) => s.setChoice);
 
   const [savedId, setSavedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -114,7 +117,7 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
           'engraved inline-flex items-center gap-2 rounded-sm border px-2.5 py-1.5 text-xs font-bold transition',
           breakerOn && !tripped
             ? 'border-run-green bg-run-green/15 text-run-green'
-            : 'border-steel-400 bg-white text-carbon-600 hover:bg-steel-100',
+            : 'border-steel-400 bg-steel-50 text-carbon-600 hover:bg-steel-200',
         )}
       >
         <Power className="h-3.5 w-3.5" />
@@ -162,7 +165,7 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
           step={0.1}
           value={(delayMs / 1000).toFixed(1)}
           onChange={(e) => setTimerDelay(Math.max(100, Number(e.target.value) * 1000))}
-          className="w-16 rounded-sm border border-steel-400 bg-white px-2 py-1 text-right font-mono text-xs text-carbon-900 outline-none focus:border-signal-amber"
+          className="w-16 rounded-sm border border-steel-400 bg-steel-50 px-2 py-1 text-right font-mono text-xs text-carbon-900 outline-none focus:border-signal-amber"
         />
         s
       </label>
@@ -187,9 +190,24 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
         </Btn>
         <button
           type="button"
+          onClick={() => setChoice(choice === 'system' ? 'light' : choice === 'light' ? 'dark' : 'system')}
+          title={'Theme: ' + choice + ' (click to change)'}
+          aria-label={'Theme: ' + choice}
+          className="inline-flex items-center rounded-sm border border-steel-400 bg-steel-50 p-1.5 text-carbon-800 hover:bg-steel-200"
+        >
+          {choice === 'system' ? (
+            <Monitor className="h-4 w-4" />
+          ) : choice === 'light' ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
+        </button>
+        <button
+          type="button"
           onClick={onTogglePanel}
           title="Status and exercises"
-          className="inline-flex items-center rounded-lg border border-steel-400 bg-white p-1.5 text-carbon-800 hover:bg-steel-100 xl:hidden"
+          className="inline-flex items-center rounded-sm border border-steel-400 bg-steel-50 p-1.5 text-carbon-800 hover:bg-steel-200 xl:hidden"
         >
           <PanelRight className="h-4 w-4" />
         </button>

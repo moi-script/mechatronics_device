@@ -55,6 +55,17 @@ male-to-male, and chains that loop back on themselves are refused.
 Leads come in blue, green, red, black and yellow. Drag a module to move it. `Esc` cancels a
 lead in progress, `Del` removes the selected one.
 
+## Themes
+
+Light and dark, toggled from the control at the right of the toolbar. It cycles
+system, light, dark, and the choice is remembered. The default follows the OS, and a
+pre-paint script sets the theme before first render so nothing flashes.
+
+Dark inverts the steel token ramp rather than renaming it, so every utility keeps its
+meaning: `steel-50` stays the quietest surface, `carbon-900` the strongest text. The SVG
+panel cannot resolve CSS variables in presentation attributes, so it takes its palette as
+values from `src/lib/palette.ts` instead.
+
 ## Simulation
 
 Wires are ideal conductors. Connected terminals merge into nets, power floods out from the
