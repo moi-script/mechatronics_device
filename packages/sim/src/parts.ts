@@ -29,8 +29,9 @@ const supplyPins = (): PinDef[] => {
   SUPPLY_ROWS.forEach((row, r) => {
     for (let i = 0; i < 6; i++) {
       const n = row.role === 'SOURCE_VCC' ? ++vcc : ++gnd;
+      // The id stays unique for the solver; the panel just prints VCC or GND.
       const id = row.label + n;
-      pins.push(pin(id, id, row.role, SUPPLY_PIN_X(i), SUPPLY_ROW_Y[r]));
+      pins.push(pin(id, row.label, row.role, SUPPLY_PIN_X(i), SUPPLY_ROW_Y[r]));
     }
   });
   return pins;

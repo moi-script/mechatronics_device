@@ -202,15 +202,10 @@ function Face({ m }: { m: ModuleInstance }) {
                   rx={4}
                   fill={isGnd ? p.blue : p.amber}
                   fillOpacity={0.09}
-                  stroke={isGnd ? p.blue : p.amber}
-                  strokeOpacity={0.35}
                 />
                 <rect x={12} y={y - 17} width={4} height={34} rx={2} fill={isGnd ? p.blue : p.amber} />
                 <text className="t-cond" x={26} y={y + 4} fontSize={11} fontWeight={700} fill={isGnd ? p.blue : p.amber}>
                   {label}
-                </text>
-                <text className="t-mono" x={26} y={y - 6} fontSize={6.5} fill={p.label}>
-                  {'R' + (i + 1)}
                 </text>
               </g>
             );
