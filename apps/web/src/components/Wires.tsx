@@ -3,9 +3,9 @@
 import { useMemo } from 'react';
 import type { EndRef, WireEnd } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
-import { STACK_DY, WIRE_HEX, endPos, wirePath } from '@/lib/geometry';
+import { STACK_DY, WIRE_HEX, WIRE_HI, endPos, wirePath } from '@/lib/geometry';
 
-/** The exposed male on top of a plugged wire end, ready to be stacked onto. */
+/** The exposed male on top of a plugged lead, ready for another to stack on it. */
 function Male({ x, y, wireId, end, taken }: { x: number; y: number; wireId: string; end: WireEnd; taken: boolean }) {
   const pending = useBoard((s) => s.pending);
   if (taken) return null;
@@ -22,7 +22,28 @@ function Male({ x, y, wireId, end, taken }: { x: number; y: number; wireId: stri
       style={{ cursor: 'crosshair' }}
     >
       {pending && <circle cx={x} cy={y - STACK_DY} r={13} fill="#0891b2" opacity={0.16} />}
-      <rect x={x - 3} y={y - STACK_DY} width={6} height={STACK_DY} rx={2} fill="url(#brass)" stroke="#78350f" strokeWidth={0.75} />
+      <rect
+        x={x - 3}
+        y={y - STACK_DY}
+        width={6}
+        height={STACK_DY}
+        rx={1.5}
+        fill="url(#brass)"
+        stroke="#6b5210"
+        strokeWidth={0.6}
+      />
+      <rect x={x - 3} y={y - STACK_DY} width={2} height={STACK_DY} fill="#ffffff" opacity={0.35} />
+    </g>
+  );
+}
+
+/** A banana plug: a coloured insulator boot over a brass pin. */
+function Plug({ x, y, color }: { x: number; y: number; color: string }) {
+  return (
+    <g pointerEvents="none">
+      <rect x={x - 6} y={y - 3} width={12} height={15} rx={3} fill={color} />
+      <rect x={x - 6} y={y - 3} width={4} height={15} rx={2} fill="#ffffff" opacity={0.28} />
+      <circle cx={x} cy={y} r={4.5} fill="url(#brass)" stroke="#6b5210" strokeWidth={0.6} />
     </g>
   );
 }
@@ -67,31 +88,44 @@ export function Wires() {
               d={d}
               fill="none"
               stroke="transparent"
-              strokeWidth={16}
+              strokeWidth={18}
               style={{ cursor: 'pointer' }}
               onPointerDown={(e) => {
                 e.stopPropagation();
                 selectWire(selected ? null : wire.id);
               }}
             />
-            <path d={d} fill="none" stroke="#94a3b8" strokeWidth={7} opacity={0.5} strokeLinecap="round" />
+            {/* Round cable: a shaded core with a lengthwise highlight along the top. */}
             <path
               d={d}
               fill="none"
               stroke={WIRE_HEX[wire.color]}
-              strokeWidth={selected ? 6 : 4.5}
+              strokeWidth={selected ? 7 : 5.5}
               strokeLinecap="round"
+              filter="url(#cable)"
               pointerEvents="none"
             />
-            {selected && <path d={d} fill="none" stroke="#0f172a" strokeWidth={1.5} strokeDasharray="6 6" pointerEvents="none" />}
+            <path
+              d={d}
+              fill="none"
+              stroke={WIRE_HI[wire.color]}
+              strokeWidth={selected ? 2 : 1.6}
+              strokeLinecap="round"
+              opacity={0.75}
+              transform="translate(0,-1.2)"
+              pointerEvents="none"
+            />
+            {selected && (
+              <path d={d} fill="none" stroke="#ffffff" strokeWidth={1.2} strokeDasharray="5 7" pointerEvents="none" />
+            )}
           </g>
         );
       })}
 
       {ends.map(({ wire, a, b, plugged }) => (
         <g key={wire.id + '-plugs'}>
-          <circle cx={a.x} cy={a.y} r={5.5} fill={WIRE_HEX[wire.color]} stroke="#f8fafc" strokeWidth={1.5} pointerEvents="none" />
-          <circle cx={b.x} cy={b.y} r={5.5} fill={WIRE_HEX[wire.color]} stroke="#f8fafc" strokeWidth={1.5} pointerEvents="none" />
+          <Plug x={a.x} y={a.y} color={WIRE_HEX[wire.color]} />
+          <Plug x={b.x} y={b.y} color={WIRE_HEX[wire.color]} />
           {plugged.a && <Male x={a.x} y={a.y} wireId={wire.id} end="A" taken={takenMales.has(wire.id + '.A')} />}
           {plugged.b && <Male x={b.x} y={b.y} wireId={wire.id} end="B" taken={takenMales.has(wire.id + '.B')} />}
         </g>
@@ -103,12 +137,12 @@ export function Wires() {
             d={wirePath(endPos(circuit, pending), cursor)}
             fill="none"
             stroke={WIRE_HEX[wireColor]}
-            strokeWidth={4}
+            strokeWidth={5}
             strokeLinecap="round"
-            opacity={0.75}
-            strokeDasharray="10 6"
+            opacity={0.8}
+            strokeDasharray="12 7"
           />
-          <circle cx={cursor.x} cy={cursor.y} r={5} fill={WIRE_HEX[wireColor]} />
+          <Plug x={cursor.x} y={cursor.y} color={WIRE_HEX[wireColor]} />
         </g>
       )}
     </g>

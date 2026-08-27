@@ -27,9 +27,9 @@ export default function SharedPage({ params }: { params: Promise<{ shareId: stri
 
   return (
     <div className="flex h-dvh flex-col">
-      <header className="flex flex-wrap items-center gap-3 border-b border-paper-400 bg-white/90 px-3 py-2 sm:px-4">
-        <span className="text-sm font-bold text-ink-900">{name ?? 'Shared circuit'}</span>
-        <span className="rounded-full border border-paper-400 bg-paper-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-ink-500">
+      <header className="flex flex-wrap items-center gap-3 border-b border-steel-400 bg-white/90 px-3 py-2 sm:px-4">
+        <span className="text-sm font-bold text-carbon-900">{name ?? 'Shared circuit'}</span>
+        <span className="rounded-full border border-steel-400 bg-steel-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-carbon-600">
           shared copy
         </span>
         <button
@@ -42,7 +42,7 @@ export default function SharedPage({ params }: { params: Promise<{ shareId: stri
         <button
           type="button"
           onClick={() => setPanelOpen((v) => !v)}
-          className="inline-flex items-center rounded-lg border border-paper-400 bg-white p-1.5 text-ink-700 hover:bg-paper-100 xl:hidden"
+          className="inline-flex items-center rounded-lg border border-steel-400 bg-white p-1.5 text-carbon-800 hover:bg-steel-100 xl:hidden"
         >
           <PanelRight className="h-4 w-4" />
         </button>

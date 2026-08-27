@@ -28,11 +28,11 @@ function Btn({
       disabled={disabled}
       onClick={onClick}
       className={clsx(
-        'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition',
+        'inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1.5 text-xs font-semibold transition',
         'disabled:cursor-not-allowed disabled:opacity-40',
         tone === 'danger' && 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100',
         tone === 'go' && 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
-        tone === 'plain' && 'border-paper-400 bg-white text-ink-700 hover:bg-paper-100',
+        tone === 'plain' && 'border-steel-400 bg-white text-carbon-800 hover:bg-steel-100',
       )}
     >
       {children}
@@ -95,24 +95,26 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
   };
 
   return (
-    <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-paper-400 bg-white/90 px-3 py-2 backdrop-blur sm:px-4">
+    <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b-2 border-carbon-900 bg-steel-50 px-3 py-2 sm:px-4">
       <div className="flex items-center gap-2">
-        <Zap className="h-4 w-4 shrink-0 text-amber-500" />
-        <span className="text-sm font-bold tracking-tight text-ink-900">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-carbon-900">
+          <Zap className="h-4 w-4 text-signal-amber" />
+        </span>
+        <span className="engraved text-[13px] font-bold text-carbon-900">
           Mechatronic <span className="hidden sm:inline">Trainer</span>
         </span>
       </div>
 
-      <div className="hidden h-5 w-px bg-paper-400 sm:block" />
+      <div className="hidden h-5 w-px bg-steel-400 sm:block" />
 
       <button
         type="button"
         onClick={() => setBreaker(!breakerOn)}
         className={clsx(
-          'inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition',
+          'engraved inline-flex items-center gap-2 rounded-sm border px-2.5 py-1.5 text-xs font-bold transition',
           breakerOn && !tripped
-            ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
-            : 'border-paper-400 bg-white text-ink-500 hover:bg-paper-100',
+            ? 'border-run-green bg-run-green/15 text-run-green'
+            : 'border-steel-400 bg-white text-carbon-600 hover:bg-steel-100',
         )}
       >
         <Power className="h-3.5 w-3.5" />
@@ -127,10 +129,10 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
         </Btn>
       )}
 
-      <div className="hidden h-5 w-px bg-paper-400 sm:block" />
+      <div className="hidden h-5 w-px bg-steel-400 sm:block" />
 
       <div className="flex items-center gap-1.5">
-        <span className="hidden text-[10px] font-semibold uppercase tracking-wider text-ink-500 sm:inline">Wire</span>
+        <span className="engraved hidden text-[10px] font-semibold text-carbon-600 sm:inline">Lead</span>
         {WIRE_COLORS.map((c: WireColor) => (
           <button
             key={c}
@@ -139,7 +141,7 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
             onClick={() => setWireColor(c)}
             className={clsx(
               'h-6 w-6 rounded-full border-2 transition',
-              wireColor === c ? 'scale-110 border-ink-900' : 'border-paper-400 hover:border-ink-500',
+              wireColor === c ? 'scale-110 border-carbon-900' : 'border-steel-400 hover:border-carbon-600',
             )}
             style={{ backgroundColor: WIRE_HEX[c] }}
           />
@@ -151,7 +153,7 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
         <span className="hidden md:inline">Delete lead</span>
       </Btn>
 
-      <label className="flex items-center gap-1.5 text-xs text-ink-500">
+      <label className="flex items-center gap-1.5 text-xs text-carbon-600">
         <span className="hidden md:inline">Timer delay</span>
         <span className="md:hidden">Timer</span>
         <input
@@ -160,13 +162,13 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
           step={0.1}
           value={(delayMs / 1000).toFixed(1)}
           onChange={(e) => setTimerDelay(Math.max(100, Number(e.target.value) * 1000))}
-          className="w-16 rounded-md border border-paper-400 bg-white px-2 py-1 text-right text-xs text-ink-900 outline-none focus:border-amber-500"
+          className="w-16 rounded-sm border border-steel-400 bg-white px-2 py-1 text-right font-mono text-xs text-carbon-900 outline-none focus:border-signal-amber"
         />
         s
       </label>
 
       <div className="ml-auto flex items-center gap-2">
-        <span className="hidden text-[11px] text-ink-500 lg:inline">{wireCount} leads</span>
+        <span className="hidden font-mono text-[11px] text-carbon-600 lg:inline">{String(wireCount).padStart(2, '0')} leads</span>
         <Btn onClick={() => clearWires()} tone="danger" disabled={wireCount === 0}>
           <span className="hidden sm:inline">Clear all</span>
           <span className="sm:hidden">Clear</span>
@@ -187,7 +189,7 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
           type="button"
           onClick={onTogglePanel}
           title="Status and exercises"
-          className="inline-flex items-center rounded-lg border border-paper-400 bg-white p-1.5 text-ink-700 hover:bg-paper-100 xl:hidden"
+          className="inline-flex items-center rounded-lg border border-steel-400 bg-white p-1.5 text-carbon-800 hover:bg-steel-100 xl:hidden"
         >
           <PanelRight className="h-4 w-4" />
         </button>

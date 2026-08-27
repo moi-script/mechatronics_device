@@ -1,15 +1,24 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-paper-50: #ffffff;
-  --color-paper-100: #f8fafc;
-  --color-paper-200: #eef2f7;
-  --color-paper-300: #e2e8f0;
-  --color-paper-400: #cbd5e1;
-  --color-ink-500: #64748b;
-  --color-ink-700: #334155;
-  --color-ink-900: #0f172a;
-  --color-brass: #b8860b;
+  /* Powder-coated panel steel, engraved carbon, and the two rail signals. */
+  --color-steel-50: #f8fafc;
+  --color-steel-100: #f4f7fa;
+  --color-steel-200: #e7ecf2;
+  --color-steel-300: #dde3ea;
+  --color-steel-400: #c3ccd7;
+  --color-steel-500: #93a1b0;
+  --color-carbon-600: #4a5b6b;
+  --color-carbon-800: #24313d;
+  --color-carbon-900: #16202b;
+  --color-signal-amber: #e8830c;
+  --color-signal-blue: #0b7fc7;
+  --color-safety-red: #c62828;
+  --color-run-green: #1b9c5a;
+
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, monospace;
+  --font-cond: var(--font-cond), var(--font-sans), sans-serif;
 }
 
 html,
@@ -18,22 +27,48 @@ body {
 }
 
 body {
-  background: var(--color-paper-200);
-  color: var(--color-ink-900);
+  background: var(--color-steel-300);
+  color: var(--color-carbon-900);
+  font-family: var(--font-sans);
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Type roles inside the SVG panel. */
+.t-mono {
+  font-family: var(--font-mono);
+}
+.t-cond {
+  font-family: var(--font-cond);
+  letter-spacing: 0.06em;
+}
+
+/* The bench the panel is mounted on: brushed steel, not a blank page. */
 .board-grid {
-  background-color: var(--color-paper-200);
+  background-color: #d3dae2;
   background-image:
-    linear-gradient(rgba(100, 116, 139, 0.11) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(100, 116, 139, 0.11) 1px, transparent 1px);
-  background-size: 32px 32px;
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.26) 0 1px, transparent 1px 7px),
+    linear-gradient(160deg, #dfe5ec 0%, #cdd5de 55%, #d8dee6 100%);
 }
 
 /* Keep the wiring canvas from hijacking a touch scroll on small screens. */
 .board-grid,
 .board-grid * {
   touch-action: none;
+}
+
+/* An engraved section rule, used for panel headings in the chrome. */
+.engraved {
+  font-family: var(--font-cond);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

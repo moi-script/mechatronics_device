@@ -8,6 +8,7 @@ import { BOARD_H, BOARD_W } from '@/lib/geometry';
 import { ModuleView } from './ModuleView';
 import { Wires } from './Wires';
 import { ScaleContext } from './ScaleContext';
+import { BoardDefs, BoardPlate } from './BoardPlate';
 
 const TICK_MS = 50;
 
@@ -90,7 +91,7 @@ export function Board() {
   );
 
   const zoomBtn =
-    'flex h-9 w-9 items-center justify-center rounded-lg border border-paper-400 bg-white/90 text-ink-500 shadow-sm transition hover:bg-white hover:text-ink-900';
+    'flex h-9 w-9 items-center justify-center rounded-md border border-steel-400 bg-steel-50/95 text-carbon-600 shadow-sm transition hover:bg-white hover:text-carbon-900';
 
   return (
     <ScaleContext.Provider value={getScale}>
@@ -127,26 +128,9 @@ export function Board() {
                 selectWire(null);
               }}
             >
-              <defs>
-                <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#ffffff" />
-                  <stop offset="100%" stopColor="#eef2f7" />
-                </linearGradient>
-                <radialGradient id="brass" cx="35%" cy="30%">
-                  <stop offset="0%" stopColor="#fde68a" />
-                  <stop offset="55%" stopColor="#d4a017" />
-                  <stop offset="100%" stopColor="#8a6a12" />
-                </radialGradient>
-                <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
-                  <feGaussianBlur stdDeviation="7" result="b" />
-                  <feMerge>
-                    <feMergeNode in="b" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
+              <BoardDefs />
 
-              <rect width={BOARD_W} height={BOARD_H} rx={20} fill="#f8fafc" stroke="#cbd5e1" strokeWidth={2} />
+              <BoardPlate />
               {modules.map((m) => (
                 <ModuleView key={m.id} m={m} />
               ))}
