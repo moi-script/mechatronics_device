@@ -129,24 +129,24 @@ function Face({ m }: { m: ModuleInstance }) {
     }
 
     case 'SUPPLY': {
-      // Rows 1 and 2 carry the full six pins; rows 3 to 6 carry a single pin each.
-      const rows: [string, number, number][] = [
-        ['VCC', 58, 6],
-        ['GND', 96, 6],
-        ['VCC', 134, 1],
-        ['GND', 172, 1],
-        ['VCC', 210, 1],
-        ['GND', 248, 1],
+      // All six rows are complete: six terminals each, alternating VCC and GND.
+      const rows: [string, number][] = [
+        ['VCC', 58],
+        ['GND', 96],
+        ['VCC', 134],
+        ['GND', 172],
+        ['VCC', 210],
+        ['GND', 248],
       ];
       return (
         <>
           <Cap x={w / 2} y={28} text="POWER SUPPLY" />
-          {rows.map(([label, y, count], i) => (
+          {rows.map(([label, y], i) => (
             <g key={i} style={{ pointerEvents: 'none' }}>
               <rect
                 x={14}
                 y={y - 17}
-                width={count === 6 ? w - 28 : 118}
+                width={w - 28}
                 height={34}
                 rx={7}
                 fill={label === 'GND' ? 'rgba(2,132,199,0.07)' : 'rgba(234,88,12,0.07)'}

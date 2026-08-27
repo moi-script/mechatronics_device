@@ -36,7 +36,7 @@ npm run typecheck
 | Part | Count | Pins |
 |---|---|---|
 | Breaker | 1 | none — master switch; open means the supply is dead |
-| Power supply | 1 | 16 across six rows: VCC×6, GND×6, then VCC, GND, VCC, GND (one pin each) |
+| Power supply | 1 | 36: six complete rows of six pins, alternating VCC and GND (VCC1-18, GND1-18) |
 | Push button | 6 | NO / COM / NC — conducts only while held |
 | Toggle switch | 3 | NO / COM / NC — latching |
 | Lamp | 3 | VCC / GND |

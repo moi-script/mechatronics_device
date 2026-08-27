@@ -9,15 +9,30 @@ const pin = (id: string, label: string, role: PinDef['role'], x: number, y: numb
   ...(line === undefined ? {} : { line }),
 });
 
-/** Six rows, exactly as they sit on the bench supply. */
+/** Six rows, exactly as they sit on the bench supply: every row carries six pins. */
+const SUPPLY_ROWS: { role: 'SOURCE_VCC' | 'SOURCE_GND'; label: string }[] = [
+  { role: 'SOURCE_VCC', label: 'VCC' },
+  { role: 'SOURCE_GND', label: 'GND' },
+  { role: 'SOURCE_VCC', label: 'VCC' },
+  { role: 'SOURCE_GND', label: 'GND' },
+  { role: 'SOURCE_VCC', label: 'VCC' },
+  { role: 'SOURCE_GND', label: 'GND' },
+];
+
+export const SUPPLY_ROW_Y = [58, 96, 134, 172, 210, 248];
+export const SUPPLY_PIN_X = (i: number) => 78 + i * 58;
+
 const supplyPins = (): PinDef[] => {
   const pins: PinDef[] = [];
-  for (let i = 0; i < 6; i++) pins.push(pin(`VCC${i + 1}`, `VCC${i + 1}`, 'SOURCE_VCC', 78 + i * 58, 58));
-  for (let i = 0; i < 6; i++) pins.push(pin(`GND${i + 1}`, `GND${i + 1}`, 'SOURCE_GND', 78 + i * 58, 96));
-  pins.push(pin('VCC7', 'VCC', 'SOURCE_VCC', 78, 134));
-  pins.push(pin('GND7', 'GND', 'SOURCE_GND', 78, 172));
-  pins.push(pin('VCC8', 'VCC', 'SOURCE_VCC', 78, 210));
-  pins.push(pin('GND8', 'GND', 'SOURCE_GND', 78, 248));
+  let vcc = 0;
+  let gnd = 0;
+  SUPPLY_ROWS.forEach((row, r) => {
+    for (let i = 0; i < 6; i++) {
+      const n = row.role === 'SOURCE_VCC' ? ++vcc : ++gnd;
+      const id = row.label + n;
+      pins.push(pin(id, id, row.role, SUPPLY_PIN_X(i), SUPPLY_ROW_Y[r]));
+    }
+  });
   return pins;
 };
 
