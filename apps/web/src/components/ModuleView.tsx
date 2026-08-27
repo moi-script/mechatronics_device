@@ -10,17 +10,10 @@ import type { Palette } from '@/lib/palette';
 const GRID = 8;
 const snap = (v: number) => Math.round(v / GRID) * GRID;
 
-/** Insulator collar colour, keyed to what the terminal actually is. */
-const collarFor = (role: PinRole, p: Palette): string =>
-  ({
-    SOURCE_VCC: p.amber,
-    LOAD_VCC: p.amber,
-    SOURCE_GND: p.blue,
-    LOAD_GND: p.blue,
-    NO: p.green,
-    NC: p.red,
-    COM: p.neutral,
-  })[role];
+/** Insulator collar colour: COM and GND are black, every other terminal is red. */
+const BLACK_ROLES: ReadonlySet<PinRole> = new Set(['COM', 'SOURCE_GND', 'LOAD_GND']);
+
+const collarFor = (role: PinRole, p: Palette): string => (BLACK_ROLES.has(role) ? p.pinBlack : p.pinRed);
 
 /** A short tag for the legend plate, naming the part's contact arrangement. */
 const TAG: Record<string, string> = {

@@ -52,7 +52,8 @@ holds exactly one female — so leads stack into a tower the way banana plugs do
 bench. Click the brass stub on a plugged lead to stack onto it. Female-to-female,
 male-to-male, and chains that loop back on themselves are refused.
 
-Leads come in blue, green, red, black and yellow. Drag a module to move it. `Esc` cancels a
+Terminals are colour-keyed by function: COM and GND wear black collars, every other
+terminal wears red. Leads come in blue, green, red, black and yellow. Drag a module to move it. `Esc` cancels a
 lead in progress, `Del` removes the selected one.
 
 ## Themes

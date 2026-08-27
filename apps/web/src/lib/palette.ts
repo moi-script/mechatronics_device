@@ -43,6 +43,10 @@ export interface Palette {
   red: string;
   neutral: string;
 
+  /** Terminal collars: COM and GND are black, every other pin is red. */
+  pinBlack: string;
+  pinRed: string;
+
   titleFace: string;
   titleBar: string;
   titleBarText: string;
@@ -88,6 +92,9 @@ export const LIGHT: Palette = {
   green: '#1b9c5a',
   red: '#c62828',
   neutral: '#46586a',
+
+  pinBlack: '#11181f',
+  pinRed: '#c62828',
 
   titleFace: '#f6f8fa',
   titleBar: '#16202b',
@@ -135,6 +142,10 @@ export const DARK: Palette = {
   green: '#22c55e',
   red: '#f05252',
   neutral: '#8496ab',
+
+  // Still black, just deep enough to separate from the dark plate behind it.
+  pinBlack: '#05090e',
+  pinRed: '#ef4444',
 
   titleFace: '#141b26',
   titleBar: '#0b1119',
