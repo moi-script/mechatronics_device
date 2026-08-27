@@ -42,7 +42,8 @@ services:
       # Server-side only: the browser always talks to /api on this origin.
       NEXT_PUBLIC_API_URL: http://api:4000
     ports:
-      - '3000:3000'
+      # Override WEB_PORT when 3000 is already taken on the host.
+      - '${WEB_PORT:-3000}:3000'
 
 volumes:
   mongo-data:

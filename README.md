@@ -102,10 +102,14 @@ Sessions are a JWT in an httpOnly cookie, so no token is reachable from page scr
 secret first:
 
 ```bash
-echo "JWT_SECRET=$(openssl rand -base64 48)" >> .env
-echo "WEB_ORIGIN=https://your-domain" >> .env
+cp .env.example .env
+# then set JWT_SECRET, WEB_ORIGIN, and WEB_PORT in .env
 docker compose up --build -d
 ```
+
+`WEB_PORT` sets the host port the site is published on, so it can move off 3000 when
+something else already holds it. Docker Desktop (or another Docker daemon) must be running
+before `docker compose` will do anything.
 
 The browser only ever talks to the web origin: Next.js proxies `/api/*` through to the API
 service, so the API needs no public exposure and the session cookie stays same-site.
