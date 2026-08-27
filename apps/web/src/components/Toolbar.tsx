@@ -23,6 +23,7 @@ import { useTheme, useWireColors } from '@/store/useTheme';
 import { api } from '@/lib/api';
 import { SessionTimer } from './SessionTimer';
 import { ConfirmDialog } from './ConfirmDialog';
+import { PromptDialog } from './PromptDialog';
 
 function Btn({
   onClick,
@@ -79,6 +80,7 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
   const [savedId, setSavedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
+  const [namingCircuit, setNamingCircuit] = useState(false);
 
   const save = async () => {
     setBusy(true);
@@ -91,18 +93,28 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
         return;
       }
 
-      const { circuit } = useBoard.getState();
       if (savedId) {
-        await api.updateCircuit(savedId, { circuit });
+        await api.updateCircuit(savedId, { circuit: useBoard.getState().circuit });
         setHint('Saved.');
         return;
       }
 
-      const name = window.prompt('Name this circuit', 'Untitled circuit');
-      if (!name?.trim()) return;
-      const { id } = await api.createCircuit({ name: name.trim(), circuit });
+      // First save of this circuit: ask what to call it.
+      setNamingCircuit(true);
+    } catch (err) {
+      setHint((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveAs = async (name: string) => {
+    setBusy(true);
+    try {
+      const { id } = await api.createCircuit({ name, circuit: useBoard.getState().circuit });
       setSavedId(id);
-      setHint('Saved as "' + name.trim() + '".');
+      setNamingCircuit(false);
+      setHint(`Saved as "${name}".`);
     } catch (err) {
       setHint((err as Error).message);
     } finally {
@@ -235,6 +247,20 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
           <PanelRight className="h-4 w-4" />
         </button>
       </div>
+
+      {namingCircuit && (
+        <PromptDialog
+          title="Save this circuit"
+          message="It goes to your account, so you can pick it up on another machine."
+          label="Circuit name"
+          defaultValue="Untitled circuit"
+          placeholder="Start/stop latch"
+          confirmLabel="Save circuit"
+          busy={busy}
+          onSubmit={saveAs}
+          onCancel={() => setNamingCircuit(false)}
+        />
+      )}
 
       {confirmingClear && (
         <ConfirmDialog
