@@ -1,0 +1,29 @@
+# Render Blueprint. In the Render dashboard: New > Blueprint, point it at this
+# repo, and it creates the API service from this file.
+#
+# Render has no managed MongoDB, so MONGODB_URI must point at a MongoDB Atlas
+# cluster (the free M0 tier is enough). Set it, and WEB_ORIGIN, in the dashboard
+# when prompted - they are marked sync:false so they are never committed here.
+services:
+  - type: web
+    name: mechatronics-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile.api
+    dockerContext: .
+    plan: free
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render terminates TLS in front of the service, so the app must trust the
+      # proxy for correct client IPs and Secure cookies.
+      - key: TRUST_PROXY
+        value: 'true'
+      # Generated once by Render and kept out of the repo.
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGODB_URI
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false

@@ -116,6 +116,34 @@ the API service, so the API needs no public exposure and the session cookie stay
 same-site. The target is read from `API_URL` per request rather than baked into the build,
 so one image works in any environment.
 
+### Vercel + Render
+
+The web app goes on Vercel, the API on Render, and the database on MongoDB Atlas —
+Render has no managed MongoDB, so Atlas (free M0 tier) provides it.
+
+Nothing changes architecturally: the browser still only talks to the Vercel origin, and
+the Next.js proxy route forwards `/api/*` to Render server-side. The session cookie is set
+on the Vercel domain, so it stays same-site and no cross-site cookie config is needed.
+
+```
+browser ──► Vercel (Next.js)  ──► Render (Express API) ──► Atlas (MongoDB)
+             the only public origin      no public traffic
+```
+
+1. **Atlas** — create a free cluster and a database user, allow access from anywhere
+   (`0.0.0.0/0`, since Render's egress IPs are not fixed on the free plan), and copy the
+   `mongodb+srv://` connection string.
+2. **Render** — New → Blueprint, point it at this repo. `render.yaml` creates the API
+   service from `Dockerfile.api`. It asks for `MONGODB_URI` (the Atlas string) and
+   `WEB_ORIGIN` (your Vercel URL); `JWT_SECRET` is generated for you. Note the service URL
+   it hands back.
+3. **Vercel** — import the repo. `vercel.json` already sets the monorepo build. Add one
+   environment variable, `API_URL`, set to the Render service URL. Redeploy.
+4. Go back to Render and set `WEB_ORIGIN` to the Vercel URL now that you have it.
+
+On Render's free plan the API sleeps after inactivity, so the first request after a quiet
+spell takes roughly a minute to wake it.
+
 Deploying without Docker: `npm run build -w @mech/web` emits a standalone server at
 `apps/web/.next/standalone/apps/web/server.js`, and the API runs with `npm run start -w
 @mech/api`. Both need their environment set — see the `.env.example` in each app.

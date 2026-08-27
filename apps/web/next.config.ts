@@ -2,8 +2,9 @@ import path from 'node:path';
 import type { NextConfig } from 'next';
 
 const config: NextConfig = {
-  // Emits a self-contained server bundle for the deployment image.
-  output: 'standalone',
+  // A self-contained server bundle for the container image. Vercel builds Next
+  // its own way, so standalone is skipped there.
+  output: process.env.VERCEL ? undefined : 'standalone',
   outputFileTracingRoot: path.join(__dirname, '../..'),
   transpilePackages: ['@mech/sim'],
   poweredByHeader: false,
