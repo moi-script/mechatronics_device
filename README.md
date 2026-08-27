@@ -52,8 +52,17 @@ bench. Click the brass stub on a plugged lead to stack onto it. Female-to-female
 male-to-male, and chains that loop back on themselves are refused.
 
 Terminals are colour-keyed by function: COM and GND wear black collars, every other
-terminal wears red. Leads come in blue, green, red, black and yellow. Drag a module to move it. `Esc` cancels a
-lead in progress, `Del` removes the selected one.
+terminal wears red. Leads come in blue, green, red, black and yellow. `Esc` cancels a lead in progress, `Del`
+removes the selected one.
+
+Drag a module to move it. Dragging across empty board with the mouse draws a marquee and
+selects everything it touches, and dragging any selected module moves the whole group;
+shift-click adds or removes one. The module you grab is what snaps to the grid, and the
+rest shift by that same amount, so a group keeps its relative spacing. `Esc` clears the
+selection.
+
+That leaves the left button busy, so panning moved to **hold space** or **middle-button
+drag**. Touch is untouched: one finger still pans, which is why the marquee is mouse-only.
 
 Every change to the wiring is undoable: `Ctrl+Z` steps back, `Ctrl+Shift+Z` or `Ctrl+Y`
 steps forward, and the toolbar has buttons for both. On phones those two move down beside

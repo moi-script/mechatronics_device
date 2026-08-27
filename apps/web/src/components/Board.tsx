@@ -1,9 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { Maximize2, Minus, Plus, Redo2, Undo2 } from 'lucide-react';
+import { PARTS } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
+import { usePalette } from '@/store/useTheme';
 import { BOARD_H, BOARD_W } from '@/lib/geometry';
 import { ModuleView } from './ModuleView';
 import { Wires } from './Wires';
@@ -20,6 +22,12 @@ export function Board() {
   const redo = useBoard((s) => s.redo);
   const canUndo = useBoard((s) => s.past.length > 0);
   const canRedo = useBoard((s) => s.future.length > 0);
+  const palette = usePalette();
+
+  /** Rubber band in board coordinates while a marquee drag is in progress. */
+  const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  /** Holding space hands the left button back to panning. */
+  const [panMode, setPanMode] = useState(false);
 
   const hostRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -65,6 +73,7 @@ export function Board() {
       if (e.key === 'Escape') {
         cancelWire();
         selectWire(null);
+        useBoard.getState().clearModuleSelection();
         return;
       }
 
@@ -94,20 +103,94 @@ export function Board() {
     return () => window.removeEventListener('keydown', onKey);
   }, [cancelWire, selectWire, deleteWire, undo, redo]);
 
-  // Screen pixels -> board units, so the trailing lead follows the cursor exactly.
+  // Hold space to pan with the left button, the way drawing tools do.
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !(e.target as HTMLElement)?.closest?.('input, textarea')) {
+        e.preventDefault();
+        setPanMode(true);
+      }
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.code === 'Space') setPanMode(false);
+    };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+    };
+  }, []);
+
+  /** Screen pixels -> board units. */
+  const toBoard = useCallback((clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    const ctm = svg?.getScreenCTM();
+    if (!svg || !ctm) return null;
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    return pt.matrixTransform(ctm.inverse());
+  }, []);
+
+  // So the trailing lead follows the cursor exactly.
   const onPointerMove = useCallback(
     (e: React.PointerEvent) => {
       if (!useBoard.getState().pending) return;
-      const svg = svgRef.current;
-      const ctm = svg?.getScreenCTM();
-      if (!svg || !ctm) return;
-      const pt = svg.createSVGPoint();
-      pt.x = e.clientX;
-      pt.y = e.clientY;
-      const p = pt.matrixTransform(ctm.inverse());
-      setCursor(p.x, p.y);
+      const p = toBoard(e.clientX, e.clientY);
+      if (p) setCursor(p.x, p.y);
     },
-    [setCursor],
+    [setCursor, toBoard],
+  );
+
+  /**
+   * Left-dragging empty board draws a marquee and selects whatever it touches.
+   * Touch is left alone so one finger still pans the board on a phone.
+   */
+  const onBackgroundDown = useCallback(
+    (e: React.PointerEvent) => {
+      cancelWire();
+      selectWire(null);
+
+      if (e.pointerType !== 'mouse' || e.button !== 0 || panMode) return;
+      const start = toBoard(e.clientX, e.clientY);
+      if (!start) return;
+
+      if (!e.shiftKey) useBoard.getState().clearModuleSelection();
+      const base = e.shiftKey ? useBoard.getState().selectedModuleIds : [];
+      setMarquee({ x0: start.x, y0: start.y, x1: start.x, y1: start.y });
+
+      const onMove = (ev: PointerEvent) => {
+        const p = toBoard(ev.clientX, ev.clientY);
+        if (!p) return;
+        setMarquee({ x0: start.x, y0: start.y, x1: p.x, y1: p.y });
+
+        const left = Math.min(start.x, p.x);
+        const right = Math.max(start.x, p.x);
+        const top = Math.min(start.y, p.y);
+        const bottom = Math.max(start.y, p.y);
+
+        const hit = useBoard
+          .getState()
+          .circuit.modules.filter((m) => {
+            const part = PARTS[m.type];
+            return m.x < right && m.x + part.width > left && m.y < bottom && m.y + part.height > top;
+          })
+          .map((m) => m.id);
+
+        useBoard.getState().setSelectedModules([...new Set([...base, ...hit])]);
+      };
+
+      const onUp = () => {
+        setMarquee(null);
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+      };
+
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    },
+    [cancelWire, selectWire, panMode, toBoard],
   );
 
   // 44px on touch screens so the targets clear the accessibility minimum.
@@ -125,7 +208,14 @@ export function Board() {
           limitToBounds={false}
           centerOnInit
           doubleClick={{ disabled: true }}
-          panning={{ excluded: ['no-pan'], velocityDisabled: true }}
+          panning={{
+            excluded: ['no-pan'],
+            velocityDisabled: true,
+            // The left button draws a marquee instead; space or the middle
+            // button still pans, and touch is unaffected.
+            allowLeftClickPan: panMode,
+            allowMiddleClickPan: true,
+          }}
           wheel={{ step: 0.08 }}
           pinch={{ step: 4 }}
           onPanningStart={() => {
@@ -142,12 +232,9 @@ export function Board() {
               height={BOARD_H}
               viewBox={'0 0 ' + BOARD_W + ' ' + BOARD_H}
               className="max-w-none shrink-0"
-              style={{ width: BOARD_W, height: BOARD_H }}
               onPointerMove={onPointerMove}
-              onPointerDown={() => {
-                cancelWire();
-                selectWire(null);
-              }}
+              onPointerDown={onBackgroundDown}
+              style={{ width: BOARD_W, height: BOARD_H, cursor: panMode ? 'grab' : 'default' }}
             >
               <BoardDefs />
 
@@ -156,6 +243,21 @@ export function Board() {
                 <ModuleView key={m.id} m={m} />
               ))}
               <Wires />
+
+              {marquee && (
+                <rect
+                  x={Math.min(marquee.x0, marquee.x1)}
+                  y={Math.min(marquee.y0, marquee.y1)}
+                  width={Math.abs(marquee.x1 - marquee.x0)}
+                  height={Math.abs(marquee.y1 - marquee.y0)}
+                  fill={palette.amber}
+                  fillOpacity={0.08}
+                  stroke={palette.amber}
+                  strokeWidth={1.5}
+                  strokeDasharray="6 4"
+                  pointerEvents="none"
+                />
+              )}
             </svg>
           </TransformComponent>
         </TransformWrapper>

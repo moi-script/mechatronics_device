@@ -329,32 +329,75 @@ function Face({ m }: { m: ModuleInstance }) {
 
 export function ModuleView({ m }: { m: ModuleInstance }) {
   const part = PARTS[m.type];
-  const moveModule = useBoard((s) => s.moveModule);
   const beginMove = useBoard((s) => s.beginMove);
+  const selected = useBoard((s) => s.selectedModuleIds.includes(m.id));
   const p = usePalette();
   const getScale = useContext(ScaleContext);
-  const drag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
+  // Where every module being dragged started, so the group moves as one. The
+  // anchor is the module actually grabbed; it decides the snapped delta.
+  const drag = useRef<{
+    px: number;
+    py: number;
+    anchor: { x: number; y: number };
+    origins: Record<string, { x: number; y: number }>;
+  } | null>(null);
 
   const onDown = useCallback(
     (e: React.PointerEvent) => {
       e.stopPropagation();
-      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+      const board = useBoard.getState();
+
+      // Shift adjusts the selection rather than starting a drag.
+      if (e.shiftKey) {
+        board.toggleModuleSelection(m.id);
+        return;
+      }
+
+      // Dragging an unselected module makes it the selection.
+      let ids = board.selectedModuleIds;
+      if (!ids.includes(m.id)) {
+        ids = [m.id];
+        board.setSelectedModules(ids);
+      }
+
       // One snapshot for the whole drag, not one per pointer move.
       beginMove();
-      drag.current = { px: e.clientX, py: e.clientY, ox: m.x, oy: m.y };
+      const origins: Record<string, { x: number; y: number }> = {};
+      for (const mod of board.circuit.modules) {
+        if (ids.includes(mod.id)) origins[mod.id] = { x: mod.x, y: mod.y };
+      }
+      drag.current = { px: e.clientX, py: e.clientY, anchor: { x: m.x, y: m.y }, origins };
+
+      // Capture last: if it is refused, the drag should still work.
+      try {
+        (e.currentTarget as Element).setPointerCapture(e.pointerId);
+      } catch {
+        // No active pointer to capture; move events still reach the element.
+      }
     },
-    [beginMove, m.x, m.y],
+    [beginMove, m.id, m.x, m.y],
   );
 
   const onMove = useCallback(
     (e: React.PointerEvent) => {
-      if (!drag.current) return;
+      const state = drag.current;
+      if (!state) return;
       const k = getScale();
-      const nx = drag.current.ox + (e.clientX - drag.current.px) / k;
-      const ny = drag.current.oy + (e.clientY - drag.current.py) / k;
-      moveModule(m.id, snap(Math.max(0, nx)), snap(Math.max(0, ny)));
+      const dx = (e.clientX - state.px) / k;
+      const dy = (e.clientY - state.py) / k;
+
+      // Snap the grabbed module, then shift the rest by that same delta, so a
+      // group keeps its relative spacing instead of each part snapping apart.
+      const snappedDx = snap(Math.max(0, state.anchor.x + dx)) - state.anchor.x;
+      const snappedDy = snap(Math.max(0, state.anchor.y + dy)) - state.anchor.y;
+
+      const next: Record<string, { x: number; y: number }> = {};
+      for (const [id, origin] of Object.entries(state.origins)) {
+        next[id] = { x: Math.max(0, origin.x + snappedDx), y: Math.max(0, origin.y + snappedDy) };
+      }
+      useBoard.getState().moveModules(next);
     },
-    [getScale, m.id, moveModule],
+    [getScale],
   );
 
   const onUp = useCallback(() => {
@@ -365,6 +408,20 @@ export function ModuleView({ m }: { m: ModuleInstance }) {
 
   return (
     <g data-module={m.id} transform={`translate(${m.x},${m.y})`}>
+      {selected && (
+        <rect
+          x={-5}
+          y={-5}
+          width={pw + 10}
+          height={ph + 10}
+          rx={12}
+          fill="none"
+          stroke={p.amber}
+          strokeWidth={2.5}
+          strokeDasharray="8 5"
+          pointerEvents="none"
+        />
+      )}
       <rect
         className="no-pan"
         width={pw}

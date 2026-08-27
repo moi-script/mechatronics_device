@@ -33,6 +33,8 @@ interface BoardStore extends Core {
   past: Circuit[];
   future: Circuit[];
   wireColor: WireColor;
+  /** Modules picked out with the marquee or shift-click, moved as a group. */
+  selectedModuleIds: string[];
   pending: EndRef | null;
   cursor: { x: number; y: number };
   selectedWireId: string | null;
@@ -45,6 +47,11 @@ interface BoardStore extends Core {
   flipToggle(id: string): void;
 
   moveModule(id: string, x: number, y: number): void;
+  /** Reposition several modules at once, for a group drag. */
+  moveModules(positions: Record<string, { x: number; y: number }>): void;
+  setSelectedModules(ids: string[]): void;
+  toggleModuleSelection(id: string): void;
+  clearModuleSelection(): void;
   startWire(from: EndRef): void;
   completeWire(to: EndRef): void;
   cancelWire(): void;
@@ -111,6 +118,7 @@ export const useBoard = create<BoardStore>((set, get) => ({
   past: [],
   future: [],
   wireColor: 'red',
+  selectedModuleIds: [],
   pending: null,
   cursor: { x: 0, y: 0 },
   selectedWireId: null,
@@ -129,6 +137,26 @@ export const useBoard = create<BoardStore>((set, get) => ({
       },
       dirty: true,
     })),
+
+  moveModules: (positions) =>
+    set((s) => ({
+      circuit: {
+        ...s.circuit,
+        modules: s.circuit.modules.map((m) => (positions[m.id] ? { ...m, ...positions[m.id] } : m)),
+      },
+      dirty: true,
+    })),
+
+  setSelectedModules: (ids) => set({ selectedModuleIds: ids }),
+
+  toggleModuleSelection: (id) =>
+    set((s) => ({
+      selectedModuleIds: s.selectedModuleIds.includes(id)
+        ? s.selectedModuleIds.filter((x) => x !== id)
+        : [...s.selectedModuleIds, id],
+    })),
+
+  clearModuleSelection: () => set({ selectedModuleIds: [] }),
 
   startWire: (from) => {
     if (from.kind === 'stack' && isMaleOccupied(get().circuit, from.wireId, from.end)) {
@@ -244,6 +272,7 @@ export const useBoard = create<BoardStore>((set, get) => ({
       past: [],
       future: [],
       selectedWireId: null,
+      selectedModuleIds: [],
       pending: null,
       dirty: false,
     })),
