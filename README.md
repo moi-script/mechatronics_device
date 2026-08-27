@@ -111,8 +111,10 @@ docker compose up --build -d
 something else already holds it. Docker Desktop (or another Docker daemon) must be running
 before `docker compose` will do anything.
 
-The browser only ever talks to the web origin: Next.js proxies `/api/*` through to the API
-service, so the API needs no public exposure and the session cookie stays same-site.
+The browser only ever talks to the web origin: a Next.js route handler forwards `/api/*` to
+the API service, so the API needs no public exposure and the session cookie stays
+same-site. The target is read from `API_URL` per request rather than baked into the build,
+so one image works in any environment.
 
 Deploying without Docker: `npm run build -w @mech/web` emits a standalone server at
 `apps/web/.next/standalone/apps/web/server.js`, and the API runs with `npm run start -w

@@ -39,8 +39,9 @@ services:
       - api
     environment:
       NODE_ENV: production
-      # Server-side only: the browser always talks to /api on this origin.
-      NEXT_PUBLIC_API_URL: http://api:4000
+      # Server-side only: the browser always talks to /api on this origin,
+      # and the proxy route resolves this per request.
+      API_URL: http://api:4000
     ports:
       # Override WEB_PORT when 3000 is already taken on the host.
       - '${WEB_PORT:-3000}:3000'
