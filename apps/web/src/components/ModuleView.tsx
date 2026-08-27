@@ -325,6 +325,7 @@ function Face({ m }: { m: ModuleInstance }) {
 export function ModuleView({ m }: { m: ModuleInstance }) {
   const part = PARTS[m.type];
   const moveModule = useBoard((s) => s.moveModule);
+  const beginMove = useBoard((s) => s.beginMove);
   const p = usePalette();
   const getScale = useContext(ScaleContext);
   const drag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
@@ -333,9 +334,11 @@ export function ModuleView({ m }: { m: ModuleInstance }) {
     (e: React.PointerEvent) => {
       e.stopPropagation();
       (e.currentTarget as Element).setPointerCapture(e.pointerId);
+      // One snapshot for the whole drag, not one per pointer move.
+      beginMove();
       drag.current = { px: e.clientX, py: e.clientY, ox: m.x, oy: m.y };
     },
-    [m.x, m.y],
+    [beginMove, m.x, m.y],
   );
 
   const onMove = useCallback(

@@ -55,6 +55,11 @@ Terminals are colour-keyed by function: COM and GND wear black collars, every ot
 terminal wears red. Leads come in blue, green, red, black and yellow. Drag a module to move it. `Esc` cancels a
 lead in progress, `Del` removes the selected one.
 
+Every change to the wiring is undoable: `Ctrl+Z` steps back, `Ctrl+Shift+Z` or `Ctrl+Y`
+steps forward, and the toolbar has buttons for both. A drag counts as one step rather than
+one per pixel, and loading a saved circuit starts a fresh history. Clearing the board asks
+first, and is itself undoable.
+
 ## Practice timer
 
 The timer is not a board component and is not wired to anything. It is a session alarm

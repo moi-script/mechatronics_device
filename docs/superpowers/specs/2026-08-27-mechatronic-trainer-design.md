@@ -98,7 +98,9 @@ wire selects it for recolour or delete. While running, HOT nets glow warm, lit l
 bloom, energized coils show a badge, and timers show a countdown. The error panel
 lists each fault with a control that flashes the offending net or pin.
 
-Out of scope: undo/redo.
+Undo and redo were added after the fact: the store keeps circuit snapshots either side of
+the present, capped at 60 steps. Only wiring and module positions are undoable - breaker
+state, button presses and the theme are not, since they are not edits to the circuit.
 
 ## API and data
 

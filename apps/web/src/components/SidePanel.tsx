@@ -119,7 +119,8 @@ export function SidePanel({ open, onClose }: { open: boolean; onClose: () => voi
         </Section>
         <div className="mt-auto p-4 text-[11px] leading-relaxed text-carbon-600">
           Tap a terminal, then a second terminal to run a lead. Tap the brass stub on a plugged lead to stack another
-          onto it. Drag a module to move it. Esc cancels, Del removes the selected lead.
+          onto it. Drag a module to move it. Esc cancels, Del removes the selected lead, and Ctrl+Z / Ctrl+Shift+Z
+          step back and forward.
         </div>
         {hint && (
           <div className="sticky bottom-0 border-t border-signal-blue/35 bg-signal-blue/10 px-4 py-3 text-xs text-signal-blue">{hint}</div>

@@ -29,6 +29,9 @@ interface Core {
 }
 
 interface BoardStore extends Core {
+  /** Circuit snapshots either side of the present, for undo and redo. */
+  past: Circuit[];
+  future: Circuit[];
   wireColor: WireColor;
   pending: EndRef | null;
   cursor: { x: number; y: number };
@@ -47,6 +50,11 @@ interface BoardStore extends Core {
   cancelWire(): void;
   setCursor(x: number, y: number): void;
 
+  undo(): void;
+  redo(): void;
+  /** Snapshot before a drag, so the whole move is one undo step. */
+  beginMove(): void;
+
   setWireColor(c: WireColor): void;
   selectWire(id: string | null): void;
   deleteWire(id: string): void;
@@ -55,6 +63,18 @@ interface BoardStore extends Core {
 
   setHint(h: string | null): void;
 }
+
+/** How many steps back the board can be walked. */
+const HISTORY_LIMIT = 60;
+
+/**
+ * Snapshot the circuit so the change about to happen can be undone. Taking a
+ * new action always abandons the redo branch, which is what people expect.
+ */
+const remember = (s: { past: Circuit[]; circuit: Circuit }) => ({
+  past: [...s.past, s.circuit].slice(-HISTORY_LIMIT),
+  future: [] as Circuit[],
+});
 
 const inputsOf = (s: Core): Inputs => ({
   breakerClosed: s.breakerOn && !s.tripped,
@@ -88,6 +108,8 @@ function initial(): Core {
 
 export const useBoard = create<BoardStore>((set, get) => ({
   ...initial(),
+  past: [],
+  future: [],
   wireColor: 'red',
   pending: null,
   cursor: { x: 0, y: 0 },
@@ -132,6 +154,7 @@ export const useBoard = create<BoardStore>((set, get) => ({
       const wire = { id, color: s.wireColor, a: from, b: to };
       return {
         ...resolve({ ...s, circuit: { ...s.circuit, wires: [...s.circuit.wires, wire] } }),
+        ...remember(s),
         pending: null,
         hint: null,
         dirty: true,
@@ -145,6 +168,7 @@ export const useBoard = create<BoardStore>((set, get) => ({
     set((s) => {
       if (s.selectedWireId) {
         return {
+          ...remember(s),
           wireColor: c,
           circuit: {
             ...s.circuit,
@@ -168,14 +192,57 @@ export const useBoard = create<BoardStore>((set, get) => ({
             ref.kind === 'stack' && ref.wireId === id ? { kind: 'loose', x: 0, y: 0 } : ref;
           return { ...w, a: drop(w.a), b: drop(w.b) };
         });
-      return { ...resolve({ ...s, circuit: { ...s.circuit, wires } }), selectedWireId: null, dirty: true };
+      return {
+        ...resolve({ ...s, circuit: { ...s.circuit, wires } }),
+        ...remember(s),
+        selectedWireId: null,
+        dirty: true,
+      };
     }),
 
-  clearWires: () => set((s) => ({ ...resolve({ ...s, circuit: { ...s.circuit, wires: [] } }), dirty: true })),
+  clearWires: () =>
+    set((s) => ({
+      ...resolve({ ...s, circuit: { ...s.circuit, wires: [] } }),
+      ...remember(s),
+      selectedWireId: null,
+      dirty: true,
+    })),
+
+  beginMove: () => set((s) => remember(s)),
+
+  undo: () =>
+    set((s) => {
+      const previous = s.past.at(-1);
+      if (!previous) return {};
+      return {
+        ...resolve({ ...s, circuit: previous }),
+        past: s.past.slice(0, -1),
+        future: [s.circuit, ...s.future].slice(0, HISTORY_LIMIT),
+        selectedWireId: null,
+        pending: null,
+        dirty: true,
+      };
+    }),
+
+  redo: () =>
+    set((s) => {
+      const [next, ...rest] = s.future;
+      if (!next) return {};
+      return {
+        ...resolve({ ...s, circuit: next }),
+        past: [...s.past, s.circuit].slice(-HISTORY_LIMIT),
+        future: rest,
+        selectedWireId: null,
+        pending: null,
+        dirty: true,
+      };
+    }),
 
   loadCircuit: (c) =>
     set((s) => ({
       ...resolve({ ...s, circuit: c, simState: emptyState(), tripped: false, latched: [] }),
+      past: [],
+      future: [],
       selectedWireId: null,
       pending: null,
       dirty: false,

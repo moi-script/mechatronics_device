@@ -16,6 +16,8 @@ export function Board() {
   const cancelWire = useBoard((s) => s.cancelWire);
   const selectWire = useBoard((s) => s.selectWire);
   const deleteWire = useBoard((s) => s.deleteWire);
+  const undo = useBoard((s) => s.undo);
+  const redo = useBoard((s) => s.redo);
 
   const hostRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -53,18 +55,42 @@ export function Board() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Never hijack keys while the user is typing into a field.
+      const el = e.target as HTMLElement | null;
+      const typing =
+        el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el?.isContentEditable === true;
+
       if (e.key === 'Escape') {
         cancelWire();
         selectWire(null);
+        return;
       }
-      if (e.key === 'Delete' || e.key === 'Backspace') {
+
+      if ((e.ctrlKey || e.metaKey) && !typing) {
+        const key = e.key.toLowerCase();
+        if (key === 'z' && !e.shiftKey) {
+          e.preventDefault();
+          undo();
+          return;
+        }
+        if ((key === 'z' && e.shiftKey) || key === 'y') {
+          e.preventDefault();
+          redo();
+          return;
+        }
+      }
+
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !typing) {
         const id = useBoard.getState().selectedWireId;
-        if (id) deleteWire(id);
+        if (id) {
+          e.preventDefault();
+          deleteWire(id);
+        }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [cancelWire, selectWire, deleteWire]);
+  }, [cancelWire, selectWire, deleteWire, undo, redo]);
 
   // Screen pixels -> board units, so the trailing lead follows the cursor exactly.
   const onPointerMove = useCallback(

@@ -2,12 +2,27 @@
 
 import { useState } from 'react';
 import clsx from 'clsx';
-import { FolderOpen, Monitor, Moon, PanelRight, Power, RotateCcw, Save, Share2, Sun, Trash2, Zap } from 'lucide-react';
+import {
+  FolderOpen,
+  Monitor,
+  Moon,
+  PanelRight,
+  Power,
+  Redo2,
+  RotateCcw,
+  Save,
+  Share2,
+  Sun,
+  Trash2,
+  Undo2,
+  Zap,
+} from 'lucide-react';
 import { WIRE_COLORS, type WireColor } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
 import { useTheme, useWireColors } from '@/store/useTheme';
 import { api } from '@/lib/api';
 import { SessionTimer } from './SessionTimer';
+import { ConfirmDialog } from './ConfirmDialog';
 
 function Btn({
   onClick,
@@ -51,6 +66,10 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
   const selectedWireId = useBoard((s) => s.selectedWireId);
   const deleteWire = useBoard((s) => s.deleteWire);
   const clearWires = useBoard((s) => s.clearWires);
+  const undo = useBoard((s) => s.undo);
+  const redo = useBoard((s) => s.redo);
+  const canUndo = useBoard((s) => s.past.length > 0);
+  const canRedo = useBoard((s) => s.future.length > 0);
   const wireCount = useBoard((s) => s.circuit.wires.length);
   const setHint = useBoard((s) => s.setHint);
   const WIRE_HEX = useWireColors();
@@ -59,6 +78,7 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
 
   const [savedId, setSavedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
   const save = async () => {
     setBusy(true);
@@ -162,11 +182,20 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
         <span className="hidden md:inline">Delete lead</span>
       </Btn>
 
+      <div className="flex items-center gap-1">
+        <Btn onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)">
+          <Undo2 className="h-3.5 w-3.5" />
+        </Btn>
+        <Btn onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Shift+Z)">
+          <Redo2 className="h-3.5 w-3.5" />
+        </Btn>
+      </div>
+
       <SessionTimer />
 
       <div className="ml-auto flex items-center gap-2">
         <span className="hidden font-mono text-[11px] text-carbon-600 lg:inline">{String(wireCount).padStart(2, '0')} leads</span>
-        <Btn onClick={() => clearWires()} tone="danger" disabled={wireCount === 0}>
+        <Btn onClick={() => setConfirmingClear(true)} tone="danger" disabled={wireCount === 0}>
           <span className="hidden sm:inline">Clear all</span>
           <span className="sm:hidden">Clear</span>
         </Btn>
@@ -206,6 +235,21 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
           <PanelRight className="h-4 w-4" />
         </button>
       </div>
+
+      {confirmingClear && (
+        <ConfirmDialog
+          title="Clear the whole board?"
+          message={`This removes ${wireCount === 1 ? 'the only lead' : 'all ' + wireCount + ' leads'} from the board. The modules stay where they are.`}
+          detail="You can undo this with Ctrl+Z."
+          confirmLabel={wireCount === 1 ? 'Remove the lead' : 'Remove all leads'}
+          onConfirm={() => {
+            clearWires();
+            setConfirmingClear(false);
+            setHint('Board cleared. Ctrl+Z brings the leads back.');
+          }}
+          onCancel={() => setConfirmingClear(false)}
+        />
+      )}
     </header>
   );
 }
