@@ -136,13 +136,7 @@ function evaluate(circuit: Circuit, breakerClosed: boolean, actuated: Record<str
 }
 
 /** Contact position each part takes for a given coil / input state. */
-function actuationFor(
-  m: ModuleInstance,
-  inputs: Inputs,
-  coil: Record<string, boolean>,
-  timerElapsedMs: Record<string, number>,
-  timerDelayMs: number,
-): boolean {
+function actuationFor(m: ModuleInstance, inputs: Inputs, coil: Record<string, boolean>): boolean {
   switch (m.type) {
     case 'PUSHBTN':
       return !!inputs.pressed[m.id];
@@ -151,8 +145,6 @@ function actuationFor(
     case 'RELAY':
     case 'BIGRELAY':
       return !!coil[m.id];
-    case 'TIMER':
-      return !!coil[m.id] && (timerElapsedMs[m.id] ?? 0) >= timerDelayMs;
     default:
       return false;
   }
@@ -162,30 +154,19 @@ const sameActuation = (a: Record<string, boolean>, b: Record<string, boolean>): 
   Object.keys(a).length === Object.keys(b).length && Object.keys(a).every((k) => a[k] === b[k]);
 
 /**
- * Advance the board by `dtMs` and solve it. Pure: same inputs, same result.
- * Relay feedback is resolved by re-solving until the contacts stop moving.
+ * Solve the board. Pure: same inputs, same result. Relay feedback is resolved
+ * by re-solving until the contacts stop moving.
  */
-export function step(circuit: Circuit, inputs: Inputs, prev: SimState, dtMs = 0): SimResult {
+export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResult {
   const labelOf = (id: string): string => {
     const m = circuit.modules.find((x) => x.id === id);
     return m ? moduleLabel(m) : id;
   };
 
-  // Timers accumulate on the previous pass's coil state, then hold their
-  // position for the whole of this step.
-  const timerElapsedMs: Record<string, number> = {};
-  for (const m of circuit.modules) {
-    if (m.type !== 'TIMER') continue;
-    const running = inputs.breakerClosed && !!prev.coil[m.id];
-    timerElapsedMs[m.id] = running
-      ? Math.min(circuit.timerDelayMs, (prev.timerElapsedMs[m.id] ?? 0) + dtMs)
-      : 0;
-  }
-
   let coil = { ...prev.coil };
   let actuated: Record<string, boolean> = {};
   for (const m of circuit.modules) {
-    actuated[m.id] = actuationFor(m, inputs, coil, timerElapsedMs, circuit.timerDelayMs);
+    actuated[m.id] = actuationFor(m, inputs, coil);
   }
 
   let pass = evaluate(circuit, inputs.breakerClosed, actuated);
@@ -193,7 +174,7 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState, dtMs = 0)
     if (pass.shortedNets.length > 0) break;
     const next: Record<string, boolean> = {};
     for (const m of circuit.modules) {
-      next[m.id] = actuationFor(m, inputs, pass.coil, timerElapsedMs, circuit.timerDelayMs);
+      next[m.id] = actuationFor(m, inputs, pass.coil);
     }
     if (sameActuation(next, actuated)) break;
     actuated = next;
@@ -241,6 +222,6 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState, dtMs = 0)
     devices,
     errors,
     faulted,
-    state: { timerElapsedMs, coil: faulted ? {} : coil },
+    state: { coil: faulted ? {} : coil },
   };
 }

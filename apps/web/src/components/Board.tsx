@@ -10,15 +10,12 @@ import { Wires } from './Wires';
 import { ScaleContext } from './ScaleContext';
 import { BoardDefs, BoardPlate } from './BoardPlate';
 
-const TICK_MS = 50;
-
 export function Board() {
   const modules = useBoard((s) => s.circuit.modules);
   const setCursor = useBoard((s) => s.setCursor);
   const cancelWire = useBoard((s) => s.cancelWire);
   const selectWire = useBoard((s) => s.selectWire);
   const deleteWire = useBoard((s) => s.deleteWire);
-  const tick = useBoard((s) => s.tick);
 
   const hostRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -53,11 +50,6 @@ export function Board() {
       ro.disconnect();
     };
   }, [fit]);
-
-  useEffect(() => {
-    const id = setInterval(() => tick(TICK_MS), TICK_MS);
-    return () => clearInterval(id);
-  }, [tick]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

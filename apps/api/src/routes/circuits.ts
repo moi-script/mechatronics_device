@@ -6,10 +6,9 @@ import { readUser, requireUser, type AuthedRequest } from '../auth-middleware';
 export const circuitsRouter = Router();
 circuitsRouter.use(readUser);
 
-const toCircuit = (doc: { modules: unknown; wires: unknown; timerDelayMs: number }) => ({
+const toCircuit = (doc: { modules: unknown; wires: unknown }) => ({
   modules: doc.modules,
   wires: doc.wires,
-  timerDelayMs: doc.timerDelayMs,
 });
 
 circuitsRouter.get('/circuits', requireUser, async (req: AuthedRequest, res) => {
@@ -35,7 +34,6 @@ circuitsRouter.post('/circuits', requireUser, async (req: AuthedRequest, res) =>
     name,
     modules: circuit.modules,
     wires: circuit.wires,
-    timerDelayMs: circuit.timerDelayMs ?? 5000,
   });
   res.json({ id: String(doc._id) });
 });
@@ -56,7 +54,6 @@ circuitsRouter.put('/circuits/:id', requireUser, async (req: AuthedRequest, res)
   if (circuit) {
     update.modules = circuit.modules;
     update.wires = circuit.wires;
-    update.timerDelayMs = circuit.timerDelayMs ?? 5000;
   }
   const doc = await Circuit.findOneAndUpdate({ _id: req.params.id, ownerId: req.userId }, update, { new: true });
   if (!doc) {

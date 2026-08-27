@@ -17,7 +17,7 @@ const inputs = (over: Partial<Inputs> = {}): Inputs => ({
   ...over,
 });
 
-const run = (c: Circuit, i: Inputs) => step(c, i, emptyState(), 0);
+const run = (c: Circuit, i: Inputs) => step(c, i, emptyState());
 
 test('a lamp across the supply lights, and goes dark when the breaker opens', () => {
   const c = board(wire(t('SUPPLY', 'VCC1'), t('LAMP1', 'VCC')), wire(t('SUPPLY', 'GND1'), t('LAMP1', 'GND')));
@@ -47,31 +47,13 @@ test('a relay holds itself in through its own NO contact after the button is rel
     wire(t('RLY1', 'NO1'), t('RLY1', 'VCC')),
   );
   let s = emptyState();
-  assert.equal(step(c, inputs(), s, 0).devices.RLY1.energized, false);
+  assert.equal(step(c, inputs(), s).devices.RLY1.energized, false);
 
-  const pressed = step(c, inputs({ pressed: { PB1: true } }), s, 0);
+  const pressed = step(c, inputs({ pressed: { PB1: true } }), s);
   assert.equal(pressed.devices.RLY1.energized, true);
 
-  const released = step(c, inputs(), pressed.state, 0);
+  const released = step(c, inputs(), pressed.state);
   assert.equal(released.devices.RLY1.energized, true, 'latch should hold');
-});
-
-test('the ON-delay timer waits out its delay before closing its contact', () => {
-  const c = board(
-    wire(t('SUPPLY', 'VCC1'), t('TIMER', 'VCC')),
-    wire(t('TIMER', 'GND'), t('SUPPLY', 'GND1')),
-    wire(t('SUPPLY', 'VCC1'), t('TIMER', 'COM1')),
-    wire(t('TIMER', 'NO1'), t('LAMP1', 'VCC')),
-    wire(t('LAMP1', 'GND'), t('SUPPLY', 'GND1')),
-  );
-  const armed = step(c, inputs(), emptyState(), 0);
-  assert.equal(armed.devices.LAMP1.energized, false, 'lamp waits');
-
-  const half = step(c, inputs(), armed.state, 2000);
-  assert.equal(half.devices.LAMP1.energized, false, 'still waiting at 2s');
-
-  const done = step(c, inputs(), half.state, 3000);
-  assert.equal(done.devices.LAMP1.energized, true, 'closes at 5s');
 });
 
 test('a male connector already carrying a lead refuses a second one', () => {

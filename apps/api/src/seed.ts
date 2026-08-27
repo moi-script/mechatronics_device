@@ -44,17 +44,6 @@ const EXERCISES: Seed[] = [
       { label: 'It stays dropped after PB2 is released', release: 'PB2', expect: { RLY1: 'off', LAMP1: 'off' } },
     ],
   },
-  {
-    slug: 'timed-lamp',
-    title: '4 - Delayed start',
-    brief:
-      'Energize the timer coil from the supply and run Lamp 2 through the timer NO contact. Leave the delay at 5 seconds: Lamp 2 must stay dark at first and light once the delay is up.',
-    order: 4,
-    script: [
-      { label: 'Lamp 2 is dark while the timer runs', breaker: true, expect: { LAMP2: 'off' } },
-      { label: 'Lamp 2 lights once the delay expires', advanceMs: 6000, expect: { LAMP2: 'on' } },
-    ],
-  },
 ];
 
 async function main() {
@@ -62,6 +51,8 @@ async function main() {
   for (const ex of EXERCISES) {
     await Exercise.findOneAndUpdate({ slug: ex.slug }, ex, { upsert: true });
   }
+  // Drop any exercise that is no longer part of the course.
+  await Exercise.deleteMany({ slug: { $nin: EXERCISES.map((e) => e.slug) } });
   console.log('seeded ' + EXERCISES.length + ' exercises');
   await mongoose.disconnect();
 }

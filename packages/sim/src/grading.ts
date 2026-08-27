@@ -11,8 +11,6 @@ export interface ScriptStep {
   toggle?: string;
   /** Open or close the breaker. */
   breaker?: boolean;
-  /** Advance the simulated clock before asserting. */
-  advanceMs?: number;
   /** Device id -> expected state. */
   expect?: Record<string, 'on' | 'off'>;
 }
@@ -43,15 +41,8 @@ export function runScript(circuit: Circuit, script: ScriptStep[]): GradeResult {
     if (s.release) inputs.pressed[s.release] = false;
     if (s.toggle) inputs.toggled[s.toggle] = !inputs.toggled[s.toggle];
 
-    // Settle instantly, then advance the clock in one slice for the timer.
-    let result = step(circuit, inputs, state, 0);
+    const result = step(circuit, inputs, state);
     state = result.state;
-    if (s.advanceMs) {
-      result = step(circuit, inputs, state, s.advanceMs);
-      state = result.state;
-      result = step(circuit, inputs, state, 0);
-      state = result.state;
-    }
 
     if (!s.expect) continue;
 

@@ -42,7 +42,6 @@ npm run typecheck
 | Lamp | 3 | VCC / GND |
 | Relay | 5 | VCC / GND + one NO/COM/NC line |
 | Large relay | 2 | VCC / GND + four NO/COM/NC lines |
-| Timer | 1 | VCC / GND + one NO/COM/NC line, ON-delay, delay set in the toolbar |
 
 ## Wiring
 
@@ -55,6 +54,20 @@ male-to-male, and chains that loop back on themselves are refused.
 Terminals are colour-keyed by function: COM and GND wear black collars, every other
 terminal wears red. Leads come in blue, green, red, black and yellow. Drag a module to move it. `Esc` cancels a
 lead in progress, `Del` removes the selected one.
+
+## Practice timer
+
+The timer is not a board component and is not wired to anything. It is a session alarm
+for the activity, and it sits in the toolbar rather than on the panel.
+
+It starts **off**, so you can practise untimed. Turning it **on** means choosing a
+duration in minutes - a preset from 5 to 60, or any custom value - after which it counts
+down as `MM:SS` and can be paused, restarted, or switched back off. When it reaches zero
+it beeps three times, the chip turns red, and the browser tab reads "TIME'S UP" until you
+dismiss it.
+
+Because nothing on the board depends on a clock any more, the simulation is purely
+event-driven: it re-solves on each interaction instead of ticking.
 
 ## Themes
 
@@ -87,8 +100,8 @@ A circuit that never settles (a relay wired to break its own coil) stops at the 
 
 ## Exercises
 
-Four seeded exercises, graded server-side by replaying a script — set inputs, advance the
-clock, assert device states — through the same solver the browser runs.
+Three seeded exercises, graded server-side by replaying a script — set inputs, assert
+device states — through the same solver the browser runs.
 
 ## Design
 

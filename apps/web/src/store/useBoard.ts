@@ -40,7 +40,6 @@ interface BoardStore extends Core {
   resetBreaker(): void;
   holdButton(id: string, down: boolean): void;
   flipToggle(id: string): void;
-  setTimerDelay(ms: number): void;
 
   moveModule(id: string, x: number, y: number): void;
   startWire(from: EndRef): void;
@@ -54,7 +53,6 @@ interface BoardStore extends Core {
   clearWires(): void;
   loadCircuit(c: Circuit): void;
 
-  tick(dtMs: number): void;
   setHint(h: string | null): void;
 }
 
@@ -65,11 +63,11 @@ const inputsOf = (s: Core): Inputs => ({
 });
 
 /** Re-solve the board, latching a short circuit as a tripped breaker. */
-function resolve(s: Core, dtMs = 0): Core {
-  const sim = step(s.circuit, inputsOf(s), s.simState, dtMs);
+function resolve(s: Core): Core {
+  const sim = step(s.circuit, inputsOf(s), s.simState);
   if (sim.faulted && !s.tripped) {
     const next: Core = { ...s, tripped: true, latched: sim.errors, simState: emptyState() };
-    return { ...next, sim: step(next.circuit, inputsOf(next), next.simState, 0) };
+    return { ...next, sim: step(next.circuit, inputsOf(next), next.simState) };
   }
   return { ...s, sim, simState: sim.state, latched: s.tripped ? s.latched : [] };
 }
@@ -85,7 +83,7 @@ function initial(): Core {
     sim: undefined as unknown as SimResult,
     latched: [],
   };
-  return resolve({ ...base, sim: step(base.circuit, inputsOf(base), base.simState, 0) });
+  return resolve({ ...base, sim: step(base.circuit, inputsOf(base), base.simState) });
 }
 
 export const useBoard = create<BoardStore>((set, get) => ({
@@ -101,9 +99,6 @@ export const useBoard = create<BoardStore>((set, get) => ({
   resetBreaker: () => set((s) => resolve({ ...s, tripped: false, latched: [], simState: emptyState() })),
   holdButton: (id, down) => set((s) => resolve({ ...s, pressed: { ...s.pressed, [id]: down } })),
   flipToggle: (id) => set((s) => resolve({ ...s, toggled: { ...s.toggled, [id]: !s.toggled[id] } })),
-  setTimerDelay: (ms) =>
-    set((s) => ({ ...resolve({ ...s, circuit: { ...s.circuit, timerDelayMs: ms } }), dirty: true })),
-
   moveModule: (id, x, y) =>
     set((s) => ({
       circuit: {
@@ -186,7 +181,6 @@ export const useBoard = create<BoardStore>((set, get) => ({
       dirty: false,
     })),
 
-  tick: (dtMs) => set((s) => resolve(s, dtMs)),
   setHint: (h) => set({ hint: h }),
 }));
 

@@ -15,8 +15,7 @@ export type ModuleType =
   | 'TOGGLE'
   | 'LAMP'
   | 'RELAY'
-  | 'BIGRELAY'
-  | 'TIMER';
+  | 'BIGRELAY';
 
 export interface PinDef {
   id: string;
@@ -72,8 +71,6 @@ export interface Wire {
 export interface Circuit {
   modules: ModuleInstance[];
   wires: Wire[];
-  /** ON-delay of the timer module, in milliseconds. */
-  timerDelayMs: number;
 }
 
 export interface Inputs {
@@ -85,8 +82,6 @@ export interface Inputs {
 }
 
 export interface SimState {
-  /** Time each timer's coil has been continuously energized. */
-  timerElapsedMs: Record<string, number>;
   /** Coil state carried between steps so relay feedback settles. */
   coil: Record<string, boolean>;
 }
@@ -129,4 +124,4 @@ export interface SimResult {
   state: SimState;
 }
 
-export const emptyState = (): SimState => ({ timerElapsedMs: {}, coil: {} });
+export const emptyState = (): SimState => ({ coil: {} });

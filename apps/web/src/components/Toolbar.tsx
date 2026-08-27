@@ -7,6 +7,7 @@ import { WIRE_COLORS, type WireColor } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
 import { useTheme, useWireColors } from '@/store/useTheme';
 import { api } from '@/lib/api';
+import { SessionTimer } from './SessionTimer';
 
 function Btn({
   onClick,
@@ -51,8 +52,6 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
   const deleteWire = useBoard((s) => s.deleteWire);
   const clearWires = useBoard((s) => s.clearWires);
   const wireCount = useBoard((s) => s.circuit.wires.length);
-  const delayMs = useBoard((s) => s.circuit.timerDelayMs);
-  const setTimerDelay = useBoard((s) => s.setTimerDelay);
   const setHint = useBoard((s) => s.setHint);
   const WIRE_HEX = useWireColors();
   const choice = useTheme((s) => s.choice);
@@ -100,11 +99,9 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
   return (
     <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b-2 border-carbon-900 bg-steel-50 px-3 py-2 sm:px-4">
       <div className="flex items-center gap-2">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-carbon-900">
-          <Zap className="h-4 w-4 text-signal-amber" />
-        </span>
+
         <span className="engraved text-[13px] font-bold text-carbon-900">
-          Mechatronic <span className="hidden sm:inline">Trainer</span>
+          Mechatronic <span className="hidden sm:inline"></span>
         </span>
       </div>
 
@@ -156,19 +153,7 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
         <span className="hidden md:inline">Delete lead</span>
       </Btn>
 
-      <label className="flex items-center gap-1.5 text-xs text-carbon-600">
-        <span className="hidden md:inline">Timer delay</span>
-        <span className="md:hidden">Timer</span>
-        <input
-          type="number"
-          min={0.1}
-          step={0.1}
-          value={(delayMs / 1000).toFixed(1)}
-          onChange={(e) => setTimerDelay(Math.max(100, Number(e.target.value) * 1000))}
-          className="w-16 rounded-sm border border-steel-400 bg-steel-50 px-2 py-1 text-right font-mono text-xs text-carbon-900 outline-none focus:border-signal-amber"
-        />
-        s
-      </label>
+      <SessionTimer />
 
       <div className="ml-auto flex items-center gap-2">
         <span className="hidden font-mono text-[11px] text-carbon-600 lg:inline">{String(wireCount).padStart(2, '0')} leads</span>

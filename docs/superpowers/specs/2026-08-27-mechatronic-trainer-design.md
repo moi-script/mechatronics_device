@@ -37,9 +37,12 @@ callers, no drift.
 | Lamp | 3 | 2: VCC/GND |
 | Relay | 5 | 5: VCC/GND + one NO/COM/NC line |
 | Large relay | 2 | 14: VCC/GND + four NO/COM/NC lines |
-| Timer | 1 | 5: VCC/GND + one NO/COM/NC line, ON-delay, settable delay |
 
-127 terminals total. Modules are draggable; the inventory cannot change.
+122 terminals total. Modules are draggable; the inventory cannot change.
+
+The timer is **not** a board part. It is a session alarm in the toolbar - off by default,
+or set to a duration in minutes - and nothing on the panel depends on it. This supersedes
+the original decision to model it as an ON-delay timer relay.
 
 ### Pin roles
 
@@ -71,11 +74,10 @@ yellow.
 ## Solver
 
 ```ts
-step(circuit, inputs, prev, dtMs) -> { nets, devices, errors, faulted, state }
+step(circuit, inputs, prev) -> { nets, devices, errors, faulted, state }
 ```
 
-1. Advance timer accumulators by `dtMs` using the previous pass's coil states, and
-   derive each device's actuation.
+1. Derive each device's actuation from the inputs and the previous pass's coil states.
 2. Union-Find over all pin nodes and wire-end nodes. Union each wire's two ends, each
    end to its target, and each COM to NO or NC per actuation.
 3. Tag every net `HOT` (contains a live source pin) and/or `GND`.
@@ -104,8 +106,7 @@ Out of scope: undo/redo.
 
 ```
 users     { email, passwordHash, name }
-circuits  { ownerId, name, modules[{id,type,x,y}], wires[], inputs, timerDelayMs,
-            shareId, isPublic, updatedAt }
+circuits  { ownerId, name, modules[{id,type,x,y}], wires[], shareId, updatedAt }
 exercises { title, brief, startingCircuit, script[] }
 attempts  { userId, exerciseId, passed, results[], at }
 ```
@@ -118,8 +119,8 @@ GET                  /api/exercises[/:id]
 POST                 /api/exercises/:id/grade     { circuit } -> { passed, results }
 ```
 
-JWT in an httpOnly cookie. Grading replays an exercise script — set inputs, advance the
-clock, assert device states — through the same `step()` the browser uses.
+JWT in an httpOnly cookie. Grading replays an exercise script — set inputs, assert device
+states — through the same `step()` the browser uses.
 
 ## Build phases
 

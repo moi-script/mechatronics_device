@@ -119,19 +119,6 @@ export const PARTS: Record<ModuleType, PartDef> = {
     contactLines: 4,
     hasCoil: true,
   },
-  TIMER: {
-    type: 'TIMER',
-    label: 'ON-Delay Timer',
-    width: 190,
-    height: 226,
-    pins: [
-      pin('VCC', 'VCC', 'LOAD_VCC', 62, 150),
-      pin('GND', 'GND', 'LOAD_GND', 128, 150),
-      ...contactLine(1, 196, 51),
-    ],
-    contactLines: 1,
-    hasCoil: true,
-  },
 };
 
 export const partOf = (type: ModuleType): PartDef => PARTS[type];
@@ -146,7 +133,6 @@ export function defaultModules(): ModuleInstance[] {
   const modules: ModuleInstance[] = [
     { id: 'BREAKER', type: 'BREAKER', x: 40, y: 40 },
     { id: 'SUPPLY', type: 'SUPPLY', x: 210, y: 40 },
-    { id: 'TIMER', type: 'TIMER', x: 690, y: 40 },
   ];
   for (let i = 0; i < 6; i++) modules.push({ id: `PB${i + 1}`, type: 'PUSHBTN', x: 40 + i * 162, y: 370 });
   for (let i = 0; i < 3; i++) modules.push({ id: `SW${i + 1}`, type: 'TOGGLE', x: 1030 + i * 162, y: 370 });
@@ -159,7 +145,6 @@ export function defaultModules(): ModuleInstance[] {
 export const emptyCircuit = (): Circuit => ({
   modules: defaultModules(),
   wires: [],
-  timerDelayMs: 5000,
 });
 
 /** Human label for a module id, e.g. "Relay 2". */

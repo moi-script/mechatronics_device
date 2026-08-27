@@ -15,7 +15,6 @@ export interface CircuitDoc {
   name: string;
   modules: unknown;
   wires: unknown;
-  timerDelayMs: number;
   shareId?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -57,7 +56,6 @@ const circuitSchema = new Schema<CircuitDoc>(
     name: { type: String, required: true },
     modules: { type: Schema.Types.Mixed, required: true },
     wires: { type: Schema.Types.Mixed, required: true },
-    timerDelayMs: { type: Number, default: 5000 },
     shareId: { type: String, index: true, sparse: true },
   },
   { timestamps: true },

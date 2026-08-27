@@ -24,7 +24,6 @@ const TAG: Record<string, string> = {
   LAMP: 'INDICATOR',
   RELAY: '1 x NO/COM/NC',
   BIGRELAY: '4 x NO/COM/NC',
-  TIMER: 'ON-DELAY',
 };
 
 function Terminal({ moduleId, pin }: { moduleId: string; pin: PinDef }) {
@@ -125,8 +124,6 @@ function Face({ m }: { m: ModuleInstance }) {
   const flipToggle = useBoard((s) => s.flipToggle);
   const toggled = useBoard((s) => !!s.toggled[m.id]);
   const pressed = useBoard((s) => !!s.pressed[m.id]);
-  const delayMs = useBoard((s) => s.circuit.timerDelayMs);
-  const elapsed = useBoard((s) => s.sim.state.timerElapsedMs[m.id] ?? 0);
   const p = usePalette();
   const w = part.width;
 
@@ -320,37 +317,6 @@ function Face({ m }: { m: ModuleInstance }) {
       );
     }
 
-    case 'TIMER': {
-      const on = !!device?.energized;
-      const done = !!device?.actuated;
-      const pct = delayMs > 0 ? Math.min(1, elapsed / delayMs) : 1;
-      const r = 27;
-      const circ = 2 * Math.PI * r;
-      return (
-        <>
-          <circle cx={w / 2} cy={86} r={r + 5} fill="url(#chrome)" stroke={p.screwStroke} />
-          <circle cx={w / 2} cy={86} r={r} fill={p.recessInner} stroke={p.moduleStroke} strokeWidth={3} />
-          <circle
-            cx={w / 2}
-            cy={86}
-            r={r}
-            fill="none"
-            stroke={done ? p.green : p.amber}
-            strokeWidth={3.5}
-            strokeDasharray={circ}
-            strokeDashoffset={circ * (1 - pct)}
-            transform={`rotate(-90 ${w / 2} 86)`}
-            strokeLinecap="round"
-          />
-          <text className="t-mono" x={w / 2} y={90} textAnchor="middle" fontSize={13} fontWeight={600} fill={p.ink}>
-            {(Math.max(0, delayMs - elapsed) / 1000).toFixed(1)}
-          </text>
-          <Led x={w - 26} y={17.5} on={on} color={done ? p.green : p.amber} />
-          {status(128, done ? 'CONTACTS THROWN' : on ? 'timing' : 'coil off', done ? p.green : p.label)}
-        </>
-      );
-    }
-
     default:
       return null;
   }
@@ -414,7 +380,7 @@ export function ModuleView({ m }: { m: ModuleInstance }) {
       <Screw x={pw - 11} y={ph - 11} />
 
       <title>{moduleLabel(m)}</title>
-      <LegendPlate w={pw} name={m.type === 'SUPPLY' ? 'POWER SUPPLY' : m.type === 'TIMER' ? 'TIMER' : m.id} tag={TAG[m.type]} />
+      <LegendPlate w={pw} name={m.type === 'SUPPLY' ? 'POWER SUPPLY' : m.id} tag={TAG[m.type]} />
       <Face m={m} />
       {part.pins.map((p) => (
         <Terminal key={p.id} moduleId={m.id} pin={p} />
