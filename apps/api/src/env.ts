@@ -4,8 +4,14 @@ const isProd = process.env.NODE_ENV === 'production';
 
 function required(name: string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
-  if (!value) throw new Error(`${name} is required. Copy .env.example to .env and fill it in.`);
-  return value;
+  if (value) return value;
+  // The advice differs by environment: locally it is a missing file, on a host
+  // it is a missing setting, and a deploy log should say the latter.
+  throw new Error(
+    isProd
+      ? `${name} is required. Set it in your host's environment settings, then redeploy.`
+      : `${name} is required. Copy .env.example to .env and fill it in.`,
+  );
 }
 
 const JWT_SECRET = required('JWT_SECRET', isProd ? undefined : 'dev-secret-change-me');
