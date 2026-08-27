@@ -35,6 +35,8 @@ interface BoardStore extends Core {
   wireColor: WireColor;
   /** Modules picked out with the marquee or shift-click, moved as a group. */
   selectedModuleIds: string[];
+  /** Server id of the circuit on the board, once it has been saved or loaded. */
+  savedCircuitId: string | null;
   pending: EndRef | null;
   cursor: { x: number; y: number };
   selectedWireId: string | null;
@@ -66,7 +68,8 @@ interface BoardStore extends Core {
   selectWire(id: string | null): void;
   deleteWire(id: string): void;
   clearWires(): void;
-  loadCircuit(c: Circuit): void;
+  loadCircuit(c: Circuit, id?: string | null): void;
+  setSavedCircuitId(id: string | null): void;
 
   setHint(h: string | null): void;
 }
@@ -119,6 +122,7 @@ export const useBoard = create<BoardStore>((set, get) => ({
   future: [],
   wireColor: 'red',
   selectedModuleIds: [],
+  savedCircuitId: null,
   pending: null,
   cursor: { x: 0, y: 0 },
   selectedWireId: null,
@@ -266,7 +270,9 @@ export const useBoard = create<BoardStore>((set, get) => ({
       };
     }),
 
-  loadCircuit: (c) =>
+  setSavedCircuitId: (id) => set({ savedCircuitId: id }),
+
+  loadCircuit: (c, id = null) =>
     set((s) => ({
       ...resolve({ ...s, circuit: c, simState: emptyState(), tripped: false, latched: [] }),
       past: [],
@@ -275,6 +281,7 @@ export const useBoard = create<BoardStore>((set, get) => ({
       selectedModuleIds: [],
       pending: null,
       dirty: false,
+      savedCircuitId: id,
     })),
 
   setHint: (h) => set({ hint: h }),

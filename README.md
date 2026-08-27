@@ -100,6 +100,16 @@ in there returns to the board with the save intact.
 
 Sessions are a JWT in an httpOnly cookie, so no token is reachable from page scripts.
 
+## Sharing
+
+Share turns the circuit on the board into a read-only link. Because the link is served
+from the saved copy, sharing an unsaved board folds the save into the same action rather
+than refusing it: it asks for a name, then hands back the link. Sharing an already-saved
+circuit pushes the current wiring first, so the link never shows a stale board.
+
+The link is shown in a dialog with a copy button rather than announced in the side panel,
+which is a drawer that is closed on narrower screens.
+
 ## Security
 
 - **Headers** — `helmet` on the API (CSP, HSTS, nosniff, frame-ancestors) and a matching

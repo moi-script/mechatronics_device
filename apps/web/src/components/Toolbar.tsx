@@ -26,6 +26,7 @@ import { useSound } from '@/store/useSound';
 import { api } from '@/lib/api';
 import { SessionTimer } from './SessionTimer';
 import { ConfirmDialog } from './ConfirmDialog';
+import { ShareDialog } from './ShareDialog';
 import { PromptDialog } from './PromptDialog';
 
 function Btn({
@@ -82,10 +83,19 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
   const soundOn = useSound((s) => s.enabled);
   const setSoundEnabled = useSound((s) => s.setEnabled);
 
-  const [savedId, setSavedId] = useState<string | null>(null);
+  const savedId = useBoard((s) => s.savedCircuitId);
+  const setSavedId = useBoard((s) => s.setSavedCircuitId);
   const [busy, setBusy] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [namingCircuit, setNamingCircuit] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  /** Set when Share triggered the save, so the link follows automatically. */
+  const [shareAfterSave, setShareAfterSave] = useState(false);
+
+  const linkFor = async (id: string) => {
+    const { shareId } = await api.share(id);
+    setShareUrl(`${window.location.origin}/view/${shareId}`);
+  };
 
   const save = async () => {
     setBusy(true);
@@ -119,7 +129,12 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
       const { id } = await api.createCircuit({ name, circuit: useBoard.getState().circuit });
       setSavedId(id);
       setNamingCircuit(false);
-      setHint(`Saved as "${name}".`);
+      if (shareAfterSave) {
+        setShareAfterSave(false);
+        await linkFor(id);
+      } else {
+        setHint(`Saved as "${name}".`);
+      }
     } catch (err) {
       setHint((err as Error).message);
     } finally {
@@ -128,17 +143,29 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
   };
 
   const share = async () => {
-    if (!savedId) {
-      setHint('Save the circuit before sharing it.');
-      return;
-    }
+    setBusy(true);
     try {
-      const { shareId } = await api.share(savedId);
-      const url = window.location.origin + '/view/' + shareId;
-      await navigator.clipboard.writeText(url).catch(() => undefined);
-      setHint('Share link copied: ' + url);
+      const { user } = await api.me();
+      if (!user) {
+        setHint('Sharing needs an account, since the circuit is served from your saved copy.');
+        onOpenLibrary();
+        return;
+      }
+
+      // A circuit has to exist on the server before it can be linked to, so
+      // fold the save into the same action rather than refusing.
+      if (!savedId) {
+        setShareAfterSave(true);
+        setNamingCircuit(true);
+        return;
+      }
+
+      await api.updateCircuit(savedId, { circuit: useBoard.getState().circuit });
+      await linkFor(savedId);
     } catch (err) {
       setHint((err as Error).message);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -263,17 +290,26 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
         </button>
       </div>
 
+      {shareUrl && <ShareDialog url={shareUrl} onClose={() => setShareUrl(null)} />}
+
       {namingCircuit && (
         <PromptDialog
-          title="Save this circuit"
-          message="It goes to your account, so you can pick it up on another machine."
+          title={shareAfterSave ? 'Name it before sharing' : 'Save this circuit'}
+          message={
+            shareAfterSave
+              ? 'A share link points at your saved copy, so this circuit needs a name first.'
+              : 'It goes to your account, so you can pick it up on another machine.'
+          }
           label="Circuit name"
           defaultValue="Untitled circuit"
           placeholder="Start/stop latch"
-          confirmLabel="Save circuit"
+          confirmLabel={shareAfterSave ? 'Save and get link' : 'Save circuit'}
           busy={busy}
           onSubmit={saveAs}
-          onCancel={() => setNamingCircuit(false)}
+          onCancel={() => {
+            setNamingCircuit(false);
+            setShareAfterSave(false);
+          }}
         />
       )}
 

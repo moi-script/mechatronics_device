@@ -103,7 +103,8 @@ export function Library({ onClose }: { onClose: () => void }) {
 
   const open = async (id: string) => {
     const { circuit, name } = await api.getCircuit(id);
-    loadCircuit(circuit);
+    // Pass the id too, so Save updates it and Share can link to it.
+    loadCircuit(circuit, id);
     setHint('Loaded "' + name + '".');
     onClose();
   };
