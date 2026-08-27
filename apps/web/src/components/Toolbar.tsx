@@ -129,8 +129,8 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
     <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b-2 border-carbon-900 bg-steel-50 px-3 py-2 sm:px-4">
       <div className="flex items-center gap-2">
 
-        <span className="engraved text-[13px] font-bold text-carbon-900">
-          Mechatronic <span className="hidden sm:inline"></span>
+        <span className="engraved hidden text-[13px] font-bold text-carbon-900 sm:inline">
+          Mechatronic
         </span>
       </div>
 
@@ -182,7 +182,7 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
         <span className="hidden md:inline">Delete lead</span>
       </Btn>
 
-      <div className="flex items-center gap-1">
+      <div className="hidden items-center gap-1 md:flex">
         <Btn onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)">
           <Undo2 className="h-3.5 w-3.5" />
         </Btn>
@@ -193,7 +193,7 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
 
       <SessionTimer />
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="flex items-center gap-2 md:ml-auto">
         <span className="hidden font-mono text-[11px] text-carbon-600 lg:inline">{String(wireCount).padStart(2, '0')} leads</span>
         <Btn onClick={() => setConfirmingClear(true)} tone="danger" disabled={wireCount === 0}>
           <span className="hidden sm:inline">Clear all</span>

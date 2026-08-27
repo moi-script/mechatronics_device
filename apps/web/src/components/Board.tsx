@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
-import { Maximize2, Minus, Plus } from 'lucide-react';
+import { Maximize2, Minus, Plus, Redo2, Undo2 } from 'lucide-react';
 import { useBoard } from '@/store/useBoard';
 import { BOARD_H, BOARD_W } from '@/lib/geometry';
 import { ModuleView } from './ModuleView';
@@ -18,6 +18,8 @@ export function Board() {
   const deleteWire = useBoard((s) => s.deleteWire);
   const undo = useBoard((s) => s.undo);
   const redo = useBoard((s) => s.redo);
+  const canUndo = useBoard((s) => s.past.length > 0);
+  const canRedo = useBoard((s) => s.future.length > 0);
 
   const hostRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -108,8 +110,9 @@ export function Board() {
     [setCursor],
   );
 
-  const zoomBtn =
-    'flex h-9 w-9 items-center justify-center rounded-md border border-steel-400 bg-steel-50/95 text-carbon-600 shadow-sm transition hover:bg-steel-200 hover:text-carbon-900';
+  // 44px on touch screens so the targets clear the accessibility minimum.
+  const ctlBtn =
+    'flex h-11 w-11 items-center justify-center rounded-md border border-steel-400 bg-steel-50/95 text-carbon-600 shadow-sm transition hover:bg-steel-200 hover:text-carbon-900 disabled:opacity-35 disabled:hover:bg-steel-50/95 md:h-9 md:w-9';
 
   return (
     <ScaleContext.Provider value={getScale}>
@@ -157,24 +160,37 @@ export function Board() {
           </TransformComponent>
         </TransformWrapper>
 
-        <div className="absolute bottom-4 right-4 flex gap-1.5">
-          <button type="button" title="Zoom out" className={zoomBtn} onClick={() => zoomRef.current?.zoomOut(0.2)}>
-            <Minus className="h-4 w-4" />
-          </button>
-          <button type="button" title="Zoom in" className={zoomBtn} onClick={() => zoomRef.current?.zoomIn(0.2)}>
-            <Plus className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            title="Fit the whole board"
-            className={zoomBtn}
-            onClick={() => {
-              touched.current = false;
-              fit();
-            }}
-          >
-            <Maximize2 className="h-4 w-4" />
-          </button>
+        {/* Bottom right, within thumb reach. Undo and redo only appear here on
+            small screens, where the toolbar has no room for them. */}
+        <div className="absolute bottom-4 right-4 flex flex-col items-end gap-1.5">
+          <div className="flex gap-1.5 md:hidden">
+            <button type="button" title="Undo" aria-label="Undo" className={ctlBtn} onClick={undo} disabled={!canUndo}>
+              <Undo2 className="h-5 w-5" />
+            </button>
+            <button type="button" title="Redo" aria-label="Redo" className={ctlBtn} onClick={redo} disabled={!canRedo}>
+              <Redo2 className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="flex gap-1.5">
+            <button type="button" title="Zoom out" aria-label="Zoom out" className={ctlBtn} onClick={() => zoomRef.current?.zoomOut(0.2)}>
+              <Minus className="h-5 w-5 md:h-4 md:w-4" />
+            </button>
+            <button type="button" title="Zoom in" aria-label="Zoom in" className={ctlBtn} onClick={() => zoomRef.current?.zoomIn(0.2)}>
+              <Plus className="h-5 w-5 md:h-4 md:w-4" />
+            </button>
+            <button
+              type="button"
+              title="Fit the whole board"
+              aria-label="Fit the whole board"
+              className={ctlBtn}
+              onClick={() => {
+                touched.current = false;
+                fit();
+              }}
+            >
+              <Maximize2 className="h-5 w-5 md:h-4 md:w-4" />
+            </button>
+          </div>
         </div>
       </div>
     </ScaleContext.Provider>

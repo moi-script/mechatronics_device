@@ -56,7 +56,9 @@ terminal wears red. Leads come in blue, green, red, black and yellow. Drag a mod
 lead in progress, `Del` removes the selected one.
 
 Every change to the wiring is undoable: `Ctrl+Z` steps back, `Ctrl+Shift+Z` or `Ctrl+Y`
-steps forward, and the toolbar has buttons for both. A drag counts as one step rather than
+steps forward, and the toolbar has buttons for both. On phones those two move down beside
+the zoom controls, within thumb reach and sized for touch, since the toolbar has no room
+for them there. A drag counts as one step rather than
 one per pixel, and loading a saved circuit starts a fresh history. Clearing the board asks
 first, and is itself undoable.
 
