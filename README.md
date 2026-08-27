@@ -1,6 +1,6 @@
 # Mechatronic Trainer
 
-A browser replica of the mechatronics lab trainer board, so the wiring exercises can be
+A browser replica of the mechatronics lab trainer board, so the wiring practice can be
 practised without the bench. The inventory is fixed and matches the real panel; the work is
 running leads between terminals and watching the board behave.
 
@@ -8,23 +8,23 @@ running leads between terminals and watching the board behave.
 
 | Workspace | What it is |
 |---|---|
-| `packages/sim` | Pure TypeScript, no dependencies: part definitions, net solver, error checks, grading |
+| `packages/sim` | Pure TypeScript, no dependencies: part definitions, net solver, error checks |
 | `apps/web` | Next.js 15 + TypeScript + Tailwind 4 — SVG board, wiring, live simulation |
-| `apps/api` | Express + Mongoose — auth, saved circuits, share links, server-side grading |
+| `apps/api` | Express + Mongoose — accounts, saved circuits, share links |
 
-The solver has no React and no database in it. The browser calls it on every interaction;
-the API imports the same package to grade exercises, so a pass cannot be faked client-side.
+The solver has no React and no database in it, so it stays testable on its own and the UI
+is a thin consumer of it.
 
 ## Running it
 
 ```bash
 npm install
 cp apps/api/.env.example apps/api/.env   # point MONGODB_URI at your Mongo
-npm run seed -w @mech/api                # loads the four lab exercises
+cp apps/web/.env.example apps/web/.env.local
 npm run dev                              # web on :3000, api on :4000
 ```
 
-The board itself works with the API down — only saving, sharing and exercises need it.
+The board itself works with the API down — only saving and sharing need it.
 
 ```bash
 npm test        # solver test suite
@@ -69,6 +69,55 @@ dismiss it.
 Because nothing on the board depends on a clock any more, the simulation is purely
 event-driven: it re-solves on each interaction instead of ticking.
 
+## Accounts
+
+Wiring the board needs no account. Saving does: circuits belong to a person, so pressing
+Save while signed out opens the account panel rather than failing. Registering or signing
+in there returns to the board with the save intact.
+
+Sessions are a JWT in an httpOnly cookie, so no token is reachable from page scripts.
+
+## Security
+
+- **Headers** — `helmet` on the API (CSP, HSTS, nosniff, frame-ancestors) and a matching
+  set on the Next.js responses.
+- **Sessions** — httpOnly, `SameSite=Lax`, `Secure` in production. SameSite is what stops a
+  cross-site request from carrying the session, so CORS is not load-bearing for CSRF.
+- **Passwords** — bcrypt at cost 12, minimum eight characters. Login compares against a
+  dummy hash when the account does not exist, so response time does not reveal which
+  addresses are registered.
+- **Rate limits** — 300 requests/minute per IP overall; 10 attempts per 15 minutes on
+  register and login, counting only failures.
+- **Input** — every request body is parsed with `zod` before it reaches the database, and
+  ids are checked as ObjectIds so a malformed one is a 404 rather than a 500. Mongoose runs
+  with `sanitizeFilter`, so an object like `{"$gt":""}` cannot be smuggled into a query.
+- **Ownership** — every circuit read, write and delete is scoped by `ownerId`; a share link
+  is a 16-character id that grants read-only access to that one circuit.
+- **Secrets** — the API refuses to start in production without a unique `JWT_SECRET` of at
+  least 32 characters, and error responses carry no internal detail there.
+
+## Deployment
+
+`docker compose up --build` brings up MongoDB, the API and the web server together. Set the
+secret first:
+
+```bash
+echo "JWT_SECRET=$(openssl rand -base64 48)" >> .env
+echo "WEB_ORIGIN=https://your-domain" >> .env
+docker compose up --build -d
+```
+
+The browser only ever talks to the web origin: Next.js proxies `/api/*` through to the API
+service, so the API needs no public exposure and the session cookie stays same-site.
+
+Deploying without Docker: `npm run build -w @mech/web` emits a standalone server at
+`apps/web/.next/standalone/apps/web/server.js`, and the API runs with `npm run start -w
+@mech/api`. Both need their environment set — see the `.env.example` in each app.
+
+Behind a reverse proxy set `TRUST_PROXY=true` so client IPs and secure cookies resolve
+correctly. Only set `CROSS_SITE_COOKIES=true` if the browser calls the API on a different
+site instead of through the proxy.
+
 ## Themes
 
 Light and dark, toggled from the control at the right of the toolbar. It cycles
@@ -97,11 +146,6 @@ Two faults are reported:
 
 A circuit that never settles (a relay wired to break its own coil) stops at the solver's
 50-pass cap rather than hanging.
-
-## Exercises
-
-Three seeded exercises, graded server-side by replaying a script — set inputs, assert
-device states — through the same solver the browser runs.
 
 ## Design
 

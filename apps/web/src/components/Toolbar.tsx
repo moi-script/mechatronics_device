@@ -63,17 +63,26 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
   const save = async () => {
     setBusy(true);
     try {
+      // Saving is tied to an account, so ask for one before anything else.
+      const { user } = await api.me();
+      if (!user) {
+        setHint('Circuits are saved to your account. Sign in or register to keep this one.');
+        onOpenLibrary();
+        return;
+      }
+
       const { circuit } = useBoard.getState();
       if (savedId) {
         await api.updateCircuit(savedId, { circuit });
         setHint('Saved.');
-      } else {
-        const name = window.prompt('Name this circuit', 'Untitled circuit');
-        if (!name) return;
-        const { id } = await api.createCircuit({ name, circuit });
-        setSavedId(id);
-        setHint('Saved as "' + name + '".');
+        return;
       }
+
+      const name = window.prompt('Name this circuit', 'Untitled circuit');
+      if (!name?.trim()) return;
+      const { id } = await api.createCircuit({ name: name.trim(), circuit });
+      setSavedId(id);
+      setHint('Saved as "' + name.trim() + '".');
     } catch (err) {
       setHint((err as Error).message);
     } finally {

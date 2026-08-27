@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import clsx from 'clsx';
-import { AlertTriangle, CheckCircle2, CircleAlert, GraduationCap, X, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CircleAlert, X } from 'lucide-react';
 import { useBoard, useErrors } from '@/store/useBoard';
-import { api, type Exercise, type GradeResponse } from '@/lib/api';
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -82,74 +81,6 @@ function Faults() {
   );
 }
 
-function Exercises() {
-  const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [grade, setGrade] = useState<Record<string, GradeResponse>>({});
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    api
-      .listExercises()
-      .then((r) => setExercises(r.exercises))
-      .catch(() => setError('Exercises need the API running (npm run dev:api).'));
-  }, []);
-
-  const check = async (id: string) => {
-    try {
-      const res = await api.grade(id, useBoard.getState().circuit);
-      setGrade((g) => ({ ...g, [id]: res }));
-      setOpenId(id);
-    } catch (err) {
-      setError((err as Error).message);
-    }
-  };
-
-  if (error) return <p className="text-xs text-carbon-600">{error}</p>;
-  if (exercises.length === 0) return <p className="text-xs text-carbon-600">No exercises yet.</p>;
-
-  return (
-    <ul className="space-y-2">
-      {exercises.map((ex) => {
-        const g = grade[ex.id];
-        return (
-          <li key={ex.id} className="rounded-sm border border-steel-300 bg-steel-100 p-3">
-            <div className="text-xs font-bold text-carbon-900">{ex.title}</div>
-            <p className="mt-1 text-[11px] leading-relaxed text-carbon-600">{ex.brief}</p>
-            <button
-              type="button"
-              onClick={() => check(ex.id)}
-              className="mt-2 rounded-sm border border-signal-blue/35 bg-signal-blue/10 px-2.5 py-1 text-[11px] font-semibold text-signal-blue hover:bg-signal-blue/20"
-            >
-              Check my wiring
-            </button>
-            {g && openId === ex.id && (
-              <ul className="mt-2 space-y-1">
-                {g.results.map((r, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-[11px]">
-                    {r.ok ? (
-                      <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-run-green" />
-                    ) : (
-                      <XCircle className="mt-0.5 h-3 w-3 shrink-0 text-safety-red" />
-                    )}
-                    <span className={r.ok ? 'text-carbon-600' : 'text-safety-red'}>
-                      {r.label}
-                      {!r.ok && ' — ' + r.detail}
-                    </span>
-                  </li>
-                ))}
-                <li className={clsx('pt-1 text-[11px] font-bold', g.passed ? 'text-run-green' : 'text-signal-amber')}>
-                  {g.passed ? 'All checks passed.' : 'Not there yet.'}
-                </li>
-              </ul>
-            )}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
 export function SidePanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const hint = useBoard((s) => s.hint);
   const setHint = useBoard((s) => s.setHint);
@@ -185,9 +116,6 @@ export function SidePanel({ open, onClose }: { open: boolean; onClose: () => voi
         </Section>
         <Section title="Simulation check" icon={<AlertTriangle className="h-3.5 w-3.5" />}>
           <Faults />
-        </Section>
-        <Section title="Lab exercises" icon={<GraduationCap className="h-3.5 w-3.5" />}>
-          <Exercises />
         </Section>
         <div className="mt-auto p-4 text-[11px] leading-relaxed text-carbon-600">
           Tap a terminal, then a second terminal to run a lead. Tap the brass stub on a plugged lead to stack another

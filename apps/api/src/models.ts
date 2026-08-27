@@ -20,23 +20,6 @@ export interface CircuitDoc {
   updatedAt: Date;
 }
 
-export interface ExerciseDoc {
-  _id: Types.ObjectId;
-  slug: string;
-  title: string;
-  brief: string;
-  script: unknown;
-  order: number;
-}
-
-export interface AttemptDoc {
-  _id: Types.ObjectId;
-  userId: Types.ObjectId;
-  exerciseId: Types.ObjectId;
-  passed: boolean;
-  results: unknown;
-}
-
 const userSchema = new Schema<UserDoc>(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
@@ -61,28 +44,8 @@ const circuitSchema = new Schema<CircuitDoc>(
   { timestamps: true },
 );
 
-const exerciseSchema = new Schema<ExerciseDoc>({
-  slug: { type: String, required: true, unique: true },
-  title: { type: String, required: true },
-  brief: { type: String, required: true },
-  script: { type: Schema.Types.Mixed, required: true },
-  order: { type: Number, default: 0 },
-});
-
-const attemptSchema = new Schema<AttemptDoc>(
-  {
-    userId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
-    exerciseId: { type: Schema.Types.ObjectId, ref: 'Exercise', index: true },
-    passed: { type: Boolean, required: true },
-    results: { type: Schema.Types.Mixed },
-  },
-  { timestamps: true },
-);
-
 const model = <T>(name: string, schema: Schema<T>): Model<T> =>
   (mongoose.models[name] as Model<T>) ?? mongoose.model<T>(name, schema);
 
 export const User = model('User', userSchema);
 export const Circuit = model('Circuit', circuitSchema);
-export const Exercise = model('Exercise', exerciseSchema);
-export const Attempt = model('Attempt', attemptSchema);

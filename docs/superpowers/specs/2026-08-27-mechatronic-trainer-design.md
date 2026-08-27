@@ -16,15 +16,13 @@ Monorepo, npm workspaces:
 
 ```
 packages/sim/   pure TypeScript, no dependencies: part definitions, net solver,
-                error checks, exercise grading
+                error checks
 apps/web/       Next.js + TypeScript + Tailwind — SVG board, wiring, live state
-apps/api/       Express + Mongoose — auth, circuits, share links, grading
+apps/api/       Express + Mongoose — accounts, circuits, share links
 ```
 
-The solver is a pure function with no React and no database inside it. The browser
-calls it on every interaction for instant feedback; the API imports the same package
-to grade exercises server-side, so a client cannot fake a pass. One rule set, two
-callers, no drift.
+The solver is a pure function with no React and no database inside it, so it can be
+tested on its own and the UI stays a thin consumer of it.
 
 ## Fixed inventory
 
@@ -105,22 +103,22 @@ Out of scope: undo/redo.
 ## API and data
 
 ```
-users     { email, passwordHash, name }
+users     { email (unique), passwordHash, name, createdAt }
 circuits  { ownerId, name, modules[{id,type,x,y}], wires[], shareId, updatedAt }
-exercises { title, brief, startingCircuit, script[] }
-attempts  { userId, exerciseId, passed, results[], at }
 ```
 
 ```
-POST/GET/PUT/DELETE  /api/circuits[/:id]
-GET                  /api/share/:shareId          read-only, unauthenticated
-POST                 /api/auth/register|login|logout    GET /api/auth/me
-GET                  /api/exercises[/:id]
-POST                 /api/exercises/:id/grade     { circuit } -> { passed, results }
+GET     /api/health
+POST    /api/auth/register | /api/auth/login | /api/auth/logout
+GET     /api/auth/me                DELETE /api/auth/me
+GET     /api/circuits               POST   /api/circuits
+GET     /api/circuits/:id           PUT    /api/circuits/:id     DELETE /api/circuits/:id
+POST    /api/circuits/:id/share     DELETE /api/circuits/:id/share
+GET     /api/share/:shareId         read-only, unauthenticated
 ```
 
-JWT in an httpOnly cookie. Grading replays an exercise script — set inputs, assert device
-states — through the same `step()` the browser uses.
+JWT in an httpOnly cookie. Saving requires an account; every circuit read and write is
+scoped by `ownerId`. Auto-graded exercises were built and then removed as out of scope.
 
 ## Build phases
 
@@ -128,4 +126,4 @@ states — through the same `step()` the browser uses.
 2. Board UI — the wiring exercise, fully usable with no login and no database
 3. Express + Mongo — save, load, list
 4. Auth — accounts, private circuits
-5. Share links and auto-graded exercises
+5. Share links

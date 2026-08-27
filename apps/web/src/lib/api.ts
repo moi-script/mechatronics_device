@@ -13,17 +13,6 @@ export interface CircuitSummary {
   updatedAt: string;
 }
 
-export interface Exercise {
-  id: string;
-  title: string;
-  brief: string;
-}
-
-export interface GradeResponse {
-  passed: boolean;
-  results: { label: string; ok: boolean; detail: string }[];
-}
-
 async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch('/api' + path, {
     credentials: 'include',
@@ -51,7 +40,4 @@ export const api = {
   deleteCircuit: (id: string) => req<{ ok: true }>('/circuits/' + id, { method: 'DELETE' }),
   share: (id: string) => req<{ shareId: string }>('/circuits/' + id + '/share', { method: 'POST' }),
   shared: (shareId: string) => req<{ circuit: Circuit; name: string }>('/share/' + shareId),
-
-  listExercises: () => req<{ exercises: Exercise[] }>('/exercises'),
-  grade: (id: string, circuit: Circuit) => req<GradeResponse>('/exercises/' + id + '/grade', post({ circuit })),
 };

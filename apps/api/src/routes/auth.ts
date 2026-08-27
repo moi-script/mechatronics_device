@@ -1,9 +1,32 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
+import { z } from 'zod';
 import { User } from '../models';
-import { COOKIE, cookieOptions, readUser, signToken, type AuthedRequest } from '../auth-middleware';
+import { COOKIE, cookieOptions, readUser, requireUser, signToken, type AuthedRequest } from '../auth-middleware';
 
 export const authRouter = Router();
+
+/** Credential endpoints get a much tighter budget than the rest of the API. */
+const credentialLimit = rateLimit({
+  windowMs: 15 * 60_000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { error: 'Too many attempts. Wait a few minutes and try again.' },
+});
+
+const email = z.string().trim().toLowerCase().email().max(254);
+const password = z.string().min(8, 'Password must be at least 8 characters.').max(200);
+
+const registerSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  email,
+  password,
+});
+
+const loginSchema = z.object({ email, password: z.string().min(1).max(200) });
 
 const shape = (u: { _id: unknown; email: string; name: string }) => ({
   id: String(u._id),
@@ -11,37 +34,42 @@ const shape = (u: { _id: unknown; email: string; name: string }) => ({
   name: u.name,
 });
 
-authRouter.post('/register', async (req, res) => {
-  const { email, password, name } = req.body ?? {};
-  if (!email || !password || !name) {
-    res.status(400).json({ error: 'Name, email and password are all required.' });
+authRouter.post('/register', credentialLimit, async (req, res) => {
+  const parsed = registerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Check the details you entered.' });
     return;
   }
-  if (String(password).length < 6) {
-    res.status(400).json({ error: 'Password must be at least 6 characters.' });
-    return;
-  }
-  const existing = await User.findOne({ email: String(email).toLowerCase() });
-  if (existing) {
+  const { name, email: address, password: secret } = parsed.data;
+
+  if (await User.exists({ email: address })) {
     res.status(409).json({ error: 'That email is already registered.' });
     return;
   }
-  const user = await User.create({
-    email: String(email).toLowerCase(),
-    name,
-    passwordHash: await bcrypt.hash(String(password), 10),
-  });
+
+  const user = await User.create({ email: address, name, passwordHash: await bcrypt.hash(secret, 12) });
   res.cookie(COOKIE, signToken(String(user._id)), cookieOptions);
-  res.json({ user: shape(user) });
+  res.status(201).json({ user: shape(user) });
 });
 
-authRouter.post('/login', async (req, res) => {
-  const { email, password } = req.body ?? {};
-  const user = await User.findOne({ email: String(email ?? '').toLowerCase() });
-  if (!user || !(await bcrypt.compare(String(password ?? ''), user.passwordHash))) {
+authRouter.post('/login', credentialLimit, async (req, res) => {
+  const parsed = loginSchema.safeParse(req.body);
+  if (!parsed.success) {
     res.status(401).json({ error: 'Wrong email or password.' });
     return;
   }
+
+  const user = await User.findOne({ email: parsed.data.email });
+  // Compare even when the user is missing, so a timing difference does not
+  // reveal which addresses are registered.
+  const stored = user?.passwordHash ?? '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinv';
+  const ok = await bcrypt.compare(parsed.data.password, stored);
+
+  if (!user || !ok) {
+    res.status(401).json({ error: 'Wrong email or password.' });
+    return;
+  }
+
   res.cookie(COOKIE, signToken(String(user._id)), cookieOptions);
   res.json({ user: shape(user) });
 });
@@ -58,4 +86,10 @@ authRouter.get('/me', readUser, async (req: AuthedRequest, res) => {
   }
   const user = await User.findById(req.userId);
   res.json({ user: user ? shape(user) : null });
+});
+
+authRouter.delete('/me', readUser, requireUser, async (req: AuthedRequest, res) => {
+  await User.deleteOne({ _id: req.userId });
+  res.clearCookie(COOKIE, cookieOptions);
+  res.json({ ok: true });
 });

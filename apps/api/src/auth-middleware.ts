@@ -1,19 +1,25 @@
 import jwt from 'jsonwebtoken';
 import type { NextFunction, Request, Response } from 'express';
+import { env } from './env';
 
-const SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-me';
 export const COOKIE = 'mech_token';
 
 export interface AuthedRequest extends Request {
   userId?: string;
 }
 
-export const signToken = (userId: string): string => jwt.sign({ sub: userId }, SECRET, { expiresIn: '30d' });
+export const signToken = (userId: string): string =>
+  jwt.sign({ sub: userId }, env.jwtSecret, { expiresIn: '30d' });
 
+/**
+ * Session cookie. httpOnly keeps it away from scripts; SameSite blocks it from
+ * riding along on cross-site requests unless the deployment genuinely needs it.
+ */
 export const cookieOptions = {
   httpOnly: true,
-  sameSite: 'lax' as const,
-  secure: process.env.NODE_ENV === 'production',
+  sameSite: env.crossSiteCookies ? ('none' as const) : ('lax' as const),
+  secure: env.isProd || env.crossSiteCookies,
+  path: '/',
   maxAge: 30 * 24 * 60 * 60 * 1000,
 };
 
@@ -22,8 +28,8 @@ export function readUser(req: AuthedRequest, _res: Response, next: NextFunction)
   const token = req.cookies?.[COOKIE];
   if (token) {
     try {
-      const payload = jwt.verify(token, SECRET) as { sub: string };
-      req.userId = payload.sub;
+      const payload = jwt.verify(token, env.jwtSecret) as { sub?: unknown };
+      if (typeof payload.sub === 'string') req.userId = payload.sub;
     } catch {
       // Expired or tampered token: treat as signed out.
     }
