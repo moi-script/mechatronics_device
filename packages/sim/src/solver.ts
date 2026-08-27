@@ -110,7 +110,7 @@ function evaluate(circuit: Circuit, breakerClosed: boolean, actuated: Record<str
       const id = netOf(key);
       pinNet[key] = id;
       if (!breakerClosed) continue;
-      if (p.role === 'SOURCE_VCC' || p.role === 'SOURCE_VSS') nets[id].hot = true;
+      if (p.role === 'SOURCE_VCC') nets[id].hot = true;
       if (p.role === 'SOURCE_GND') nets[id].gnd = true;
     }
   }

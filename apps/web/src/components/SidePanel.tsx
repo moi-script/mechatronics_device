@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
-import { AlertTriangle, CheckCircle2, CircleAlert, GraduationCap, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CircleAlert, GraduationCap, X, XCircle } from 'lucide-react';
 import { useBoard, useErrors } from '@/store/useBoard';
 import { api, type Exercise, type GradeResponse } from '@/lib/api';
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="border-b border-white/10 p-4">
-      <h2 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-slate-500">
+    <section className="border-b border-paper-300 p-4">
+      <h2 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-ink-500">
         {icon}
         {title}
       </h2>
@@ -26,17 +26,17 @@ function Status() {
   const gnd = nets.filter((n) => n.gnd && !n.hot).length;
 
   const cells: [string, string | number, string][] = [
-    ['Power', live ? 'LIVE' : 'DEAD', live ? 'text-emerald-400' : 'text-slate-500'],
-    ['Leads', wires, 'text-slate-200'],
-    ['Live nets', hot, 'text-amber-400'],
-    ['Ground nets', gnd, 'text-sky-400'],
+    ['Power', live ? 'LIVE' : 'DEAD', live ? 'text-emerald-600' : 'text-ink-500'],
+    ['Leads', wires, 'text-ink-900'],
+    ['Live nets', hot, 'text-orange-600'],
+    ['Ground nets', gnd, 'text-sky-600'],
   ];
 
   return (
     <div className="grid grid-cols-2 gap-2">
       {cells.map(([label, value, tone]) => (
-        <div key={label} className="rounded-lg bg-white/5 px-3 py-2">
-          <div className="text-[10px] uppercase tracking-wider text-slate-500">{label}</div>
+        <div key={label} className="rounded-lg border border-paper-300 bg-paper-100 px-3 py-2">
+          <div className="text-[10px] uppercase tracking-wider text-ink-500">{label}</div>
           <div className={clsx('text-base font-bold tabular-nums', tone)}>{value}</div>
         </div>
       ))}
@@ -50,7 +50,7 @@ function Faults() {
 
   if (errors.length === 0) {
     return (
-      <p className="flex items-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+      <p className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
         <CheckCircle2 className="h-4 w-4 shrink-0" />
         No faults detected.
       </p>
@@ -65,8 +65,8 @@ function Faults() {
           <li
             key={i}
             className={clsx(
-              'rounded-lg px-3 py-2 text-xs leading-relaxed',
-              hard ? 'bg-red-500/12 text-red-200' : 'bg-amber-500/12 text-amber-200',
+              'rounded-lg border px-3 py-2 text-xs leading-relaxed',
+              hard ? 'border-red-200 bg-red-50 text-red-800' : 'border-amber-200 bg-amber-50 text-amber-800',
             )}
           >
             <span className="mb-1 flex items-center gap-1.5 font-bold uppercase tracking-wide">
@@ -77,7 +77,7 @@ function Faults() {
           </li>
         );
       })}
-      {tripped && <li className="text-[11px] text-slate-500">Clear the fault, then reset the breaker to continue.</li>}
+      {tripped && <li className="text-[11px] text-ink-500">Clear the fault, then reset the breaker to continue.</li>}
     </ul>
   );
 }
@@ -105,21 +105,21 @@ function Exercises() {
     }
   };
 
-  if (error) return <p className="text-xs text-slate-500">{error}</p>;
-  if (exercises.length === 0) return <p className="text-xs text-slate-500">No exercises yet.</p>;
+  if (error) return <p className="text-xs text-ink-500">{error}</p>;
+  if (exercises.length === 0) return <p className="text-xs text-ink-500">No exercises yet.</p>;
 
   return (
     <ul className="space-y-2">
       {exercises.map((ex) => {
         const g = grade[ex.id];
         return (
-          <li key={ex.id} className="rounded-lg bg-white/5 p-3">
-            <div className="text-xs font-bold text-slate-200">{ex.title}</div>
-            <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{ex.brief}</p>
+          <li key={ex.id} className="rounded-lg border border-paper-300 bg-paper-100 p-3">
+            <div className="text-xs font-bold text-ink-900">{ex.title}</div>
+            <p className="mt-1 text-[11px] leading-relaxed text-ink-500">{ex.brief}</p>
             <button
               type="button"
               onClick={() => check(ex.id)}
-              className="mt-2 rounded-md bg-sky-500/15 px-2.5 py-1 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/25"
+              className="mt-2 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700 hover:bg-sky-100"
             >
               Check my wiring
             </button>
@@ -128,17 +128,17 @@ function Exercises() {
                 {g.results.map((r, i) => (
                   <li key={i} className="flex items-start gap-1.5 text-[11px]">
                     {r.ok ? (
-                      <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-400" />
+                      <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600" />
                     ) : (
-                      <XCircle className="mt-0.5 h-3 w-3 shrink-0 text-red-400" />
+                      <XCircle className="mt-0.5 h-3 w-3 shrink-0 text-red-600" />
                     )}
-                    <span className={r.ok ? 'text-slate-400' : 'text-red-300'}>
+                    <span className={r.ok ? 'text-ink-500' : 'text-red-700'}>
                       {r.label}
                       {!r.ok && ' — ' + r.detail}
                     </span>
                   </li>
                 ))}
-                <li className={clsx('pt-1 text-[11px] font-bold', g.passed ? 'text-emerald-400' : 'text-amber-400')}>
+                <li className={clsx('pt-1 text-[11px] font-bold', g.passed ? 'text-emerald-600' : 'text-amber-600')}>
                   {g.passed ? 'All checks passed.' : 'Not there yet.'}
                 </li>
               </ul>
@@ -150,7 +150,7 @@ function Exercises() {
   );
 }
 
-export function SidePanel() {
+export function SidePanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const hint = useBoard((s) => s.hint);
   const setHint = useBoard((s) => s.setHint);
 
@@ -161,23 +161,42 @@ export function SidePanel() {
   }, [hint, setHint]);
 
   return (
-    <aside className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-white/10 bg-bench-900/60">
-      <Section title="Board status" icon={<CheckCircle2 className="h-3.5 w-3.5" />}>
-        <Status />
-      </Section>
-      <Section title="Simulation check" icon={<AlertTriangle className="h-3.5 w-3.5" />}>
-        <Faults />
-      </Section>
-      <Section title="Lab exercises" icon={<GraduationCap className="h-3.5 w-3.5" />}>
-        <Exercises />
-      </Section>
-      <div className="mt-auto p-4 text-[11px] leading-relaxed text-slate-500">
-        Click a terminal, then click a second terminal to run a lead. Click the brass stub on a plugged lead to stack
-        another onto it. Drag a module to move it. Esc cancels, Del removes the selected lead.
-      </div>
-      {hint && (
-        <div className="sticky bottom-0 border-t border-white/10 bg-sky-500/15 px-4 py-3 text-xs text-sky-200">{hint}</div>
-      )}
-    </aside>
+    <>
+      {/* Below xl the panel slides in over the board instead of taking its width. */}
+      {open && <div className="fixed inset-0 z-30 bg-ink-900/25 xl:hidden" onClick={onClose} />}
+      <aside
+        className={clsx(
+          'z-40 flex w-80 max-w-[88vw] shrink-0 flex-col overflow-y-auto border-l border-paper-400 bg-white',
+          'fixed inset-y-0 right-0 shadow-2xl transition-transform duration-200',
+          'xl:static xl:translate-x-0 xl:shadow-none',
+          open ? 'translate-x-0' : 'translate-x-full',
+        )}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-3 top-3 rounded-md p-1 text-ink-500 hover:bg-paper-200 xl:hidden"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        <Section title="Board status" icon={<CheckCircle2 className="h-3.5 w-3.5" />}>
+          <Status />
+        </Section>
+        <Section title="Simulation check" icon={<AlertTriangle className="h-3.5 w-3.5" />}>
+          <Faults />
+        </Section>
+        <Section title="Lab exercises" icon={<GraduationCap className="h-3.5 w-3.5" />}>
+          <Exercises />
+        </Section>
+        <div className="mt-auto p-4 text-[11px] leading-relaxed text-ink-500">
+          Tap a terminal, then a second terminal to run a lead. Tap the brass stub on a plugged lead to stack another
+          onto it. Drag a module to move it. Esc cancels, Del removes the selected lead.
+        </div>
+        {hint && (
+          <div className="sticky bottom-0 border-t border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-800">{hint}</div>
+        )}
+      </aside>
+    </>
   );
 }

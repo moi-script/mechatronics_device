@@ -31,7 +31,7 @@ callers, no drift.
 | Part | Count | Pins |
 |---|---|---|
 | Breaker | 1 | none — master switch; open = supply dead |
-| Power supply | 1 | 16: VCC1-6, GND1-6, VCC7, GND7, VSS1, GND8 |
+| Power supply | 1 | 16: VCC1-6, GND1-6, VCC7, GND7, VCC8, GND8 |
 | Push button | 6 | 3: NO/COM/NC — momentary, actuated only while held |
 | Toggle switch | 3 | 3: NO/COM/NC — latching |
 | Lamp | 3 | 2: VCC/GND |
@@ -43,15 +43,15 @@ callers, no drift.
 
 ### Pin roles
 
-`SOURCE_VCC`, `SOURCE_VSS`, `SOURCE_GND`, `LOAD_VCC`, `LOAD_GND`, `COM`, `NO`, `NC`.
+`SOURCE_VCC`, `SOURCE_GND`, `LOAD_VCC`, `LOAD_GND`, `COM`, `NO`, `NC`.
 COM conducts to NC at rest and to NO when actuated.
 
 ### Assumptions
 
 1. The breaker has no wire terminals; it is the panel master switch.
 2. Supply rows 3-6 carry one pin each; rows 1-2 carry six.
-3. VSS is a second source rail treated like VCC. VSS and VCC on the same net is not
-   flagged, since no voltages are modelled.
+3. Every source row is VCC; the board carries no VSS rail. Rows 1 and 2 are the only
+   complete rows, at six pins each; rows 3 to 6 carry one pin each.
 
 ## Wires
 

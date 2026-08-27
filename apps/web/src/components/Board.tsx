@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
+import { Maximize2, Minus, Plus } from 'lucide-react';
 import { useBoard } from '@/store/useBoard';
 import { BOARD_H, BOARD_W } from '@/lib/geometry';
 import { ModuleView } from './ModuleView';
@@ -18,9 +19,39 @@ export function Board() {
   const deleteWire = useBoard((s) => s.deleteWire);
   const tick = useBoard((s) => s.tick);
 
+  const hostRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const zoomRef = useRef<ReactZoomPanPinchRef>(null);
+  /** Once the user pans or zooms, stop re-fitting the view out from under them. */
+  const touched = useRef(false);
   const getScale = useCallback(() => zoomRef.current?.instance.transformState.scale ?? 1, []);
+
+  /** Scale the whole bench to whatever room the viewport gives us. */
+  const fit = useCallback(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const scale = Math.min(1.1, Math.max(0.18, Math.min(host.clientWidth / (BOARD_W + 48), host.clientHeight / (BOARD_H + 48))));
+    zoomRef.current?.setTransform(
+      (host.clientWidth - BOARD_W * scale) / 2,
+      (host.clientHeight - BOARD_H * scale) / 2,
+      scale,
+      0,
+    );
+  }, []);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const id = setTimeout(fit, 60);
+    const ro = new ResizeObserver(() => {
+      if (!touched.current) fit();
+    });
+    ro.observe(host);
+    return () => {
+      clearTimeout(id);
+      ro.disconnect();
+    };
+  }, [fit]);
 
   useEffect(() => {
     const id = setInterval(() => tick(TICK_MS), TICK_MS);
@@ -58,63 +89,92 @@ export function Board() {
     [setCursor],
   );
 
+  const zoomBtn =
+    'flex h-9 w-9 items-center justify-center rounded-lg border border-paper-400 bg-white/90 text-ink-500 shadow-sm transition hover:bg-white hover:text-ink-900';
+
   return (
     <ScaleContext.Provider value={getScale}>
-      <TransformWrapper
-        ref={zoomRef}
-        minScale={0.25}
-        maxScale={2.5}
-        initialScale={0.62}
-        limitToBounds={false}
-        centerOnInit
-        doubleClick={{ disabled: true }}
-        panning={{ excluded: ['no-pan'], velocityDisabled: true }}
-        wheel={{ step: 0.08 }}
-      >
-        <TransformComponent
-          wrapperClass="!w-full !h-full board-grid"
-          contentClass="!w-auto !h-auto"
+      <div ref={hostRef} className="relative h-full w-full">
+        <TransformWrapper
+          ref={zoomRef}
+          minScale={0.15}
+          maxScale={2.5}
+          initialScale={0.6}
+          limitToBounds={false}
+          centerOnInit
+          doubleClick={{ disabled: true }}
+          panning={{ excluded: ['no-pan'], velocityDisabled: true }}
+          wheel={{ step: 0.08 }}
+          pinch={{ step: 4 }}
+          onPanningStart={() => {
+            touched.current = true;
+          }}
+          onZoomStart={() => {
+            touched.current = true;
+          }}
         >
-          <svg
-            ref={svgRef}
-            width={BOARD_W}
-            height={BOARD_H}
-            viewBox={'0 0 ' + BOARD_W + ' ' + BOARD_H}
-            className="max-w-none"
-            style={{ width: BOARD_W, height: BOARD_H }}
-            onPointerMove={onPointerMove}
-            onPointerDown={() => {
-              cancelWire();
-              selectWire(null);
+          <TransformComponent wrapperClass="!w-full !h-full board-grid" contentClass="!w-auto !h-auto">
+            <svg
+              ref={svgRef}
+              width={BOARD_W}
+              height={BOARD_H}
+              viewBox={'0 0 ' + BOARD_W + ' ' + BOARD_H}
+              className="max-w-none shrink-0"
+              style={{ width: BOARD_W, height: BOARD_H }}
+              onPointerMove={onPointerMove}
+              onPointerDown={() => {
+                cancelWire();
+                selectWire(null);
+              }}
+            >
+              <defs>
+                <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#ffffff" />
+                  <stop offset="100%" stopColor="#eef2f7" />
+                </linearGradient>
+                <radialGradient id="brass" cx="35%" cy="30%">
+                  <stop offset="0%" stopColor="#fde68a" />
+                  <stop offset="55%" stopColor="#d4a017" />
+                  <stop offset="100%" stopColor="#8a6a12" />
+                </radialGradient>
+                <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+                  <feGaussianBlur stdDeviation="7" result="b" />
+                  <feMerge>
+                    <feMergeNode in="b" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+
+              <rect width={BOARD_W} height={BOARD_H} rx={20} fill="#f8fafc" stroke="#cbd5e1" strokeWidth={2} />
+              {modules.map((m) => (
+                <ModuleView key={m.id} m={m} />
+              ))}
+              <Wires />
+            </svg>
+          </TransformComponent>
+        </TransformWrapper>
+
+        <div className="absolute bottom-4 right-4 flex gap-1.5">
+          <button type="button" title="Zoom out" className={zoomBtn} onClick={() => zoomRef.current?.zoomOut(0.2)}>
+            <Minus className="h-4 w-4" />
+          </button>
+          <button type="button" title="Zoom in" className={zoomBtn} onClick={() => zoomRef.current?.zoomIn(0.2)}>
+            <Plus className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            title="Fit the whole board"
+            className={zoomBtn}
+            onClick={() => {
+              touched.current = false;
+              fit();
             }}
           >
-            <defs>
-              <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#1e293b" />
-                <stop offset="100%" stopColor="#141d33" />
-              </linearGradient>
-              <radialGradient id="brass" cx="35%" cy="30%">
-                <stop offset="0%" stopColor="#f5deb3" />
-                <stop offset="60%" stopColor="#d9b06a" />
-                <stop offset="100%" stopColor="#8a6a35" />
-              </radialGradient>
-              <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
-                <feGaussianBlur stdDeviation="7" result="b" />
-                <feMerge>
-                  <feMergeNode in="b" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-
-            <rect width={BOARD_W} height={BOARD_H} rx={20} fill="#0e1526" stroke="#1e293b" strokeWidth={2} />
-            {modules.map((m) => (
-              <ModuleView key={m.id} m={m} />
-            ))}
-            <Wires />
-          </svg>
-        </TransformComponent>
-      </TransformWrapper>
+            <Maximize2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
     </ScaleContext.Provider>
   );
 }

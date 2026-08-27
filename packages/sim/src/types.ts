@@ -1,7 +1,6 @@
 /** Every pin carries a role the solver understands. */
 export type PinRole =
   | 'SOURCE_VCC'
-  | 'SOURCE_VSS'
   | 'SOURCE_GND'
   | 'LOAD_VCC'
   | 'LOAD_GND'

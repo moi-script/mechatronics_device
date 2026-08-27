@@ -21,8 +21,8 @@ function Male({ x, y, wireId, end, taken }: { x: number; y: number; wireId: stri
       }}
       style={{ cursor: 'crosshair' }}
     >
-      {pending && <circle cx={x} cy={y - STACK_DY} r={13} fill="#22d3ee" opacity={0.14} />}
-      <rect x={x - 3} y={y - STACK_DY} width={6} height={STACK_DY} rx={2} fill="url(#brass)" stroke="#0f172a" strokeWidth={0.75} />
+      {pending && <circle cx={x} cy={y - STACK_DY} r={13} fill="#0891b2" opacity={0.16} />}
+      <rect x={x - 3} y={y - STACK_DY} width={6} height={STACK_DY} rx={2} fill="url(#brass)" stroke="#78350f" strokeWidth={0.75} />
     </g>
   );
 }
@@ -74,7 +74,7 @@ export function Wires() {
                 selectWire(selected ? null : wire.id);
               }}
             />
-            <path d={d} fill="none" stroke="#020617" strokeWidth={7} opacity={0.45} strokeLinecap="round" />
+            <path d={d} fill="none" stroke="#94a3b8" strokeWidth={7} opacity={0.5} strokeLinecap="round" />
             <path
               d={d}
               fill="none"
@@ -83,15 +83,15 @@ export function Wires() {
               strokeLinecap="round"
               pointerEvents="none"
             />
-            {selected && <path d={d} fill="none" stroke="#f8fafc" strokeWidth={1.5} strokeDasharray="6 6" pointerEvents="none" />}
+            {selected && <path d={d} fill="none" stroke="#0f172a" strokeWidth={1.5} strokeDasharray="6 6" pointerEvents="none" />}
           </g>
         );
       })}
 
       {ends.map(({ wire, a, b, plugged }) => (
         <g key={wire.id + '-plugs'}>
-          <circle cx={a.x} cy={a.y} r={5.5} fill={WIRE_HEX[wire.color]} stroke="#020617" strokeWidth={1.5} pointerEvents="none" />
-          <circle cx={b.x} cy={b.y} r={5.5} fill={WIRE_HEX[wire.color]} stroke="#020617" strokeWidth={1.5} pointerEvents="none" />
+          <circle cx={a.x} cy={a.y} r={5.5} fill={WIRE_HEX[wire.color]} stroke="#f8fafc" strokeWidth={1.5} pointerEvents="none" />
+          <circle cx={b.x} cy={b.y} r={5.5} fill={WIRE_HEX[wire.color]} stroke="#f8fafc" strokeWidth={1.5} pointerEvents="none" />
           {plugged.a && <Male x={a.x} y={a.y} wireId={wire.id} end="A" taken={takenMales.has(wire.id + '.A')} />}
           {plugged.b && <Male x={b.x} y={b.y} wireId={wire.id} end="B" taken={takenMales.has(wire.id + '.B')} />}
         </g>

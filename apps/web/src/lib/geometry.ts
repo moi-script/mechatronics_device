@@ -11,12 +11,13 @@ export const BOARD_H = 920;
 /** Vertical rise of each stacked lead, so a tower of plugs is visible. */
 export const STACK_DY = 13;
 
+/** Lead colours, picked to stay legible against the light board. */
 export const WIRE_HEX: Record<WireColor, string> = {
-  blue: '#3b82f6',
-  green: '#22c55e',
-  red: '#ef4444',
-  black: '#334155',
-  yellow: '#eab308',
+  blue: '#1d4ed8',
+  green: '#15803d',
+  red: '#dc2626',
+  black: '#1e293b',
+  yellow: '#ca8a04',
 };
 
 export function pinPos(circuit: Circuit, moduleId: string, pinId: string): Point {

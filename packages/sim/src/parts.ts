@@ -16,7 +16,7 @@ const supplyPins = (): PinDef[] => {
   for (let i = 0; i < 6; i++) pins.push(pin(`GND${i + 1}`, `GND${i + 1}`, 'SOURCE_GND', 78 + i * 58, 96));
   pins.push(pin('VCC7', 'VCC', 'SOURCE_VCC', 78, 134));
   pins.push(pin('GND7', 'GND', 'SOURCE_GND', 78, 172));
-  pins.push(pin('VSS1', 'VSS', 'SOURCE_VSS', 78, 210));
+  pins.push(pin('VCC8', 'VCC', 'SOURCE_VCC', 78, 210));
   pins.push(pin('GND8', 'GND', 'SOURCE_GND', 78, 248));
   return pins;
 };

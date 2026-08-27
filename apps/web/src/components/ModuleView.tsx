@@ -8,12 +8,20 @@ import { ScaleContext } from './ScaleContext';
 const GRID = 8;
 const snap = (v: number) => Math.round(v / GRID) * GRID;
 
+/** Board palette, tuned for the light bench. */
+const INK = '#0f172a';
+const LABEL = '#64748b';
+const CASE = '#e2e8f0';
+const EDGE = '#94a3b8';
+const HOT = '#ea580c';
+const GND = '#0284c7';
+
 function Terminal({ moduleId, pin }: { moduleId: string; pin: PinDef }) {
   const pending = useBoard((s) => s.pending);
   const live = useBoard((s) => s.breakerOn && !s.tripped);
   const net = useBoard((s) => s.sim.nets[s.sim.pinNet[moduleId + '.' + pin.id]]);
 
-  const ring = !live || !net ? '#64748b' : net.hot ? '#f59e0b' : net.gnd ? '#38bdf8' : '#64748b';
+  const ring = !live || !net ? EDGE : net.hot ? HOT : net.gnd ? GND : EDGE;
   const isSource = pending?.kind === 'terminal' && pending.moduleId === moduleId && pending.pinId === pin.id;
 
   const onDown = (e: React.PointerEvent) => {
@@ -27,17 +35,17 @@ function Terminal({ moduleId, pin }: { moduleId: string; pin: PinDef }) {
 
   return (
     <g data-pin={moduleId + '.' + pin.id} onPointerDown={onDown} style={{ cursor: 'crosshair' }}>
-      {pending && <circle cx={pin.x} cy={pin.y} r={16} fill="#22d3ee" opacity={isSource ? 0.35 : 0.12} />}
-      <circle cx={pin.x} cy={pin.y} r={9} fill="#0f172a" />
+      {pending && <circle cx={pin.x} cy={pin.y} r={16} fill="#0891b2" opacity={isSource ? 0.35 : 0.13} />}
+      <circle cx={pin.x} cy={pin.y} r={9} fill="#f1f5f9" stroke="#cbd5e1" />
       <circle cx={pin.x} cy={pin.y} r={7} fill="url(#brass)" stroke={ring} strokeWidth={2.5} />
-      <circle cx={pin.x} cy={pin.y} r={2.5} fill="#0f172a" opacity={0.55} />
+      <circle cx={pin.x} cy={pin.y} r={2.5} fill="#78350f" opacity={0.5} />
       <text
         x={pin.x}
         y={pin.y + 19}
         textAnchor="middle"
         fontSize={9}
         fontWeight={600}
-        fill="#94a3b8"
+        fill={LABEL}
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >
         {pin.label}
@@ -46,22 +54,22 @@ function Terminal({ moduleId, pin }: { moduleId: string; pin: PinDef }) {
   );
 }
 
-function Led({ x, y, on, color = '#22c55e' }: { x: number; y: number; on: boolean; color?: string }) {
+function Led({ x, y, on, color = '#16a34a' }: { x: number; y: number; on: boolean; color?: string }) {
   return (
     <>
-      {on && <circle cx={x} cy={y} r={11} fill={color} opacity={0.3} filter="url(#glow)" />}
-      <circle cx={x} cy={y} r={5} fill={on ? color : '#1e293b'} stroke="#0f172a" strokeWidth={1.5} />
+      {on && <circle cx={x} cy={y} r={11} fill={color} opacity={0.35} filter="url(#glow)" />}
+      <circle cx={x} cy={y} r={5} fill={on ? color : CASE} stroke={EDGE} strokeWidth={1.25} />
     </>
   );
 }
 
 const Cap = ({ x, y, text, sub }: { x: number; y: number; text: string; sub?: string }) => (
   <g style={{ pointerEvents: 'none', userSelect: 'none' }}>
-    <text x={x} y={y} textAnchor="middle" fontSize={12} fontWeight={700} fill="#cbd5e1" letterSpacing={0.6}>
+    <text x={x} y={y} textAnchor="middle" fontSize={12} fontWeight={700} fill={INK} letterSpacing={0.6}>
       {text}
     </text>
     {sub && (
-      <text x={x} y={y + 14} textAnchor="middle" fontSize={9} fill="#64748b">
+      <text x={x} y={y + 14} textAnchor="middle" fontSize={9} fill={LABEL}>
         {sub}
       </text>
     )}
@@ -96,17 +104,24 @@ function Face({ m }: { m: ModuleInstance }) {
             }}
             style={{ cursor: 'pointer' }}
           >
-            <rect x={w / 2 - 22} y={44} width={44} height={72} rx={8} fill="#0f172a" stroke="#334155" />
+            <rect x={w / 2 - 22} y={44} width={44} height={72} rx={8} fill={CASE} stroke={EDGE} />
             <rect
               x={w / 2 - 16}
               y={on ? 50 : 82}
               width={32}
               height={28}
               rx={5}
-              fill={tripped ? '#ef4444' : on ? '#22c55e' : '#475569'}
+              fill={tripped ? '#dc2626' : on ? '#16a34a' : '#94a3b8'}
             />
           </g>
-          <text x={w / 2} y={134} textAnchor="middle" fontSize={11} fontWeight={700} fill={tripped ? '#f87171' : on ? '#4ade80' : '#64748b'}>
+          <text
+            x={w / 2}
+            y={134}
+            textAnchor="middle"
+            fontSize={11}
+            fontWeight={700}
+            fill={tripped ? '#dc2626' : on ? '#15803d' : LABEL}
+          >
             {tripped ? 'TRIPPED' : on ? 'ON' : 'OFF'}
           </text>
         </>
@@ -114,28 +129,38 @@ function Face({ m }: { m: ModuleInstance }) {
     }
 
     case 'SUPPLY': {
-      const rows: [string, number][] = [
-        ['VCC', 58],
-        ['GND', 96],
-        ['VCC', 134],
-        ['GND', 172],
-        ['VSS', 210],
-        ['GND', 248],
+      // Rows 1 and 2 carry the full six pins; rows 3 to 6 carry a single pin each.
+      const rows: [string, number, number][] = [
+        ['VCC', 58, 6],
+        ['GND', 96, 6],
+        ['VCC', 134, 1],
+        ['GND', 172, 1],
+        ['VCC', 210, 1],
+        ['GND', 248, 1],
       ];
       return (
         <>
           <Cap x={w / 2} y={28} text="POWER SUPPLY" />
-          {rows.map(([label, y], i) => (
+          {rows.map(([label, y, count], i) => (
             <g key={i} style={{ pointerEvents: 'none' }}>
-              <text x={22} y={y + 4} fontSize={10} fontWeight={700} fill={label === 'GND' ? '#38bdf8' : '#f59e0b'}>
+              <rect
+                x={14}
+                y={y - 17}
+                width={count === 6 ? w - 28 : 118}
+                height={34}
+                rx={7}
+                fill={label === 'GND' ? 'rgba(2,132,199,0.07)' : 'rgba(234,88,12,0.07)'}
+                stroke={label === 'GND' ? 'rgba(2,132,199,0.28)' : 'rgba(234,88,12,0.28)'}
+              />
+              <text x={26} y={y + 4} fontSize={10} fontWeight={800} fill={label === 'GND' ? GND : HOT}>
                 {label}
               </text>
-              <text x={22} y={y - 8} fontSize={7} fill="#475569">
+              <text x={26} y={y - 7} fontSize={7} fill="#94a3b8">
                 {'ROW ' + (i + 1)}
               </text>
             </g>
           ))}
-          <Led x={w - 26} y={26} on={breakerOn && !tripped} color="#f59e0b" />
+          <Led x={w - 26} y={26} on={breakerOn && !tripped} color={HOT} />
         </>
       );
     }
@@ -154,12 +179,12 @@ function Face({ m }: { m: ModuleInstance }) {
             onPointerCancel={() => holdButton(m.id, false)}
             style={{ cursor: 'pointer' }}
           >
-            <circle cx={w / 2} cy={80} r={30} fill="#0f172a" stroke="#334155" strokeWidth={2} />
+            <circle cx={w / 2} cy={80} r={30} fill={CASE} stroke={EDGE} strokeWidth={2} />
             <circle
               cx={w / 2}
               cy={pressed ? 82 : 78}
               r={23}
-              fill={pressed ? '#b91c1c' : '#dc2626'}
+              fill={pressed ? '#991b1b' : '#dc2626'}
               stroke="#7f1d1d"
               strokeWidth={2}
             />
@@ -178,10 +203,17 @@ function Face({ m }: { m: ModuleInstance }) {
             }}
             style={{ cursor: 'pointer' }}
           >
-            <rect x={w / 2 - 20} y={50} width={40} height={62} rx={8} fill="#0f172a" stroke="#334155" strokeWidth={2} />
-            <rect x={w / 2 - 13} y={toggled ? 56 : 84} width={26} height={22} rx={4} fill={toggled ? '#22c55e' : '#475569'} />
+            <rect x={w / 2 - 20} y={50} width={40} height={62} rx={8} fill={CASE} stroke={EDGE} strokeWidth={2} />
+            <rect
+              x={w / 2 - 13}
+              y={toggled ? 56 : 84}
+              width={26}
+              height={22}
+              rx={4}
+              fill={toggled ? '#16a34a' : '#94a3b8'}
+            />
           </g>
-          <text x={w / 2} y={126} textAnchor="middle" fontSize={9} fill="#64748b">
+          <text x={w / 2} y={126} textAnchor="middle" fontSize={9} fill={LABEL}>
             {toggled ? 'COM-NO' : 'COM-NC'}
           </text>
         </>
@@ -192,19 +224,12 @@ function Face({ m }: { m: ModuleInstance }) {
       return (
         <>
           <Cap x={w / 2} y={24} text={m.id} />
-          {on && <circle cx={w / 2} cy={78} r={40} fill="#fde047" opacity={0.28} filter="url(#glow)" />}
-          <circle
-            cx={w / 2}
-            cy={78}
-            r={26}
-            fill={on ? '#fde047' : '#1e293b'}
-            stroke={on ? '#fbbf24' : '#334155'}
-            strokeWidth={2.5}
-          />
+          {on && <circle cx={w / 2} cy={78} r={40} fill="#facc15" opacity={0.45} filter="url(#glow)" />}
+          <circle cx={w / 2} cy={78} r={26} fill={on ? '#fde047' : CASE} stroke={on ? '#ca8a04' : EDGE} strokeWidth={2.5} />
           <path
             d={'M ' + (w / 2 - 10) + ' 86 L ' + (w / 2 - 4) + ' 68 L ' + (w / 2 + 4) + ' 86 L ' + (w / 2 + 10) + ' 68'}
             fill="none"
-            stroke={on ? '#92400e' : '#475569'}
+            stroke={on ? '#92400e' : EDGE}
             strokeWidth={2.5}
           />
         </>
@@ -218,18 +243,18 @@ function Face({ m }: { m: ModuleInstance }) {
       return (
         <>
           <Cap x={w / 2} y={24} text={m.id} sub={big ? '4 x NO/COM/NC' : 'NO/COM/NC'} />
-          <rect x={w / 2 - 34} y={big ? 34 : 46} width={68} height={big ? 30 : 34} rx={5} fill="#0f172a" stroke="#334155" />
-          <text x={w / 2} y={big ? 54 : 68} textAnchor="middle" fontSize={9} fill="#64748b" style={{ pointerEvents: 'none' }}>
+          <rect x={w / 2 - 34} y={big ? 34 : 46} width={68} height={big ? 30 : 34} rx={5} fill={CASE} stroke={EDGE} />
+          <text x={w / 2} y={big ? 54 : 68} textAnchor="middle" fontSize={9} fill={LABEL} style={{ pointerEvents: 'none' }}>
             COIL
           </text>
           <Led x={w - 24} y={26} on={on} />
           {big &&
             [1, 2, 3, 4].map((line) => (
-              <text key={line} x={26} y={142 + (line - 1) * 42} fontSize={9} fontWeight={700} fill="#64748b">
+              <text key={line} x={26} y={142 + (line - 1) * 42} fontSize={9} fontWeight={700} fill={LABEL}>
                 {'L' + line}
               </text>
             ))}
-          <text x={w / 2} y={big ? 116 : 100} textAnchor="middle" fontSize={9} fill={on ? '#4ade80' : '#64748b'}>
+          <text x={w / 2} y={big ? 116 : 100} textAnchor="middle" fontSize={9} fill={on ? '#15803d' : LABEL}>
             {on ? 'ENERGIZED' : 'at rest'}
           </text>
         </>
@@ -245,24 +270,24 @@ function Face({ m }: { m: ModuleInstance }) {
       return (
         <>
           <Cap x={w / 2} y={24} text="TIMER" sub="ON-delay" />
-          <circle cx={w / 2} cy={86} r={r} fill="#0f172a" stroke="#334155" strokeWidth={4} />
+          <circle cx={w / 2} cy={86} r={r} fill="#ffffff" stroke={CASE} strokeWidth={4} />
           <circle
             cx={w / 2}
             cy={86}
             r={r}
             fill="none"
-            stroke={done ? '#22c55e' : '#f59e0b'}
+            stroke={done ? '#16a34a' : HOT}
             strokeWidth={4}
             strokeDasharray={circ}
             strokeDashoffset={circ * (1 - pct)}
             transform={'rotate(-90 ' + w / 2 + ' 86)'}
             strokeLinecap="round"
           />
-          <text x={w / 2} y={90} textAnchor="middle" fontSize={12} fontWeight={700} fill="#e2e8f0">
+          <text x={w / 2} y={90} textAnchor="middle" fontSize={12} fontWeight={700} fill={INK}>
             {(Math.max(0, delayMs - elapsed) / 1000).toFixed(1) + 's'}
           </text>
-          <Led x={w - 26} y={26} on={on} color={done ? '#22c55e' : '#f59e0b'} />
-          <text x={w / 2} y={128} textAnchor="middle" fontSize={9} fill="#64748b">
+          <Led x={w - 26} y={26} on={on} color={done ? '#16a34a' : HOT} />
+          <text x={w / 2} y={128} textAnchor="middle" fontSize={9} fill={LABEL}>
             {done ? 'contacts thrown' : on ? 'timing...' : 'coil off'}
           </text>
         </>
@@ -306,13 +331,14 @@ export function ModuleView({ m }: { m: ModuleInstance }) {
 
   return (
     <g data-module={m.id} transform={'translate(' + m.x + ',' + m.y + ')'}>
+      <rect x={2} y={3} width={part.width} height={part.height} rx={12} fill="#0f172a" opacity={0.07} pointerEvents="none" />
       <rect
         className="no-pan"
         width={part.width}
         height={part.height}
         rx={12}
         fill="url(#panel)"
-        stroke="#334155"
+        stroke="#cbd5e1"
         strokeWidth={1.5}
         onPointerDown={onDown}
         onPointerMove={onMove}
@@ -320,7 +346,6 @@ export function ModuleView({ m }: { m: ModuleInstance }) {
         onPointerCancel={onUp}
         style={{ cursor: 'grab' }}
       />
-      <rect width={part.width} height={part.height} rx={12} fill="none" stroke="#0b1020" strokeWidth={3} opacity={0.4} pointerEvents="none" />
       <title>{moduleLabel(m)}</title>
       <Face m={m} />
       {part.pins.map((p) => (
