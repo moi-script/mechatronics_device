@@ -1,0 +1,17 @@
+{
+  "name": "mechatronic-device",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:web": "npm run dev -w @mech/web",
+    "dev:api": "npm run dev -w @mech/api",
+    "test": "npm run test -w @mech/sim",
+    "typecheck": "tsc -b packages/sim apps/api --pretty"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  }
+}
