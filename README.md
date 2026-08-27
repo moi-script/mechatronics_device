@@ -62,6 +62,13 @@ for them there. A drag counts as one step rather than
 one per pixel, and loading a saved circuit starts a fresh history. Clearing the board asks
 first, and is itself undoable.
 
+## Panel sounds
+
+Pressing a push button clicks: a bright transient going down, a duller one coming back up,
+the way a real momentary button behaves. Both are short bursts of bandpassed noise
+synthesised at runtime, so the app carries no audio files. The speaker control in the
+toolbar mutes every panel sound, including the timer alarm, and the choice is remembered.
+
 ## Practice timer
 
 The timer is not a board component and is not wired to anything. It is a session alarm

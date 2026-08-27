@@ -3,31 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { Pause, Play, RotateCcw, Square, Timer as TimerIcon } from 'lucide-react';
+import { alarm } from '@/lib/sound';
 
 const PRESETS = [5, 10, 15, 20, 30, 45, 60];
-
-/** Three short beeps, synthesised so the app carries no audio asset. */
-function alarm() {
-  try {
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new Ctx();
-    [0, 0.28, 0.56].forEach((at) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.0001, ctx.currentTime + at);
-      gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + at + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + at + 0.18);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(ctx.currentTime + at);
-      osc.stop(ctx.currentTime + at + 0.2);
-    });
-    setTimeout(() => void ctx.close(), 1200);
-  } catch {
-    // No audio available; the visual alarm still fires.
-  }
-}
 
 const mmss = (ms: number) => {
   const total = Math.max(0, Math.ceil(ms / 1000));

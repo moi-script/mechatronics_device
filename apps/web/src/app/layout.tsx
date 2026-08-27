@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { IBM_Plex_Mono, IBM_Plex_Sans, IBM_Plex_Sans_Condensed } from 'next/font/google';
-import { ThemeSync } from '@/components/ThemeSync';
+import { PrefsSync } from '@/components/PrefsSync';
 import './globals.css';
 
 // Plex was drawn for an engineering identity, which is the register this panel wants.
@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
       </head>
       <body className="h-full antialiased">
-        <ThemeSync />
+        <PrefsSync />
         {children}
       </body>
     </html>

@@ -15,11 +15,14 @@ import {
   Sun,
   Trash2,
   Undo2,
+  Volume2,
+  VolumeX,
   Zap,
 } from 'lucide-react';
 import { WIRE_COLORS, type WireColor } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
 import { useTheme, useWireColors } from '@/store/useTheme';
+import { useSound } from '@/store/useSound';
 import { api } from '@/lib/api';
 import { SessionTimer } from './SessionTimer';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -76,6 +79,8 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
   const WIRE_HEX = useWireColors();
   const choice = useTheme((s) => s.choice);
   const setChoice = useTheme((s) => s.setChoice);
+  const soundOn = useSound((s) => s.enabled);
+  const setSoundEnabled = useSound((s) => s.setEnabled);
 
   const [savedId, setSavedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -223,6 +228,16 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
           <Share2 className="h-3.5 w-3.5" />
           <span className="hidden lg:inline">Share</span>
         </Btn>
+        <button
+          type="button"
+          onClick={() => setSoundEnabled(!soundOn)}
+          title={soundOn ? 'Panel sounds on' : 'Panel sounds muted'}
+          aria-label={soundOn ? 'Mute panel sounds' : 'Unmute panel sounds'}
+          aria-pressed={soundOn}
+          className="inline-flex items-center rounded-sm border border-steel-400 bg-steel-50 p-1.5 text-carbon-800 hover:bg-steel-200"
+        >
+          {soundOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+        </button>
         <button
           type="button"
           onClick={() => setChoice(choice === 'system' ? 'light' : choice === 'light' ? 'dark' : 'system')}

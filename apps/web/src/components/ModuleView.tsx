@@ -5,6 +5,7 @@ import { PARTS, moduleLabel, type ModuleInstance, type PinDef, type PinRole } fr
 import { useBoard } from '@/store/useBoard';
 import { ScaleContext } from './ScaleContext';
 import { usePalette } from '@/store/useTheme';
+import { clickDown, clickUp } from '@/lib/sound';
 import type { Palette } from '@/lib/palette';
 
 const GRID = 8;
@@ -219,9 +220,13 @@ function Face({ m }: { m: ModuleInstance }) {
             onPointerDown={(e) => {
               e.stopPropagation();
               (e.target as Element).setPointerCapture?.(e.pointerId);
+              clickDown();
               holdButton(m.id, true);
             }}
-            onPointerUp={() => holdButton(m.id, false)}
+            onPointerUp={() => {
+              clickUp();
+              holdButton(m.id, false);
+            }}
             onPointerCancel={() => holdButton(m.id, false)}
             style={{ cursor: 'pointer' }}
           >
