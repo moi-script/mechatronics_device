@@ -1,0 +1,27 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-bench-950: #0b1020;
+  --color-bench-900: #121a2e;
+  --color-bench-800: #1b2540;
+  --color-bench-700: #27324f;
+  --color-brass: #d9b06a;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-bench-950);
+  color: #e2e8f0;
+  overscroll-behavior: none;
+}
+
+.board-grid {
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
