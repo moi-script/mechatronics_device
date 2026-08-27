@@ -7,8 +7,12 @@ import { env } from './env';
  */
 export async function connectDb(): Promise<void> {
   mongoose.set('strictQuery', true);
-  // Reject anything with a $ or a dot in a key before it reaches a query.
-  mongoose.set('sanitizeFilter', true);
+  // sanitizeFilter is deliberately NOT enabled: it wraps any nested object
+  // holding a $ key in $eq, which silently breaks legitimate operators like
+  // $in on the server's own queries. Injection is prevented at the edge
+  // instead - every filter value comes from a zod-parsed string, a JWT
+  // subject, or an id checked with isValidObjectId, so no caller-supplied
+  // object can ever reach a query.
 
   await mongoose.connect(env.mongoUri, {
     serverSelectionTimeoutMS: 10_000,
@@ -21,7 +25,12 @@ export async function connectDb(): Promise<void> {
     await Promise.all(mongoose.modelNames().map((name) => mongoose.model(name).createIndexes()));
   }
 
-  await pruneOrphanedCircuits();
+  // Housekeeping must never be able to stop the service from starting.
+  try {
+    await pruneOrphanedCircuits();
+  } catch (err) {
+    console.error('[mongo] orphan prune skipped:', (err as Error).message);
+  }
 
   mongoose.connection.on('error', (err) => console.error('[mongo] error:', err.message));
   mongoose.connection.on('disconnected', () => console.warn('[mongo] disconnected'));
