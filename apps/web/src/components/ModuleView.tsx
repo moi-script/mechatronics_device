@@ -9,6 +9,8 @@ import { clickDown, clickUp } from '@/lib/sound';
 import type { Palette } from '@/lib/palette';
 
 const GRID = 8;
+/** How long a cylinder takes to run its full stroke, on screen. */
+const STROKE_MS = 700;
 const snap = (v: number) => Math.round(v / GRID) * GRID;
 
 /** Insulator collar colour: COM and GND are black, every other terminal is red. */
@@ -25,6 +27,9 @@ const TAG: Record<string, string> = {
   LAMP: 'INDICATOR',
   RELAY: '1 x NO/COM/NC',
   BIGRELAY: '4 x NO/COM/NC',
+  SOLENOID: '2 x 3 VCC/GND',
+  CYLINDER: 'DOUBLE-ACTING',
+  TIMER: 'ON-DELAY',
 };
 
 function Terminal({ moduleId, pin }: { moduleId: string; pin: PinDef }) {
@@ -115,9 +120,23 @@ const LegendPlate = ({ w, name, tag }: { w: number; name: string; tag?: string }
 };
 
 /** The part-specific face inside a module's plate. */
+/** SVG arc path between two clock angles, measured from twelve o'clock. */
+function arc(cx: number, cy: number, r: number, from: number, to: number): string {
+  const at = (a: number) => {
+    const rad = (a * Math.PI) / 180;
+    return [cx + Math.sin(rad) * r, cy - Math.cos(rad) * r];
+  };
+  const [x0, y0] = at(from);
+  const [x1, y1] = at(to);
+  return `M ${x0} ${y0} A ${r} ${r} 0 ${to - from > 180 ? 1 : 0} 1 ${x1} ${y1}`;
+}
+
 function Face({ m }: { m: ModuleInstance }) {
   const part = PARTS[m.type];
   const device = useBoard((s) => s.sim.devices[m.id]);
+  const timer = useBoard((s) => s.sim.timers[m.id]);
+  const piston = useBoard((s) => s.sim.pistons[m.id]);
+  const setTimerDelay = useBoard((s) => s.setTimerDelay);
   const tripped = useBoard((s) => s.tripped);
   const breakerOn = useBoard((s) => s.breakerOn);
   const setBreaker = useBoard((s) => s.setBreaker);
@@ -318,6 +337,165 @@ function Face({ m }: { m: ModuleInstance }) {
               </text>
             ))}
           {status(big ? 116 : 104, on ? 'ENERGIZED' : 'at rest', on ? p.green : p.label)}
+        </>
+      );
+    }
+
+    case 'SOLENOID': {
+      // Mirrors the SUPPLY block's striping, just two rows of three pairs
+      // instead of six full rows. Values match SOLENOID_ROW_Y / SOLENOID_PAIR_X
+      // in parts.ts — keep them in sync if you resize the part.
+      const rowY = [58, 106];
+      const pairX = [40, 128, 216];
+      return (
+        <>
+          {rowY.map((y) => (
+            <g key={y} style={{ pointerEvents: 'none' }}>
+              <rect x={12} y={y - 17} width={w - 24} height={34} rx={4} fill={p.amber} fillOpacity={0.07} />
+              {pairX.map((x0) => (
+                <rect key={x0} x={x0 - 6} y={y - 15} width={64} height={30} rx={3} fill="none" stroke={p.moduleStroke} strokeOpacity={0.4} />
+              ))}
+            </g>
+          ))}
+        </>
+      );
+    }
+
+    case 'CYLINDER': {
+      const st = piston ?? { extended: false, extendCoil: false, retractCoil: false, stalled: false };
+      // Barrel geometry: the rod slides ROD_TRAVEL to the right when extended.
+      const bx = 26;
+      const barrelW = 108;
+      const travel = 84;
+      const capX = bx + barrelW;
+      return (
+        <>
+          {/* Barrel with its two end caps and tie rods. */}
+          <rect x={bx} y={48} width={barrelW} height={46} rx={5} fill="url(#housing)" stroke={p.moduleStroke} />
+          <rect x={bx + 5} y={54} width={barrelW - 10} height={34} rx={3} fill={p.housingInner} opacity={0.85} />
+          <rect x={bx - 5} y={44} width={10} height={54} rx={2} fill="url(#chrome)" stroke={p.screwStroke} strokeWidth={0.6} />
+          <rect x={capX - 5} y={44} width={10} height={54} rx={2} fill="url(#chrome)" stroke={p.screwStroke} strokeWidth={0.6} />
+          {[52, 90].map((y) => (
+            <line key={y} x1={bx} y1={y} x2={capX} y2={y} stroke={p.screwStroke} strokeOpacity={0.35} strokeWidth={1} />
+          ))}
+
+          {/* Rod and piston, moved as one group so both strokes animate. */}
+          <g
+            style={{
+              transform: `translateX(${st.extended ? travel : 0}px)`,
+              transition: `transform ${STROKE_MS}ms cubic-bezier(0.4, 0.1, 0.25, 1)`,
+              pointerEvents: 'none',
+            }}
+          >
+            {/* Piston head, riding inside the barrel. */}
+            <rect x={bx + 12} y={54} width={16} height={34} rx={2} fill={p.chrome[0]} stroke={p.screwStroke} strokeWidth={0.6} />
+            {/* Rod, running out through the front cap. */}
+            <rect x={bx + 26} y={67} width={travel + 28} height={8} rx={3} fill="url(#chrome)" stroke={p.screwStroke} strokeWidth={0.5} />
+            {/* Clevis on the rod's free end. */}
+            <rect x={bx + travel + 50} y={60} width={12} height={22} rx={2} fill={p.chrome[0]} stroke={p.screwStroke} strokeWidth={0.6} />
+            <circle cx={bx + travel + 56} cy={71} r={3} fill={p.recess} stroke={p.screwStroke} strokeWidth={0.6} />
+          </g>
+
+          {/* Air ports: the one being fed glows. */}
+          {[
+            { x: bx + 16, live: st.extendCoil, label: 'A' },
+            { x: capX - 22, live: st.retractCoil, label: 'B' },
+          ].map((port) => (
+            <g key={port.label} style={{ pointerEvents: 'none' }}>
+              <rect x={port.x} y={100} width={16} height={9} rx={2} fill={port.live ? p.amber : p.screwStroke} />
+              <text className="t-mono" x={port.x + 8} y={121} textAnchor="middle" fontSize={7.5} fill={p.label}>
+                {port.label}
+              </text>
+            </g>
+          ))}
+
+          {/* One LED per solenoid, so it is obvious which coil is being fed. */}
+          <Led x={w - 42} y={17.5} on={st.extendCoil} color={p.amber} />
+          <Led x={w - 22} y={17.5} on={st.retractCoil} />
+          {status(
+            132,
+            st.stalled ? 'STALLED' : st.extended ? 'EXTENDED' : 'retracted',
+            st.stalled ? p.red : st.extended ? p.green : p.label,
+          )}
+        </>
+      );
+    }
+
+    case 'TIMER': {
+      const on = !!device?.energized;
+      const done = !!device?.actuated;
+      const t = timer ?? { delayMs: 5000, remainingMs: 5000, running: false, done: false };
+      // Pointer sweeps a 270-degree scale from the set point down to zero.
+      const progress = t.delayMs > 0 ? 1 - t.remainingMs / t.delayMs : 0;
+      const angle = -135 + progress * 270;
+      const rad = (angle * Math.PI) / 180;
+      const secs = Math.max(0, t.remainingMs / 1000);
+      const readout = (t.running ? secs : t.delayMs / 1000).toFixed(1) + 's';
+      const nudge = (by: number) => (e: React.PointerEvent) => {
+        e.stopPropagation();
+        setTimerDelay(m.id, (m.delaySec ?? 5) + by);
+      };
+      return (
+        <>
+          {/* Dial housing: the scale sweeps as the set point counts down. */}
+          <rect x={w / 2 - 40} y={36} width={80} height={54} rx={4} fill="url(#housing)" stroke={p.moduleStroke} />
+          <circle cx={w / 2} cy={63} r={20} fill={p.recess} stroke={p.recessStroke} />
+          <circle cx={w / 2} cy={63} r={17} fill={p.housingInner} opacity={0.85} />
+          {/* Elapsed arc, filling clockwise as the timer runs out. */}
+          {t.running && progress > 0 && (
+            <path
+              d={arc(w / 2, 63, 14, -135, angle)}
+              fill="none"
+              stroke={p.amber}
+              strokeWidth={3}
+              strokeLinecap="round"
+              opacity={0.9}
+            />
+          )}
+          {[-135, -67.5, 0, 67.5, 135].map((a) => (
+            <line
+              key={a}
+              x1={w / 2 + Math.sin((a * Math.PI) / 180) * 11.5}
+              y1={63 - Math.cos((a * Math.PI) / 180) * 11.5}
+              x2={w / 2 + Math.sin((a * Math.PI) / 180) * 15.5}
+              y2={63 - Math.cos((a * Math.PI) / 180) * 15.5}
+              stroke={p.label}
+              strokeWidth={1}
+            />
+          ))}
+          <line
+            x1={w / 2}
+            y1={63}
+            x2={w / 2 + Math.sin(rad) * 12}
+            y2={63 - Math.cos(rad) * 12}
+            stroke={done ? p.green : on ? p.amber : p.screwStroke}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+          <circle cx={w / 2} cy={63} r={2} fill={p.screwStroke} />
+          {/* Set point, dialled with the two rockers either side of it. */}
+          <g onPointerDown={nudge(-1)} style={{ cursor: 'pointer' }}>
+            <rect x={20} y={54} width={18} height={18} rx={3} fill={p.recess} stroke={p.recessStroke} />
+            <path d={`M 25 63 H 33`} stroke={p.label} strokeWidth={1.6} />
+          </g>
+          <g onPointerDown={nudge(1)} style={{ cursor: 'pointer' }}>
+            <rect x={w - 38} y={54} width={18} height={18} rx={3} fill={p.recess} stroke={p.recessStroke} />
+            <path d={`M ${w - 29} 58 V 68 M ${w - 34} 63 H ${w - 24}`} stroke={p.label} strokeWidth={1.6} />
+          </g>
+          <text
+            className="t-mono"
+            x={w / 2}
+            y={100}
+            textAnchor="middle"
+            fontSize={11}
+            fontWeight={700}
+            fill={done ? p.green : t.running ? p.amber : p.label}
+            style={{ pointerEvents: 'none' }}
+          >
+            {readout}
+          </text>
+          <Led x={w - 24} y={17.5} on={done} />
+          {status(128, done ? 'TIMED OUT' : t.running ? 'TIMING' : 'at rest', done ? p.green : t.running ? p.amber : p.label)}
         </>
       );
     }

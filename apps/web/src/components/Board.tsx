@@ -12,8 +12,13 @@ import { Wires } from './Wires';
 import { ScaleContext } from './ScaleContext';
 import { BoardDefs, BoardPlate } from './BoardPlate';
 
+/** How often the board is re-solved while an on-delay timer is counting. */
+const TICK_MS = 100;
+
 export function Board() {
   const modules = useBoard((s) => s.circuit.modules);
+  const timing = useBoard((s) => s.sim.nextTickMs !== null);
+  const tick = useBoard((s) => s.tick);
   const setCursor = useBoard((s) => s.setCursor);
   const cancelWire = useBoard((s) => s.cancelWire);
   const selectWire = useBoard((s) => s.selectWire);
@@ -36,18 +41,50 @@ export function Board() {
   const touched = useRef(false);
   const getScale = useCallback(() => zoomRef.current?.instance.transformState.scale ?? 1, []);
 
-  /** Scale the whole bench to whatever room the viewport gives us. */
+  /** Run the clock only while something is actually on it. */
+  useEffect(() => {
+    if (!timing) return;
+    const id = setInterval(tick, TICK_MS);
+    return () => clearInterval(id);
+  }, [timing, tick]);
+
+  /**
+   * Frame whatever is actually on the board, so a bench holding two parts is
+   * not shown as two specks on an empty plate. With nothing down we fall back
+   * to the whole plate.
+   */
   const fit = useCallback(() => {
     const host = hostRef.current;
     if (!host) return;
-    const scale = Math.min(1.1, Math.max(0.18, Math.min(host.clientWidth / (BOARD_W + 48), host.clientHeight / (BOARD_H + 48))));
+    const down = useBoard.getState().circuit.modules;
+    const pad = 60;
+    let x0 = 0;
+    let y0 = 0;
+    let x1 = BOARD_W;
+    let y1 = BOARD_H;
+    if (down.length > 0) {
+      x0 = Math.max(0, Math.min(...down.map((m) => m.x)) - pad);
+      y0 = Math.max(0, Math.min(...down.map((m) => m.y)) - pad);
+      x1 = Math.min(BOARD_W, Math.max(...down.map((m) => m.x + PARTS[m.type].width)) + pad);
+      y1 = Math.min(BOARD_H, Math.max(...down.map((m) => m.y + PARTS[m.type].height)) + pad);
+    }
+    const w = Math.max(1, x1 - x0);
+    const h = Math.max(1, y1 - y0);
+    const scale = Math.min(1.1, Math.max(0.18, Math.min(host.clientWidth / w, host.clientHeight / h)));
     zoomRef.current?.setTransform(
-      (host.clientWidth - BOARD_W * scale) / 2,
-      (host.clientHeight - BOARD_H * scale) / 2,
+      (host.clientWidth - w * scale) / 2 - x0 * scale,
+      (host.clientHeight - h * scale) / 2 - y0 * scale,
       scale,
       0,
     );
   }, []);
+
+  /** Re-frame when parts come out of the bin, unless the user has taken over. */
+  useEffect(() => {
+    if (touched.current) return;
+    const id = setTimeout(fit, 40);
+    return () => clearTimeout(id);
+  }, [modules.length, fit]);
 
   useEffect(() => {
     const host = hostRef.current;

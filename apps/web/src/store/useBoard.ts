@@ -7,7 +7,10 @@ import {
   emptyCircuit,
   emptyState,
   isMaleOccupied,
+  benchSlot,
   step,
+  TIMER_MAX_DELAY_SEC,
+  TIMER_MIN_DELAY_SEC,
   type Circuit,
   type EndRef,
   type Inputs,
@@ -47,7 +50,15 @@ interface BoardStore extends Core {
   resetBreaker(): void;
   holdButton(id: string, down: boolean): void;
   flipToggle(id: string): void;
+  /** Re-solve on the wall clock, so on-delay timers actually run down. */
+  tick(): void;
+  /** Dial a timer's set point, in seconds. */
+  setTimerDelay(id: string, seconds: number): void;
 
+  /** Put a bench part down on the board, at its slot in the bench layout. */
+  addModule(id: string): void;
+  /** Send a part back to the bin, taking every lead plugged into it with it. */
+  removeModule(id: string): void;
   moveModule(id: string, x: number, y: number): void;
   /** Reposition several modules at once, for a group drag. */
   moveModules(positions: Record<string, { x: number; y: number }>): void;
@@ -90,6 +101,7 @@ const inputsOf = (s: Core): Inputs => ({
   breakerClosed: s.breakerOn && !s.tripped,
   pressed: s.pressed,
   toggled: s.toggled,
+  now: Date.now(),
 });
 
 /** Re-solve the board, latching a short circuit as a tripped breaker. */
@@ -133,6 +145,57 @@ export const useBoard = create<BoardStore>((set, get) => ({
   resetBreaker: () => set((s) => resolve({ ...s, tripped: false, latched: [], simState: emptyState() })),
   holdButton: (id, down) => set((s) => resolve({ ...s, pressed: { ...s.pressed, [id]: down } })),
   flipToggle: (id) => set((s) => resolve({ ...s, toggled: { ...s.toggled, [id]: !s.toggled[id] } })),
+
+  tick: () => set((s) => (s.sim.nextTickMs === null ? {} : resolve(s))),
+
+  setTimerDelay: (id, seconds) =>
+    set((s) => {
+      const delaySec = Math.min(TIMER_MAX_DELAY_SEC, Math.max(TIMER_MIN_DELAY_SEC, Math.round(seconds)));
+      const circuit = {
+        ...s.circuit,
+        modules: s.circuit.modules.map((m) => (m.id === id ? { ...m, delaySec } : m)),
+      };
+      return { ...resolve({ ...s, circuit }), ...remember(s), dirty: true };
+    }),
+  addModule: (id) =>
+    set((s) => {
+      if (s.circuit.modules.some((m) => m.id === id)) return {};
+      const slot = benchSlot(id);
+      if (!slot) return {};
+      return {
+        ...resolve({ ...s, circuit: { ...s.circuit, modules: [...s.circuit.modules, slot] } }),
+        ...remember(s),
+        selectedModuleIds: [id],
+        dirty: true,
+      };
+    }),
+
+  removeModule: (id) =>
+    set((s) => {
+      if (!s.circuit.modules.some((m) => m.id === id)) return {};
+      // Leads plugged into the part go with it; anything stacked on those
+      // leads falls loose rather than vanishing, same as deleting a lead.
+      const gone = new Set(
+        s.circuit.wires
+          .filter((w) => [w.a, w.b].some((e) => e.kind === 'terminal' && e.moduleId === id))
+          .map((w) => w.id),
+      );
+      const drop = (ref: EndRef): EndRef =>
+        ref.kind === 'stack' && gone.has(ref.wireId) ? { kind: 'loose', x: 0, y: 0 } : ref;
+      const wires = s.circuit.wires
+        .filter((w) => !gone.has(w.id))
+        .map((w) => ({ ...w, a: drop(w.a), b: drop(w.b) }));
+      const circuit = { ...s.circuit, modules: s.circuit.modules.filter((m) => m.id !== id), wires };
+      return {
+        ...resolve({ ...s, circuit }),
+        ...remember(s),
+        selectedModuleIds: s.selectedModuleIds.filter((x) => x !== id),
+        selectedWireId: s.selectedWireId && gone.has(s.selectedWireId) ? null : s.selectedWireId,
+        pending: null,
+        dirty: true,
+      };
+    }),
+
   moveModule: (id, x, y) =>
     set((s) => ({
       circuit: {

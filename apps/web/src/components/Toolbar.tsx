@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import {
   FolderOpen,
   Monitor,
+  PackagePlus,
   Moon,
   PanelRight,
   Power,
@@ -61,7 +62,15 @@ function Btn({
   );
 }
 
-export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () => void; onTogglePanel: () => void }) {
+export function Toolbar({
+  onOpenLibrary,
+  onOpenParts,
+  onTogglePanel,
+}: {
+  onOpenLibrary: () => void;
+  onOpenParts: () => void;
+  onTogglePanel: () => void;
+}) {
   const breakerOn = useBoard((s) => s.breakerOn);
   const tripped = useBoard((s) => s.tripped);
   const setBreaker = useBoard((s) => s.setBreaker);
@@ -76,6 +85,7 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
   const canUndo = useBoard((s) => s.past.length > 0);
   const canRedo = useBoard((s) => s.future.length > 0);
   const wireCount = useBoard((s) => s.circuit.wires.length);
+  const moduleCount = useBoard((s) => s.circuit.modules.length);
   const setHint = useBoard((s) => s.setHint);
   const WIRE_HEX = useWireColors();
   const choice = useTheme((s) => s.choice);
@@ -242,6 +252,11 @@ export function Toolbar({ onOpenLibrary, onTogglePanel }: { onOpenLibrary: () =>
         <Btn onClick={() => setConfirmingClear(true)} tone="danger" disabled={wireCount === 0}>
           <span className="hidden sm:inline">Clear all</span>
           <span className="sm:hidden">Clear</span>
+        </Btn>
+        <Btn onClick={onOpenParts} title="Add or remove bench components">
+          <PackagePlus className="h-3.5 w-3.5" />
+          <span className="hidden lg:inline">Components</span>
+          <span className="font-mono text-[10px] text-carbon-600">{moduleCount}</span>
         </Btn>
         <Btn onClick={onOpenLibrary} title="Saved circuits">
           <FolderOpen className="h-3.5 w-3.5" />
