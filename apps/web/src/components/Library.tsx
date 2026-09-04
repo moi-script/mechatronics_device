@@ -1,9 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { LogOut, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, LogOut, Trash2, X } from 'lucide-react';
+import { PRESETS, type Preset } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
 import { api, type CircuitSummary, type User } from '@/lib/api';
+import { ConfirmDialog } from './ConfirmDialog';
 
 function AuthForm({ onDone }: { onDone: (u: User) => void }) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -75,6 +77,84 @@ function AuthForm({ onDone }: { onDone: (u: User) => void }) {
   );
 }
 
+/**
+ * The worked circuits that ship with the bench. They need no account: a preset
+ * is built locally and dropped straight onto the board, parts and all.
+ */
+function Presets({ onLoaded }: { onLoaded: () => void }) {
+  const loadCircuit = useBoard((s) => s.loadCircuit);
+  const setHint = useBoard((s) => s.setHint);
+  const wireCount = useBoard((s) => s.circuit.wires.length);
+  const [openId, setOpenId] = useState<string | null>(null);
+  /** Held while we ask before throwing away a board that has leads on it. */
+  const [replacing, setReplacing] = useState<Preset | null>(null);
+
+  const load = (p: Preset) => {
+    // A preset brings its own parts, so it replaces the board outright.
+    loadCircuit(p.build(), null);
+    setHint(`Loaded "${p.name}". Close the breaker to run it.`);
+    setReplacing(null);
+    onLoaded();
+  };
+
+  return (
+    <section className="mb-4 border-b border-steel-300 pb-4">
+      <h3 className="engraved mb-2 text-[10px] font-bold text-carbon-600">Preset circuits</h3>
+      <ul className="space-y-1.5">
+        {PRESETS.map((p) => {
+          const open = openId === p.id;
+          return (
+            <li key={p.id} className="rounded-sm border border-steel-300 bg-steel-100">
+              <div className="flex items-start gap-2 px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-semibold text-carbon-900">{p.name}</div>
+                  <p className="mt-0.5 text-[10px] leading-relaxed text-carbon-600">{p.summary}</p>
+                  <button
+                    type="button"
+                    onClick={() => setOpenId(open ? null : p.id)}
+                    aria-expanded={open}
+                    className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-carbon-600 hover:text-carbon-900"
+                  >
+                    {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                    How it runs
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => (wireCount > 0 ? setReplacing(p) : load(p))}
+                  className="shrink-0 rounded-sm border border-run-green/40 bg-run-green/10 px-2.5 py-1.5 text-[11px] font-semibold text-run-green hover:bg-run-green/20"
+                >
+                  Load
+                </button>
+              </div>
+              {open && (
+                <ol className="list-decimal space-y-1 border-t border-steel-300 py-2 pl-8 pr-3 text-[10px] leading-relaxed text-carbon-600">
+                  {p.steps.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ol>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      {replacing && (
+        <ConfirmDialog
+          title={`Load "${replacing.name}"?`}
+          message={`This replaces what is on the board, including ${
+            wireCount === 1 ? 'the lead you have run' : 'all ' + wireCount + ' leads you have run'
+          }, and puts down the parts the preset needs.`}
+          detail="Save the board first if you want to keep it."
+          confirmLabel="Load the preset"
+          onConfirm={() => load(replacing)}
+          onCancel={() => setReplacing(null)}
+        />
+      )}
+    </section>
+  );
+}
+
 export function Library({ onClose }: { onClose: () => void }) {
   const loadCircuit = useBoard((s) => s.loadCircuit);
   const setHint = useBoard((s) => s.setHint);
@@ -121,6 +201,8 @@ export function Library({ onClose }: { onClose: () => void }) {
             <X className="h-4 w-4" />
           </button>
         </div>
+
+        <Presets onLoaded={onClose} />
 
         {error && <p className="text-xs text-safety-red">{error}</p>}
 
