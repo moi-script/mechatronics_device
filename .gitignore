@@ -8,3 +8,4 @@ dist/
 *.png
 
 .vercel
+*.tsbuildinfo

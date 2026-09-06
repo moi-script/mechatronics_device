@@ -4,6 +4,7 @@ import { useCallback, useContext, useRef } from 'react';
 import { PARTS, moduleLabel, type ModuleInstance, type PinDef, type PinRole } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
 import { ScaleContext } from './ScaleContext';
+import type { WireFocus } from '@/lib/geometry';
 import { usePalette } from '@/store/useTheme';
 import { clickDown, clickUp } from '@/lib/sound';
 import type { Palette } from '@/lib/palette';
@@ -32,7 +33,13 @@ const TAG: Record<string, string> = {
   TIMER: 'ON-DELAY',
 };
 
-function Terminal({ moduleId, pin }: { moduleId: string; pin: PinDef }) {
+/**
+ * How a terminal reads while a lead is picked: `on` is one of the two the lead
+ * lands on, `off` is a neighbour on the same module, null is business as usual.
+ */
+type Emphasis = 'on' | 'off' | null;
+
+function Terminal({ moduleId, pin, emphasis }: { moduleId: string; pin: PinDef; emphasis: Emphasis }) {
   const pending = useBoard((s) => s.pending);
   const live = useBoard((s) => s.breakerOn && !s.tripped);
   const net = useBoard((s) => s.sim.nets[s.sim.pinNet[moduleId + '.' + pin.id]]);
@@ -52,7 +59,23 @@ function Terminal({ moduleId, pin }: { moduleId: string; pin: PinDef }) {
   };
 
   return (
-    <g data-pin={moduleId + '.' + pin.id} onPointerDown={onDown} style={{ cursor: 'crosshair' }}>
+    <g
+      data-pin={moduleId + '.' + pin.id}
+      onPointerDown={onDown}
+      opacity={emphasis === 'off' ? 0.3 : 1}
+      style={{
+        cursor: 'crosshair',
+        filter: emphasis === 'off' ? 'blur(1.6px)' : undefined,
+        transition: 'opacity 140ms ease',
+      }}
+    >
+      {/* The terminal the picked lead lands on wears a ring, so the eye finds it. */}
+      {emphasis === 'on' && (
+        <>
+          <circle cx={pin.x} cy={pin.y} r={17} fill={p.amber} opacity={0.18} filter="url(#glow)" />
+          <circle cx={pin.x} cy={pin.y} r={14} fill="none" stroke={p.amber} strokeWidth={2.2} />
+        </>
+      )}
       {pending && <circle cx={pin.x} cy={pin.y} r={16} fill="#0891b2" opacity={isSource ? 0.32 : 0.12} />}
       {/* A live terminal glows in its rail colour; the collar always states its function. */}
       {energised && <circle cx={pin.x} cy={pin.y} r={13} fill={energised} opacity={p.glowOpacity} filter="url(#glow)" />}
@@ -66,9 +89,9 @@ function Terminal({ moduleId, pin }: { moduleId: string; pin: PinDef }) {
         x={pin.x}
         y={pin.y + 19}
         textAnchor="middle"
-        fontSize={8.5}
-        fontWeight={500}
-        fill={p.label}
+        fontSize={emphasis === 'on' ? 10 : 8.5}
+        fontWeight={emphasis === 'on' ? 700 : 500}
+        fill={emphasis === 'on' ? p.ink : p.label}
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >
         {pin.label}
@@ -505,7 +528,7 @@ function Face({ m }: { m: ModuleInstance }) {
   }
 }
 
-export function ModuleView({ m }: { m: ModuleInstance }) {
+export function ModuleView({ m, focus }: { m: ModuleInstance; focus?: WireFocus | null }) {
   const part = PARTS[m.type];
   const beginMove = useBoard((s) => s.beginMove);
   const selected = useBoard((s) => s.selectedModuleIds.includes(m.id));
@@ -583,9 +606,17 @@ export function ModuleView({ m }: { m: ModuleInstance }) {
   }, []);
 
   const { width: pw, height: ph } = part;
+  // A picked lead narrows the board to the two modules it joins; the rest of
+  // the bench steps back rather than disappearing.
+  const outside = !!focus && !focus.modules.has(m.id);
 
   return (
-    <g data-module={m.id} transform={`translate(${m.x},${m.y})`}>
+    <g
+      data-module={m.id}
+      transform={`translate(${m.x},${m.y})`}
+      opacity={outside ? 0.25 : 1}
+      style={{ filter: outside ? 'blur(2px)' : undefined, transition: 'opacity 160ms ease' }}
+    >
       {selected && (
         <rect
           x={-5}
@@ -625,8 +656,13 @@ export function ModuleView({ m }: { m: ModuleInstance }) {
       <title>{moduleLabel(m)}</title>
       <LegendPlate w={pw} name={m.type === 'SUPPLY' ? 'POWER SUPPLY' : m.id} tag={TAG[m.type]} />
       <Face m={m} />
-      {part.pins.map((p) => (
-        <Terminal key={p.id} moduleId={m.id} pin={p} />
+      {part.pins.map((pin) => (
+        <Terminal
+          key={pin.id}
+          moduleId={m.id}
+          pin={pin}
+          emphasis={!focus || outside ? null : focus.pins.has(m.id + '.' + pin.id) ? 'on' : 'off'}
+        />
       ))}
     </g>
   );

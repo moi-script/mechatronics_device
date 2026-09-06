@@ -1,12 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { Maximize2, Minus, Plus, Redo2, Undo2 } from 'lucide-react';
 import { PARTS } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
 import { usePalette } from '@/store/useTheme';
-import { BOARD_H, BOARD_W } from '@/lib/geometry';
+import { BOARD_H, BOARD_W, CANVAS_H, CANVAS_PAD, CANVAS_W, GRID_MAJOR, GRID_MINOR, wireFocus } from '@/lib/geometry';
 import { ModuleView } from './ModuleView';
 import { Wires } from './Wires';
 import { ScaleContext } from './ScaleContext';
@@ -17,6 +17,8 @@ const TICK_MS = 100;
 
 export function Board() {
   const modules = useBoard((s) => s.circuit.modules);
+  const wires = useBoard((s) => s.circuit.wires);
+  const selectedWireId = useBoard((s) => s.selectedWireId);
   const timing = useBoard((s) => s.sim.nextTickMs !== null);
   const tick = useBoard((s) => s.tick);
   const setCursor = useBoard((s) => s.setCursor);
@@ -29,17 +31,47 @@ export function Board() {
   const canRedo = useBoard((s) => s.future.length > 0);
   const palette = usePalette();
 
+  /**
+   * Picking a lead narrows the board to the two modules it joins, so the eye
+   * goes straight to what is connected to what.
+   */
+  const focus = useMemo(() => wireFocus(wires, selectedWireId), [wires, selectedWireId]);
+
   /** Rubber band in board coordinates while a marquee drag is in progress. */
   const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   /** Holding space hands the left button back to panning. */
   const [panMode, setPanMode] = useState(false);
 
   const hostRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const zoomRef = useRef<ReactZoomPanPinchRef>(null);
   /** Once the user pans or zooms, stop re-fitting the view out from under them. */
   const touched = useRef(false);
   const getScale = useCallback(() => zoomRef.current?.instance.transformState.scale ?? 1, []);
+
+  /**
+   * Rule the bench under the board. The ruling is painted on a fixed sheet the
+   * size of the viewport and simply re-offset as the board moves, so it costs
+   * nothing to pan forever: there is no edge to reach in any direction.
+   */
+  const paintGrid = useCallback((scale: number, x: number, y: number) => {
+    const grid = gridRef.current;
+    if (!grid) return;
+    const minor = GRID_MINOR * scale;
+    const major = GRID_MAJOR * scale;
+    // Board (0,0) in viewport pixels: where the ruling is pinned.
+    const ox = x + CANVAS_PAD * scale;
+    const oy = y + CANVAS_PAD * scale;
+    // Below a few pixels the fine ruling turns into noise, so it drops out
+    // and only the heavy lines survive, the way a drawing sheet reads.
+    const coarse = minor < 7;
+    grid.classList.toggle('grid-coarse', coarse);
+    grid.style.backgroundSize = coarse
+      ? major + 'px ' + major + 'px, ' + major + 'px ' + major + 'px'
+      : major + 'px ' + major + 'px, ' + major + 'px ' + major + 'px, ' + minor + 'px ' + minor + 'px, ' + minor + 'px ' + minor + 'px';
+    grid.style.backgroundPosition = ox + 'px ' + oy + 'px';
+  }, []);
 
   /** Run the clock only while something is actually on it. */
   useEffect(() => {
@@ -71,13 +103,13 @@ export function Board() {
     const w = Math.max(1, x1 - x0);
     const h = Math.max(1, y1 - y0);
     const scale = Math.min(1.1, Math.max(0.18, Math.min(host.clientWidth / w, host.clientHeight / h)));
-    zoomRef.current?.setTransform(
-      (host.clientWidth - w * scale) / 2 - x0 * scale,
-      (host.clientHeight - h * scale) / 2 - y0 * scale,
-      scale,
-      0,
-    );
-  }, []);
+    // The content starts one pad above and left of the plate's origin, so the
+    // framing offset is measured from there rather than from board (0,0).
+    const px = (host.clientWidth - w * scale) / 2 - (x0 + CANVAS_PAD) * scale;
+    const py = (host.clientHeight - h * scale) / 2 - (y0 + CANVAS_PAD) * scale;
+    zoomRef.current?.setTransform(px, py, scale, 0);
+    paintGrid(scale, px, py);
+  }, [paintGrid]);
 
   /** Re-frame when parts come out of the bin, unless the user has taken over. */
   useEffect(() => {
@@ -236,11 +268,12 @@ export function Board() {
 
   return (
     <ScaleContext.Provider value={getScale}>
-      <div ref={hostRef} className="relative h-full w-full">
+      <div ref={hostRef} className="board-grid relative h-full w-full overflow-hidden">
+        <div ref={gridRef} className="canvas-grid pointer-events-none absolute inset-0" />
         <TransformWrapper
           ref={zoomRef}
-          minScale={0.15}
-          maxScale={2.5}
+          minScale={0.04}
+          maxScale={3}
           initialScale={0.6}
           limitToBounds={false}
           centerOnInit
@@ -261,41 +294,50 @@ export function Board() {
           onZoomStart={() => {
             touched.current = true;
           }}
+          onTransformed={(_ref, state) => paintGrid(state.scale, state.positionX, state.positionY)}
         >
-          <TransformComponent wrapperClass="!w-full !h-full board-grid" contentClass="!w-auto !h-auto">
-            <svg
-              ref={svgRef}
-              width={BOARD_W}
-              height={BOARD_H}
-              viewBox={'0 0 ' + BOARD_W + ' ' + BOARD_H}
-              className="max-w-none shrink-0"
-              onPointerMove={onPointerMove}
-              onPointerDown={onBackgroundDown}
-              style={{ width: BOARD_W, height: BOARD_H, cursor: panMode ? 'grab' : 'default' }}
-            >
-              <BoardDefs />
+          <TransformComponent wrapperClass="!w-full !h-full" contentClass="!w-auto !h-auto">
+            {/*
+              Nothing bounds the workspace. The box below only sets how much of
+              it answers to a click on empty bench; overflow stays visible, so a
+              module or lead dragged past that box still draws, and panning goes
+              on as far as anyone cares to drag.
+            */}
+            <div className="shrink-0" style={{ width: CANVAS_W, height: CANVAS_H }}>
+              <svg
+                ref={svgRef}
+                width={CANVAS_W}
+                height={CANVAS_H}
+                viewBox={-CANVAS_PAD + ' ' + -CANVAS_PAD + ' ' + CANVAS_W + ' ' + CANVAS_H}
+                className="max-w-none shrink-0"
+                onPointerMove={onPointerMove}
+                onPointerDown={onBackgroundDown}
+                style={{ width: CANVAS_W, height: CANVAS_H, overflow: 'visible', cursor: panMode ? 'grab' : 'default' }}
+              >
+                <BoardDefs />
 
-              <BoardPlate />
-              {modules.map((m) => (
-                <ModuleView key={m.id} m={m} />
-              ))}
-              <Wires />
+                <BoardPlate />
+                {modules.map((m) => (
+                  <ModuleView key={m.id} m={m} focus={focus} />
+                ))}
+                <Wires />
 
-              {marquee && (
-                <rect
-                  x={Math.min(marquee.x0, marquee.x1)}
-                  y={Math.min(marquee.y0, marquee.y1)}
-                  width={Math.abs(marquee.x1 - marquee.x0)}
-                  height={Math.abs(marquee.y1 - marquee.y0)}
-                  fill={palette.amber}
-                  fillOpacity={0.08}
-                  stroke={palette.amber}
-                  strokeWidth={1.5}
-                  strokeDasharray="6 4"
-                  pointerEvents="none"
-                />
-              )}
-            </svg>
+                {marquee && (
+                  <rect
+                    x={Math.min(marquee.x0, marquee.x1)}
+                    y={Math.min(marquee.y0, marquee.y1)}
+                    width={Math.abs(marquee.x1 - marquee.x0)}
+                    height={Math.abs(marquee.y1 - marquee.y0)}
+                    fill={palette.amber}
+                    fillOpacity={0.08}
+                    stroke={palette.amber}
+                    strokeWidth={1.5}
+                    strokeDasharray="6 4"
+                    pointerEvents="none"
+                  />
+                )}
+              </svg>
+            </div>
           </TransformComponent>
         </TransformWrapper>
 

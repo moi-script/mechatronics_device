@@ -80,6 +80,8 @@ interface BoardStore extends Core {
   deleteWire(id: string): void;
   clearWires(): void;
   loadCircuit(c: Circuit, id?: string | null): void;
+  /** Clear the bench back to a fresh, unsaved board. */
+  newProject(): void;
   setSavedCircuitId(id: string | null): void;
 
   setHint(h: string | null): void;
@@ -345,6 +347,29 @@ export const useBoard = create<BoardStore>((set, get) => ({
       pending: null,
       dirty: false,
       savedCircuitId: id,
+    })),
+
+  newProject: () =>
+    set((s) => ({
+      // A new project is its own circuit, so the saved id goes with the old
+      // board: the next Save writes a second entry rather than overwriting.
+      ...resolve({
+        ...s,
+        circuit: emptyCircuit(),
+        simState: emptyState(),
+        breakerOn: false,
+        tripped: false,
+        latched: [],
+        pressed: {},
+        toggled: {},
+      }),
+      past: [],
+      future: [],
+      selectedWireId: null,
+      selectedModuleIds: [],
+      pending: null,
+      dirty: false,
+      savedCircuitId: null,
     })),
 
   setHint: (h) => set({ hint: h }),

@@ -31,6 +31,8 @@
   --bench-b: #cdd5de;
   --bench-c: #d8dee6;
   --bench-line: rgba(255, 255, 255, 0.26);
+  --grid-minor: rgba(22, 32, 43, 0.07);
+  --grid-major: rgba(22, 32, 43, 0.14);
 }
 
 /*
@@ -58,6 +60,8 @@
   --bench-b: #121926;
   --bench-c: #182131;
   --bench-line: rgba(148, 163, 184, 0.09);
+  --grid-minor: rgba(148, 163, 184, 0.07);
+  --grid-major: rgba(148, 163, 184, 0.13);
 }
 
 html,
@@ -90,9 +94,38 @@ body {
     linear-gradient(160deg, var(--bench-a) 0%, var(--bench-b) 55%, var(--bench-c) 100%);
 }
 
+/*
+ * The workspace the bench floats in: a fixed sheet the size of the viewport
+ * whose ruling is re-offset as the board is panned. Nothing about it ends, so
+ * the canvas can be scrolled as far as anyone likes. The board sets the tile
+ * size and offset from the live transform; the sizes here are only a first
+ * paint. Dropping the fine ruling once it packs too tightly is what the
+ * coarse variant is for.
+ */
+.canvas-grid {
+  background-image:
+    linear-gradient(var(--grid-major) 2px, transparent 2px),
+    linear-gradient(90deg, var(--grid-major) 2px, transparent 2px),
+    linear-gradient(var(--grid-minor) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
+  background-size:
+    250px 250px,
+    250px 250px,
+    50px 50px,
+    50px 50px;
+}
+
+.canvas-grid.grid-coarse {
+  background-image:
+    linear-gradient(var(--grid-major) 2px, transparent 2px),
+    linear-gradient(90deg, var(--grid-major) 2px, transparent 2px);
+}
+
 /* Keep the wiring canvas from hijacking a touch scroll on small screens. */
 .board-grid,
-.board-grid * {
+.board-grid *,
+.canvas-grid,
+.canvas-grid * {
   touch-action: none;
 }
 

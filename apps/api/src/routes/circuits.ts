@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { isValidObjectId } from 'mongoose';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
+import { WIRE_COLORS } from '@mech/sim';
 import { Circuit } from '../models';
 import { readUser, requireUser, type AuthedRequest } from '../auth-middleware';
 
@@ -33,7 +34,7 @@ const circuitSchema = z.object({
     .array(
       z.object({
         id: z.string().max(40),
-        color: z.enum(['blue', 'green', 'red', 'black', 'yellow']),
+        color: z.enum(WIRE_COLORS),
         a: endRef,
         b: endRef,
       }),

@@ -58,7 +58,25 @@ export interface ModuleInstance {
   delaySec?: number;
 }
 
-export const WIRE_COLORS = ['blue', 'green', 'red', 'black', 'yellow'] as const;
+/**
+ * The lead colours on the bench. The order is the order of the rack: the two
+ * supply colours first, then the signal set, then the spares a student reaches
+ * for once the obvious colours are used up.
+ */
+export const WIRE_COLORS = [
+  'red',
+  'black',
+  'blue',
+  'green',
+  'yellow',
+  'white',
+  'orange',
+  'brown',
+  'violet',
+  'grey',
+  'pink',
+  'cyan',
+] as const;
 export type WireColor = (typeof WIRE_COLORS)[number];
 
 export type WireEnd = 'A' | 'B';

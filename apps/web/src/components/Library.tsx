@@ -1,10 +1,21 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronDown, ChevronRight, LogOut, Trash2, X } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  FilePlus2,
+  FolderOpen,
+  LogOut,
+  Sparkles,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { PRESETS, type Preset } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
 import { api, type CircuitSummary, type User } from '@/lib/api';
+import { useSession } from '@/store/useSession';
 import { ConfirmDialog } from './ConfirmDialog';
 
 function AuthForm({ onDone }: { onDone: (u: User) => void }) {
@@ -27,7 +38,8 @@ function AuthForm({ onDone }: { onDone: (u: User) => void }) {
     }
   };
 
-  const field = 'w-full rounded-sm border border-steel-400 bg-steel-100 px-3 py-2 text-sm text-carbon-900 outline-none focus:border-signal-amber';
+  const field =
+    'w-full rounded-sm border border-steel-400 bg-steel-100 px-3 py-2 text-sm text-carbon-900 outline-none focus:border-signal-amber';
 
   return (
     <form onSubmit={submit} className="space-y-3">
@@ -78,6 +90,59 @@ function AuthForm({ onDone }: { onDone: (u: User) => void }) {
 }
 
 /**
+ * Starts a fresh, unsaved board. It sits at the head of the panel because this
+ * is where people come looking for "another circuit", saved or not.
+ */
+function NewProject({ onStarted }: { onStarted: () => void }) {
+  const newProject = useBoard((s) => s.newProject);
+  const setHint = useBoard((s) => s.setHint);
+  const wireCount = useBoard((s) => s.circuit.wires.length);
+  const [confirming, setConfirming] = useState(false);
+
+  const start = () => {
+    newProject();
+    setHint('New project started. Save it to keep it under its own name.');
+    setConfirming(false);
+    onStarted();
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => (wireCount > 0 ? setConfirming(true) : start())}
+        className="group flex w-full items-center gap-3 rounded-md border border-dashed border-steel-400 bg-steel-100 px-3 py-3 text-left transition hover:border-signal-amber hover:bg-steel-200"
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-steel-400 bg-steel-50 text-carbon-800 group-hover:text-signal-amber">
+          <FilePlus2 className="h-4 w-4" />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-xs font-semibold text-carbon-900">Add new project</span>
+          <span className="mt-0.5 block text-[10px] leading-relaxed text-carbon-600">
+            A clean bench, saved separately from the circuit you have open.
+          </span>
+        </span>
+      </button>
+
+      {confirming && (
+        <ConfirmDialog
+          title="Start a new project?"
+          message={
+            'This clears ' +
+            (wireCount === 1 ? 'the lead you have run' : 'all ' + wireCount + ' leads you have run') +
+            ' and puts the standard bench parts back.'
+          }
+          detail="Save the board first if you want to keep it."
+          confirmLabel="Start new project"
+          onConfirm={start}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
+    </>
+  );
+}
+
+/**
  * The worked circuits that ship with the bench. They need no account: a preset
  * is built locally and dropped straight onto the board, parts and all.
  */
@@ -92,20 +157,22 @@ function Presets({ onLoaded }: { onLoaded: () => void }) {
   const load = (p: Preset) => {
     // A preset brings its own parts, so it replaces the board outright.
     loadCircuit(p.build(), null);
-    setHint(`Loaded "${p.name}". Close the breaker to run it.`);
+    setHint('Loaded "' + p.name + '". Close the breaker to run it.');
     setReplacing(null);
     onLoaded();
   };
 
   return (
-    <section className="mb-4 border-b border-steel-300 pb-4">
-      <h3 className="engraved mb-2 text-[10px] font-bold text-carbon-600">Preset circuits</h3>
-      <ul className="space-y-1.5">
+    <>
+      <ul className="space-y-2">
         {PRESETS.map((p) => {
           const open = openId === p.id;
           return (
-            <li key={p.id} className="rounded-sm border border-steel-300 bg-steel-100">
-              <div className="flex items-start gap-2 px-3 py-2">
+            <li key={p.id} className="overflow-hidden rounded-md border border-steel-300 bg-steel-100">
+              <div className="flex items-start gap-3 px-3 py-2.5">
+                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-steel-400 bg-steel-50 text-signal-amber">
+                  <Sparkles className="h-4 w-4" />
+                </span>
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-semibold text-carbon-900">{p.name}</div>
                   <p className="mt-0.5 text-[10px] leading-relaxed text-carbon-600">{p.summary}</p>
@@ -117,6 +184,7 @@ function Presets({ onLoaded }: { onLoaded: () => void }) {
                   >
                     {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                     How it runs
+                    <span className="font-mono text-carbon-600">({p.steps.length})</span>
                   </button>
                 </div>
                 <button
@@ -128,7 +196,7 @@ function Presets({ onLoaded }: { onLoaded: () => void }) {
                 </button>
               </div>
               {open && (
-                <ol className="list-decimal space-y-1 border-t border-steel-300 py-2 pl-8 pr-3 text-[10px] leading-relaxed text-carbon-600">
+                <ol className="list-decimal space-y-1 border-t border-steel-300 bg-steel-50 py-2 pl-8 pr-3 text-[10px] leading-relaxed text-carbon-600">
                   {p.steps.map((s, i) => (
                     <li key={i}>{s}</li>
                   ))}
@@ -141,26 +209,37 @@ function Presets({ onLoaded }: { onLoaded: () => void }) {
 
       {replacing && (
         <ConfirmDialog
-          title={`Load "${replacing.name}"?`}
-          message={`This replaces what is on the board, including ${
-            wireCount === 1 ? 'the lead you have run' : 'all ' + wireCount + ' leads you have run'
-          }, and puts down the parts the preset needs.`}
+          title={'Load "' + replacing.name + '"?'}
+          message={
+            'This replaces what is on the board, including ' +
+            (wireCount === 1 ? 'the lead you have run' : 'all ' + wireCount + ' leads you have run') +
+            ', and puts down the parts the preset needs.'
+          }
           detail="Save the board first if you want to keep it."
           confirmLabel="Load the preset"
           onConfirm={() => load(replacing)}
           onCancel={() => setReplacing(null)}
         />
       )}
-    </section>
+    </>
   );
 }
 
 export function Library({ onClose }: { onClose: () => void }) {
   const loadCircuit = useBoard((s) => s.loadCircuit);
   const setHint = useBoard((s) => s.setHint);
-  const [user, setUser] = useState<User | null>(null);
+  const savedId = useBoard((s) => s.savedCircuitId);
+
+  const user = useSession((s) => s.user);
+  const status = useSession((s) => s.status);
+  const error = useSession((s) => s.error);
+  const setUser = useSession((s) => s.setUser);
+  const signOut = useSession((s) => s.signOut);
+  const ensureSession = useSession((s) => s.ensure);
+
   const [circuits, setCircuits] = useState<CircuitSummary[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<'presets' | 'saved'>('presets');
+  const [deleting, setDeleting] = useState<CircuitSummary | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -172,14 +251,12 @@ export function Library({ onClose }: { onClose: () => void }) {
   }, []);
 
   useEffect(() => {
-    api
-      .me()
-      .then(({ user }) => {
-        setUser(user);
-        if (user) void refresh();
-      })
-      .catch(() => setError('The API is not reachable. Start it with npm run dev:api.'));
-  }, [refresh]);
+    // The session is normally resolved before this ever opens, so ensure()
+    // answers from cache and the panel never flashes the sign-in form.
+    void ensureSession().then((u) => {
+      if (u) void refresh();
+    });
+  }, [ensureSession, refresh]);
 
   const open = async (id: string) => {
     const { circuit, name } = await api.getCircuit(id);
@@ -189,67 +266,148 @@ export function Library({ onClose }: { onClose: () => void }) {
     onClose();
   };
 
+  const tabClass = (active: boolean) =>
+    'flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-semibold transition ' +
+    (active
+      ? 'border-signal-amber text-carbon-900'
+      : 'border-transparent text-carbon-600 hover:text-carbon-900');
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-carbon-900/45 p-4 sm:p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-carbon-900/45 p-3 sm:p-6" onClick={onClose}>
       <div
-        className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-lg border border-steel-400 bg-steel-50 p-5 shadow-2xl"
+        className="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-steel-400 bg-steel-50 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-bold tracking-wide text-carbon-900">Circuit library</h2>
-          <button type="button" onClick={onClose} className="text-carbon-600 hover:text-carbon-900">
-            <X className="h-4 w-4" />
-          </button>
+        <header className="border-b border-steel-300 bg-steel-100 px-4 pt-3">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="engraved text-xs font-bold text-carbon-900">Circuit library</h2>
+            <button type="button" onClick={onClose} className="text-carbon-600 hover:text-carbon-900" aria-label="Close">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="flex gap-1">
+            <button type="button" onClick={() => setTab('presets')} className={tabClass(tab === 'presets')}>
+              <Sparkles className="h-3.5 w-3.5" />
+              Presets
+              <span className="font-mono text-[10px] text-carbon-600">{PRESETS.length}</span>
+            </button>
+            <button type="button" onClick={() => setTab('saved')} className={tabClass(tab === 'saved')}>
+              <FolderOpen className="h-3.5 w-3.5" />
+              My circuits
+              {user && <span className="font-mono text-[10px] text-carbon-600">{circuits.length}</span>}
+            </button>
+          </div>
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="mb-4">
+            <NewProject onStarted={onClose} />
+          </div>
+
+          {tab === 'presets' && <Presets onLoaded={onClose} />}
+
+          {tab === 'saved' && (
+            <>
+              {error && <p className="text-xs text-safety-red">{error}</p>}
+
+              {!error && status === 'unknown' && (
+                <div className="space-y-2" aria-busy>
+                  <div className="h-4 w-40 animate-pulse rounded-sm bg-steel-200" />
+                  <div className="h-12 animate-pulse rounded-md bg-steel-200" />
+                  <div className="h-12 animate-pulse rounded-md bg-steel-200" />
+                </div>
+              )}
+
+              {!error && status === 'ready' && !user && (
+                <AuthForm
+                  onDone={(u) => {
+                    setUser(u);
+                    void refresh();
+                  }}
+                />
+              )}
+
+              {user && circuits.length === 0 && (
+                <p className="text-xs text-carbon-600">Nothing saved yet. Wire something up and hit Save.</p>
+              )}
+
+              {user && circuits.length > 0 && (
+                <ul className="space-y-1.5">
+                  {circuits.map((c) => {
+                    const current = c.id === savedId;
+                    return (
+                      <li
+                        key={c.id}
+                        className={
+                          'flex items-center gap-2 rounded-md border px-3 py-2 transition ' +
+                          (current
+                            ? 'border-signal-amber/60 bg-signal-amber/10'
+                            : 'border-steel-300 bg-steel-100 hover:border-carbon-600')
+                        }
+                      >
+                        <button type="button" onClick={() => open(c.id)} className="min-w-0 flex-1 text-left">
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate text-xs font-semibold text-carbon-900">{c.name}</span>
+                            {current && (
+                              <span className="shrink-0 rounded-sm bg-signal-amber/20 px-1.5 py-0.5 text-[9px] font-semibold text-signal-amber">
+                                OPEN
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-0.5 flex items-center gap-1 text-[10px] text-carbon-600">
+                            <Clock className="h-3 w-3" />
+                            {new Date(c.updatedAt).toLocaleString()}
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleting(c)}
+                          className="text-carbon-600 hover:text-safety-red"
+                          aria-label={'Delete ' + c.name}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </>
+          )}
         </div>
 
-        <Presets onLoaded={onClose} />
-
-        {error && <p className="text-xs text-safety-red">{error}</p>}
-
-        {!error && !user && <AuthForm onDone={(u) => { setUser(u); void refresh(); }} />}
-
         {user && (
-          <>
-            <div className="mb-3 flex items-center justify-between text-xs text-carbon-600">
-              <span>Signed in as {user.name}</span>
-              <button
-                type="button"
-                onClick={async () => {
-                  await api.logout();
-                  setUser(null);
-                  setCircuits([]);
-                }}
-                className="inline-flex items-center gap-1 text-carbon-600 hover:text-carbon-900"
-              >
-                <LogOut className="h-3 w-3" />
-                Sign out
-              </button>
-            </div>
-            {circuits.length === 0 ? (
-              <p className="text-xs text-carbon-600">Nothing saved yet. Wire something up and hit Save.</p>
-            ) : (
-              <ul className="max-h-[50dvh] space-y-1.5 overflow-y-auto">
-                {circuits.map((c) => (
-                  <li key={c.id} className="flex items-center gap-2 rounded-sm border border-steel-300 bg-steel-100 px-3 py-2">
-                    <button type="button" onClick={() => open(c.id)} className="flex-1 text-left">
-                      <div className="text-xs font-semibold text-carbon-900">{c.name}</div>
-                      <div className="text-[10px] text-carbon-600">{new Date(c.updatedAt).toLocaleString()}</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await api.deleteCircuit(c.id);
-                        void refresh();
-                      }}
-                      className="text-carbon-600 hover:text-safety-red"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
+          <footer className="flex items-center justify-between border-t border-steel-300 bg-steel-100 px-4 py-2 text-[11px] text-carbon-600">
+            <span className="truncate">Signed in as {user.name}</span>
+            <button
+              type="button"
+              onClick={async () => {
+                await signOut();
+                setCircuits([]);
+              }}
+              className="inline-flex shrink-0 items-center gap-1 hover:text-carbon-900"
+            >
+              <LogOut className="h-3 w-3" />
+              Sign out
+            </button>
+          </footer>
+        )}
+
+      {deleting && (
+          <ConfirmDialog
+            title={'Delete "' + deleting.name + '"?'}
+            message="The saved copy goes for good, and any share link to it stops working."
+            detail="What is on the board right now is untouched."
+            confirmLabel="Delete circuit"
+            onConfirm={async () => {
+              const gone = deleting;
+              setDeleting(null);
+              await api.deleteCircuit(gone.id);
+              if (gone.id === savedId) useBoard.getState().setSavedCircuitId(null);
+              void refresh();
+            }}
+            onCancel={() => setDeleting(null)}
+          />
         )}
       </div>
     </div>

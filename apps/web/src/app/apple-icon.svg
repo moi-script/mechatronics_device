@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+  <!-- The same mark, given the breathing room a home-screen tile wants. -->
+  <rect width="180" height="180" rx="40" fill="#101826" />
+  <rect x="14" y="14" width="152" height="152" rx="28" fill="none" stroke="#33415a" stroke-width="4" />
+  <path d="M 62 74 C 62 148, 118 148, 118 74" fill="none" stroke="#f0a323" stroke-width="17" stroke-linecap="round" />
+  <path d="M 62 70 C 62 144, 118 144, 118 70" fill="none" stroke="#ffd27a" stroke-width="5.5" stroke-linecap="round" opacity="0.75" />
+  <circle cx="62" cy="68" r="22" fill="#e2e8f0" />
+  <circle cx="62" cy="68" r="9.5" fill="#101826" />
+  <circle cx="118" cy="68" r="22" fill="#e2e8f0" />
+  <circle cx="118" cy="68" r="9.5" fill="#101826" />
+</svg>

@@ -162,12 +162,64 @@ export const paletteFor = (mode: Mode): Palette => (mode === 'dark' ? DARK : LIG
 
 /** Lead colours. The dark set is lifted so a black lead still reads on a dark panel. */
 export const WIRE_BY_MODE: Record<Mode, Record<WireColor, string>> = {
-  light: { blue: '#1d4ed8', green: '#15803d', red: '#dc2626', black: '#1e293b', yellow: '#ca8a04' },
-  dark: { blue: '#3b82f6', green: '#22c55e', red: '#ef4444', black: '#5b6b80', yellow: '#eab308' },
+  light: {
+    red: '#dc2626',
+    black: '#1e293b',
+    blue: '#1d4ed8',
+    green: '#15803d',
+    yellow: '#ca8a04',
+    white: '#cbd5e1',
+    orange: '#ea580c',
+    brown: '#92400e',
+    violet: '#7c3aed',
+    grey: '#64748b',
+    pink: '#db2777',
+    cyan: '#0891b2',
+  },
+  dark: {
+    red: '#ef4444',
+    black: '#5b6b80',
+    blue: '#3b82f6',
+    green: '#22c55e',
+    yellow: '#eab308',
+    white: '#e2e8f0',
+    orange: '#f97316',
+    brown: '#b45309',
+    violet: '#a78bfa',
+    grey: '#94a3b8',
+    pink: '#f472b6',
+    cyan: '#22d3ee',
+  },
 };
 
 /** The lengthwise highlight that makes each lead read as round cable. */
 export const WIRE_HI_BY_MODE: Record<Mode, Record<WireColor, string>> = {
-  light: { blue: '#60a5fa', green: '#4ade80', red: '#fca5a5', black: '#64748b', yellow: '#fde047' },
-  dark: { blue: '#93c5fd', green: '#86efac', red: '#fca5a5', black: '#94a3b8', yellow: '#fef08a' },
+  light: {
+    red: '#fca5a5',
+    black: '#64748b',
+    blue: '#60a5fa',
+    green: '#4ade80',
+    yellow: '#fde047',
+    white: '#ffffff',
+    orange: '#fdba74',
+    brown: '#d97706',
+    violet: '#c4b5fd',
+    grey: '#cbd5e1',
+    pink: '#f9a8d4',
+    cyan: '#67e8f9',
+  },
+  dark: {
+    red: '#fca5a5',
+    black: '#94a3b8',
+    blue: '#93c5fd',
+    green: '#86efac',
+    yellow: '#fef08a',
+    white: '#ffffff',
+    orange: '#fed7aa',
+    brown: '#f59e0b',
+    violet: '#ddd6fe',
+    grey: '#cbd5e1',
+    pink: '#fbcfe8',
+    cyan: '#a5f3fc',
+  },
 };

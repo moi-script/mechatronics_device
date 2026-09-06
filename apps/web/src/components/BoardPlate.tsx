@@ -153,6 +153,17 @@ export function BoardDefs() {
           <feMergeNode in="SourceGraphic" />
         </feMerge>
       </filter>
+      {/* A selected lead is lit from within rather than dashed over. */}
+      <filter id="cableGlow" x="-60%" y="-60%" width="220%" height="220%">
+        <feGaussianBlur stdDeviation="7" result="wide" />
+        <feGaussianBlur stdDeviation="2.5" result="tight" />
+        <feMerge>
+          <feMergeNode in="wide" />
+          <feMergeNode in="wide" />
+          <feMergeNode in="tight" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
       <filter id="lift" x="-12%" y="-12%" width="130%" height="140%">
         <feDropShadow dx="0" dy="2.5" stdDeviation="3" floodColor={p.cableShadow} floodOpacity={p.cableShadowOpacity} />
       </filter>
