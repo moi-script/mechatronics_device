@@ -6,7 +6,13 @@ export type PinRole =
   | 'LOAD_GND'
   | 'COM'
   | 'NO'
-  | 'NC';
+  | 'NC'
+  /** Plain terminal: a bus post or contact pin with no rail of its own. */
+  | 'PASS'
+  /** PLC input: reads whether its net is live, draws nothing from it. */
+  | 'INPUT'
+  /** Pneumatic push-in fitting. Takes air tubing, never an electrical lead. */
+  | 'AIR';
 
 export type ModuleType =
   | 'BREAKER'
@@ -16,9 +22,22 @@ export type ModuleType =
   | 'LAMP'
   | 'RELAY'
   | 'BIGRELAY'
+  | 'TMRRELAY'
   | 'SOLENOID'
   | 'CYLINDER'
-  | 'TIMER';
+  | 'TIMER'
+  // Festech trainer modules, pin for pin as on the bench panels.
+  | 'FT_PSU'
+  | 'FT_PBU'
+  | 'FT_RELAY3'
+  | 'FT_PLC'
+  | 'FT_LIMIT'
+  | 'FT_V52S'
+  | 'FT_V52D'
+  | 'FT_V32'
+  | 'FT_AIR'
+  | 'FT_CYL'
+  | 'FT_SCYL';
 
 export interface PinDef {
   id: string;
@@ -29,6 +48,8 @@ export interface PinDef {
   /** Position relative to the module's top-left corner. */
   x: number;
   y: number;
+  /** Insulator colour, when it is not implied by the role. */
+  collar?: 'red' | 'black' | 'blue';
 }
 
 export interface PartDef {
@@ -47,6 +68,18 @@ export interface PartDef {
    * Their state is keyed "moduleId.coilId"; the plain pair is keyed "moduleId".
    */
   coils?: { id: string; vcc: string; gnd: string }[];
+  /** Groups of pins joined inside the panel, like a +24V distribution row. */
+  buses?: string[][];
+  /**
+   * Two-terminal contacts. `actuator` names what throws it ("" = the module
+   * itself, "B1" = "moduleId.B1"); the pair conducts while the actuator's state
+   * equals `closedWhen` — true for NO, false for NC.
+   */
+  switches?: { pins: [string, string]; closedWhen: boolean; actuator: string }[];
+  /** Changeover contacts: COM to NC at rest, COM to NO when the actuator is thrown. */
+  changeovers?: { com: string; no: string; nc: string; actuator: string }[];
+  /** Every AIR pin on this part is fed from the compressor. */
+  airSource?: boolean;
 }
 
 export interface ModuleInstance {
@@ -90,9 +123,14 @@ export type EndRef =
   | { kind: 'stack'; wireId: string; end: WireEnd }
   | { kind: 'loose'; x: number; y: number };
 
+/** A banana-plug lead, or pneumatic tubing between two air fittings. */
+export type WireKind = 'lead' | 'tube';
+
 export interface Wire {
   id: string;
   color: WireColor;
+  /** Omitted means an electrical lead. */
+  kind?: WireKind;
   a: EndRef;
   b: EndRef;
 }
@@ -125,6 +163,8 @@ export interface SimState {
    * loses the count the moment its coil drops, exactly like the bench unit.
    */
   timerStart: Record<string, number>;
+  /** 5/2 double-solenoid valve id -> spool sitting in the 14 position. It holds. */
+  valve: Record<string, boolean>;
 }
 
 export interface DeviceState {
@@ -190,10 +230,20 @@ export interface SimResult {
    * nothing is on the clock. The UI re-solves on this to keep the sim honest.
    */
   nextTickMs: number | null;
+  /** Every actuator's state: module ids, and "moduleId.B1"-style sub-units. */
+  actuated: Record<string, boolean>;
+  /** Every coil's state, keyed as the solver keys them. */
+  coils: Record<string, boolean>;
+  /** "moduleId.pinId" of each air port -> pressurized. */
+  air: Record<string, boolean>;
+  /** Tube id -> carrying pressure. */
+  tubeAir: Record<string, boolean>;
+  /** Valve id -> spool shifted (solenoid side / 14 position). */
+  valves: Record<string, boolean>;
   errors: SimError[];
   /** A short circuit tripped the breaker; everything is dead. */
   faulted: boolean;
   state: SimState;
 }
 
-export const emptyState = (): SimState => ({ coil: {}, timerStart: {}, rod: {} });
+export const emptyState = (): SimState => ({ coil: {}, timerStart: {}, rod: {}, valve: {} });

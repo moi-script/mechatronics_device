@@ -8,6 +8,7 @@ import type { WireFocus } from '@/lib/geometry';
 import { usePalette } from '@/store/useTheme';
 import { clickDown, clickUp } from '@/lib/sound';
 import type { Palette } from '@/lib/palette';
+import { AirFitting, FestechFace } from './FestechFaces';
 
 const GRID = 8;
 /** How long a cylinder takes to run its full stroke, on screen. */
@@ -17,7 +18,11 @@ const snap = (v: number) => Math.round(v / GRID) * GRID;
 /** Insulator collar colour: COM and GND are black, every other terminal is red. */
 const BLACK_ROLES: ReadonlySet<PinRole> = new Set(['COM', 'SOURCE_GND', 'LOAD_GND']);
 
-const collarFor = (role: PinRole, p: Palette): string => (BLACK_ROLES.has(role) ? p.pinBlack : p.pinRed);
+const collarFor = (pin: PinDef, p: Palette): string => {
+  if (pin.collar === 'blue') return p.blue;
+  if (pin.collar) return pin.collar === 'black' ? p.pinBlack : p.pinRed;
+  return BLACK_ROLES.has(pin.role) ? p.pinBlack : p.pinRed;
+};
 
 /** A short tag for the legend plate, naming the part's contact arrangement. */
 const TAG: Record<string, string> = {
@@ -28,9 +33,21 @@ const TAG: Record<string, string> = {
   LAMP: 'INDICATOR',
   RELAY: '1 x NO/COM/NC',
   BIGRELAY: '4 x NO/COM/NC',
+  TMRRELAY: 'ON-DELAY RELAY',
   SOLENOID: '2 x 3 VCC/GND',
   CYLINDER: 'DOUBLE-ACTING',
   TIMER: 'ON-DELAY',
+  FT_PSU: 'DC 24V / 5A',
+  FT_PBU: '3 x 2NO+2NC',
+  FT_RELAY3: '3 x 4 C/O',
+  FT_PLC: 'OMRON CP1E',
+  FT_LIMIT: 'ROLLER LEVER',
+  FT_V52S: '5/2 SINGLE SOL.',
+  FT_V52D: '5/2 DOUBLE SOL.',
+  FT_V32: '3/2 NC',
+  FT_AIR: '1 IN / 8 OUT',
+  FT_CYL: 'DOUBLE-ACTING',
+  FT_SCYL: 'SINGLE-ACTING',
 };
 
 /**
@@ -43,9 +60,10 @@ function Terminal({ moduleId, pin, emphasis }: { moduleId: string; pin: PinDef; 
   const pending = useBoard((s) => s.pending);
   const live = useBoard((s) => s.breakerOn && !s.tripped);
   const net = useBoard((s) => s.sim.nets[s.sim.pinNet[moduleId + '.' + pin.id]]);
+  const pressurized = useBoard((s) => !!s.sim.air[moduleId + '.' + pin.id]);
 
   const p = usePalette();
-  const collar = collarFor(pin.role, p);
+  const collar = collarFor(pin, p);
   const energised = live && net ? (net.hot ? p.amber : net.gnd ? p.blue : null) : null;
   const isSource = pending?.kind === 'terminal' && pending.moduleId === moduleId && pending.pinId === pin.id;
 
@@ -77,6 +95,10 @@ function Terminal({ moduleId, pin, emphasis }: { moduleId: string; pin: PinDef; 
         </>
       )}
       {pending && <circle cx={pin.x} cy={pin.y} r={16} fill="#0891b2" opacity={isSource ? 0.32 : 0.12} />}
+      {pin.role === 'AIR' ? (
+        <AirFitting x={pin.x} y={pin.y} label={pin.label} live={pressurized} emphasis={emphasis} />
+      ) : (
+        <>
       {/* A live terminal glows in its rail colour; the collar always states its function. */}
       {energised && <circle cx={pin.x} cy={pin.y} r={13} fill={energised} opacity={p.glowOpacity} filter="url(#glow)" />}
       {/* A tinted insulator washer states the function without shouting it. */}
@@ -96,6 +118,8 @@ function Terminal({ moduleId, pin, emphasis }: { moduleId: string; pin: PinDef; 
       >
         {pin.label}
       </text>
+        </>
+      )}
     </g>
   );
 }
@@ -444,7 +468,9 @@ function Face({ m }: { m: ModuleInstance }) {
       );
     }
 
-    case 'TIMER': {
+    case 'TIMER':
+    case 'TMRRELAY': {
+      const relay = m.type === 'TMRRELAY';
       const on = !!device?.energized;
       const done = !!device?.actuated;
       const t = timer ?? { delayMs: 5000, remainingMs: 5000, running: false, done: false };
@@ -518,13 +544,23 @@ function Face({ m }: { m: ModuleInstance }) {
             {readout}
           </text>
           <Led x={w - 24} y={17.5} on={done} />
-          {status(128, done ? 'TIMED OUT' : t.running ? 'TIMING' : 'at rest', done ? p.green : t.running ? p.amber : p.label)}
+          {relay &&
+            [1, 2, 3, 4].map((line) => (
+              <text key={line} className="t-cond" x={26} y={182 + (line - 1) * 42} fontSize={10} fontWeight={700} fill={p.label}>
+                {'L' + line}
+              </text>
+            ))}
+          {status(
+            relay ? 156 : 128,
+            done ? (relay ? 'TIMED OUT - COM-NO' : 'TIMED OUT') : t.running ? 'TIMING' : relay ? 'at rest - COM-NC' : 'at rest',
+            done ? p.green : t.running ? p.amber : p.label,
+          )}
         </>
       );
     }
 
     default:
-      return null;
+      return <FestechFace m={m} />;
   }
 }
 

@@ -55,15 +55,18 @@ const layout = (ids: string[], tweak: (m: ModuleInstance) => ModuleInstance = (m
  *   PB3      -> LAMP3 on, LAMP2 off
  *
  * Each step is a latched stage: its lamp hangs across its own coil, it holds
- * itself in through its own NO contact, and its hold feed passes through an NC
- * contact of the stage that follows it — so stepping forward drops the one
- * before it. Stage 2 is three small relays with their coils paralleled, a
- * contact multiplier, since one small relay only carries a single line and the
- * stage needs three contacts.
+ * itself in through its own NO contact, and stepping forward drops the stage
+ * before it. The bench has one large relay, so stages 2 and 3 are each a pair
+ * of small relays with their coils paralleled, a contact multiplier: one holds
+ * the stage in, the other takes the timer off the clock. The button that starts
+ * a stage drops the one before it through its own NC contact, so no relay line
+ * is spent on that.
  *
- *   stage 1 = BIG1 + LAMP1       L1 hold, L2 breaks stage 3, L3 + L4 gate the timer
- *   stage 2 = RLY1/2/3 + LAMP2   RLY1 holds, RLY2 breaks stage 1, RLY3 gates the timer
- *   stage 3 = BIG2 + LAMP3       L1 hold, L2 breaks stage 2, L3 gates the timer
+ *   stage 1 = BIG1 + LAMP1         L1 hold, L2 breaks stage 3, L3 + L4 gate the timer
+ *                                  its hold runs through PB2 NC, so PB2 drops it
+ *   stage 2 = RLY1/RLY2 + LAMP2    RLY1 holds, RLY2 gates the timer
+ *                                  its hold runs through PB3 NC, so PB3 drops it
+ *   stage 3 = RLY3/RLY4 + LAMP3    RLY3 holds, RLY4 gates the timer
  *
  * The timer coil runs through the NC contacts of all three stages in series,
  * so it only counts while the board is idle and cannot fire again part way
@@ -90,43 +93,41 @@ export const SEQUENCE_PRESET: Preset = {
     // --- stage 1: BIG1 / LAMP1 ---------------------------------------------
     h.add(['SUPPLY', 'VCC1'], ['PB1', 'COM1']);
     h.add(['PB1', 'NO1'], ['BIG1', 'VCC']); // start
-    h.add(['SUPPLY', 'VCC2'], ['RLY2', 'COM1'], 'blue'); // hold feed, broken by stage 2
-    h.add(['RLY2', 'NC1'], ['BIG1', 'COM1'], 'blue');
+    h.add(['PB2', 'NC1'], ['BIG1', 'COM1'], 'blue'); // hold feed, broken by PB2
     h.add(['BIG1', 'NO1'], ['BIG1', 'VCC'], 'blue'); // self-hold
     h.add(['BIG1', 'GND'], ['SUPPLY', 'GND1'], 'black');
     h.add(['BIG1', 'VCC'], ['LAMP1', 'VCC']);
     h.add(['LAMP1', 'GND'], ['SUPPLY', 'GND2'], 'black');
 
-    // --- stage 2: RLY1+RLY2+RLY3 / LAMP2 -----------------------------------
+    // --- stage 2: RLY1+RLY2 / LAMP2 ----------------------------------------
     h.add(['SUPPLY', 'VCC3'], ['PB2', 'COM1']);
     h.add(['PB2', 'NO1'], ['RLY1', 'VCC']); // start
-    h.add(['SUPPLY', 'VCC4'], ['BIG2', 'COM2'], 'blue'); // hold feed, broken by stage 3
-    h.add(['BIG2', 'NC2'], ['RLY1', 'COM1'], 'blue');
+    h.add(['PB3', 'NC1'], ['RLY1', 'COM1'], 'blue'); // hold feed, broken by PB3
     h.add(['RLY1', 'NO1'], ['RLY1', 'VCC'], 'blue'); // self-hold
     h.add(['RLY1', 'VCC'], ['RLY2', 'VCC'], 'green'); // coils in parallel
-    h.add(['RLY2', 'VCC'], ['RLY3', 'VCC'], 'green');
     h.add(['RLY1', 'GND'], ['SUPPLY', 'GND3'], 'black');
     h.add(['RLY2', 'GND'], ['SUPPLY', 'GND4'], 'black');
-    h.add(['RLY3', 'GND'], ['SUPPLY', 'GND5'], 'black');
     h.add(['RLY1', 'VCC'], ['LAMP2', 'VCC']);
     h.add(['LAMP2', 'GND'], ['SUPPLY', 'GND6'], 'black');
 
-    // --- stage 3: BIG2 / LAMP3 ---------------------------------------------
+    // --- stage 3: RLY3+RLY4 / LAMP3 ----------------------------------------
     h.add(['SUPPLY', 'VCC5'], ['PB3', 'COM1']);
-    h.add(['PB3', 'NO1'], ['BIG2', 'VCC']); // start
+    h.add(['PB3', 'NO1'], ['RLY3', 'VCC']); // start
     h.add(['SUPPLY', 'VCC6'], ['BIG1', 'COM2'], 'blue'); // hold feed, broken by stage 1
-    h.add(['BIG1', 'NC2'], ['BIG2', 'COM1'], 'blue');
-    h.add(['BIG2', 'NO1'], ['BIG2', 'VCC'], 'blue'); // self-hold
-    h.add(['BIG2', 'GND'], ['SUPPLY', 'GND7'], 'black');
-    h.add(['BIG2', 'VCC'], ['LAMP3', 'VCC']);
+    h.add(['BIG1', 'NC2'], ['RLY3', 'COM1'], 'blue');
+    h.add(['RLY3', 'NO1'], ['RLY3', 'VCC'], 'blue'); // self-hold
+    h.add(['RLY3', 'VCC'], ['RLY4', 'VCC'], 'green'); // coils in parallel
+    h.add(['RLY3', 'GND'], ['SUPPLY', 'GND7'], 'black');
+    h.add(['RLY4', 'GND'], ['SUPPLY', 'GND5'], 'black');
+    h.add(['RLY3', 'VCC'], ['LAMP3', 'VCC']);
     h.add(['LAMP3', 'GND'], ['SUPPLY', 'GND8'], 'black');
 
     // --- the start-up timer -------------------------------------------------
     // Coil live only while all three stages are dropped.
     h.add(['SUPPLY', 'VCC7'], ['BIG1', 'COM3'], 'yellow');
-    h.add(['BIG1', 'NC3'], ['RLY3', 'COM1'], 'yellow');
-    h.add(['RLY3', 'NC1'], ['BIG2', 'COM3'], 'yellow');
-    h.add(['BIG2', 'NC3'], ['TMR1', 'VCC'], 'yellow');
+    h.add(['BIG1', 'NC3'], ['RLY2', 'COM1'], 'yellow');
+    h.add(['RLY2', 'NC1'], ['RLY4', 'COM1'], 'yellow');
+    h.add(['RLY4', 'NC1'], ['TMR1', 'VCC'], 'yellow');
     h.add(['TMR1', 'GND'], ['SUPPLY', 'GND9'], 'black');
     // Timed-out output into stage 1, through stage 1's own NC contact.
     h.add(['TMR1', 'COM1'], ['BIG1', 'COM4'], 'yellow');
@@ -134,7 +135,7 @@ export const SEQUENCE_PRESET: Preset = {
 
     return {
       modules: layout(
-        ['BREAKER', 'SUPPLY', 'PB1', 'PB2', 'PB3', 'LAMP1', 'LAMP2', 'LAMP3', 'RLY1', 'RLY2', 'RLY3', 'BIG1', 'BIG2', 'TMR1'],
+        ['BREAKER', 'SUPPLY', 'PB1', 'PB2', 'PB3', 'LAMP1', 'LAMP2', 'LAMP3', 'RLY1', 'RLY2', 'RLY3', 'RLY4', 'BIG1', 'TMR1'],
         // A short set point, so the start-up step does not hold the class up.
         (m) => (m.id === 'TMR1' ? { ...m, delaySec: 3 } : m),
       ),

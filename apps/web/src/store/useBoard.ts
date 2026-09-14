@@ -7,6 +7,7 @@ import {
   emptyCircuit,
   emptyState,
   isMaleOccupied,
+  kindFrom,
   benchSlot,
   step,
   TIMER_MAX_DELAY_SEC,
@@ -17,8 +18,10 @@ import {
   type SimError,
   type SimResult,
   type SimState,
+  type Wire,
   type WireColor,
 } from '@mech/sim';
+import { airBlast } from '@/lib/sound';
 
 interface Core {
   circuit: Circuit;
@@ -59,6 +62,8 @@ interface BoardStore extends Core {
   addModule(id: string): void;
   /** Send a part back to the bin, taking every lead plugged into it with it. */
   removeModule(id: string): void;
+  /** Send several parts back at once, as one undo step. */
+  removeModules(ids: string[]): void;
   moveModule(id: string, x: number, y: number): void;
   /** Reposition several modules at once, for a group drag. */
   moveModules(positions: Record<string, { x: number; y: number }>): void;
@@ -112,6 +117,12 @@ function resolve(s: Core): Core {
   if (sim.faulted && !s.tripped) {
     const next: Core = { ...s, tripped: true, latched: sim.errors, simState: emptyState() };
     return { ...next, sim: step(next.circuit, inputsOf(next), next.simState) };
+  }
+  // A rod that starts a stroke on this solve makes its noise. Compared against
+  // the state the step ran from, so loading a circuit or resetting stays quiet.
+  for (const [id, piston] of Object.entries(sim.pistons)) {
+    const was = !!s.simState.rod?.[id];
+    if (piston.extended !== was) airBlast(piston.extended);
   }
   return { ...s, sim, simState: sim.state, latched: s.tripped ? s.latched : [] };
 }
@@ -172,14 +183,17 @@ export const useBoard = create<BoardStore>((set, get) => ({
       };
     }),
 
-  removeModule: (id) =>
+  removeModule: (id) => get().removeModules([id]),
+
+  removeModules: (ids) =>
     set((s) => {
-      if (!s.circuit.modules.some((m) => m.id === id)) return {};
-      // Leads plugged into the part go with it; anything stacked on those
+      const out = new Set(ids.filter((id) => s.circuit.modules.some((m) => m.id === id)));
+      if (out.size === 0) return {};
+      // Leads plugged into the parts go with them; anything stacked on those
       // leads falls loose rather than vanishing, same as deleting a lead.
       const gone = new Set(
         s.circuit.wires
-          .filter((w) => [w.a, w.b].some((e) => e.kind === 'terminal' && e.moduleId === id))
+          .filter((w) => [w.a, w.b].some((e) => e.kind === 'terminal' && out.has(e.moduleId)))
           .map((w) => w.id),
       );
       const drop = (ref: EndRef): EndRef =>
@@ -187,11 +201,11 @@ export const useBoard = create<BoardStore>((set, get) => ({
       const wires = s.circuit.wires
         .filter((w) => !gone.has(w.id))
         .map((w) => ({ ...w, a: drop(w.a), b: drop(w.b) }));
-      const circuit = { ...s.circuit, modules: s.circuit.modules.filter((m) => m.id !== id), wires };
+      const circuit = { ...s.circuit, modules: s.circuit.modules.filter((m) => !out.has(m.id)), wires };
       return {
         ...resolve({ ...s, circuit }),
         ...remember(s),
-        selectedModuleIds: s.selectedModuleIds.filter((x) => x !== id),
+        selectedModuleIds: s.selectedModuleIds.filter((x) => !out.has(x)),
         selectedWireId: s.selectedWireId && gone.has(s.selectedWireId) ? null : s.selectedWireId,
         pending: null,
         dirty: true,
@@ -232,6 +246,15 @@ export const useBoard = create<BoardStore>((set, get) => ({
       set({ hint: 'That connector already carries a lead - stack onto the one above it.' });
       return;
     }
+    const { circuit } = get();
+    // A fitting that already holds a tube has nothing left to push another into.
+    if (kindFrom(circuit, from) === 'tube') {
+      const check = canConnect(circuit, '', 'A', from, 'tube');
+      if (!check.ok) {
+        set({ hint: check.reason ?? null });
+        return;
+      }
+    }
     set({ pending: from, selectedWireId: null, hint: null });
   },
 
@@ -240,15 +263,21 @@ export const useBoard = create<BoardStore>((set, get) => ({
       const from = s.pending;
       if (!from) return {};
       const id = 'w_' + nanoid(8);
-      const checkA = canConnect(s.circuit, id, 'A', from);
-      const checkB = canConnect(s.circuit, id, 'B', to);
+      // Out of an air fitting runs tubing; out of anything else, a lead.
+      const kind = kindFrom(s.circuit, from);
+      const sameSpot =
+        from.kind === 'terminal' && to.kind === 'terminal' && from.moduleId === to.moduleId && from.pinId === to.pinId;
+      if (kind === 'tube' && sameSpot) return { pending: null };
+      const checkA = canConnect(s.circuit, id, 'A', from, kind);
+      const checkB = canConnect(s.circuit, id, 'B', to, kind);
       if (!checkA.ok || !checkB.ok) {
         return { hint: checkA.reason ?? checkB.reason ?? 'Those connectors cannot mate.', pending: null };
       }
       if (to.kind === 'stack' && isMaleOccupied(s.circuit, to.wireId, to.end)) {
         return { hint: 'That connector already carries a lead - stack onto the one above it.', pending: null };
       }
-      const wire = { id, color: s.wireColor, a: from, b: to };
+      const wire: Wire =
+        kind === 'tube' ? { id, kind, color: 'blue', a: from, b: to } : { id, color: s.wireColor, a: from, b: to };
       return {
         ...resolve({ ...s, circuit: { ...s.circuit, wires: [...s.circuit.wires, wire] } }),
         ...remember(s),
@@ -269,7 +298,8 @@ export const useBoard = create<BoardStore>((set, get) => ({
           wireColor: c,
           circuit: {
             ...s.circuit,
-            wires: s.circuit.wires.map((w) => (w.id === s.selectedWireId ? { ...w, color: c } : w)),
+            // Tubing only comes in blue; a colour pick leaves it alone.
+            wires: s.circuit.wires.map((w) => (w.id === s.selectedWireId && w.kind !== 'tube' ? { ...w, color: c } : w)),
           },
           dirty: true,
         };

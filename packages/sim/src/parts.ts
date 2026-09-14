@@ -1,4 +1,5 @@
 import type { ModuleType, PartDef, PinDef, ModuleInstance, Circuit } from './types';
+import { FESTECH_INVENTORY, FESTECH_PARTS } from './festech';
 
 const pin = (id: string, label: string, role: PinDef['role'], x: number, y: number, line?: number): PinDef => ({
   id,
@@ -154,6 +155,25 @@ export const PARTS: Record<ModuleType, PartDef> = {
     contactLines: 4,
     hasCoil: true,
   },
+  TMRRELAY: {
+    type: 'TMRRELAY',
+    label: 'Timer Relay',
+    width: 268,
+    height: 340,
+    // A large relay on an on-delay: once the coil goes live it counts the set
+    // point, then all four lines throw from COM-NC to COM-NO together. Drop the
+    // coil and they fall back at once and the count starts over.
+    pins: [
+      pin('VCC', 'VCC', 'LOAD_VCC', 88, 118),
+      pin('GND', 'GND', 'LOAD_GND', 178, 118),
+      ...contactLine(1, 178, 66),
+      ...contactLine(2, 220, 66),
+      ...contactLine(3, 262, 66),
+      ...contactLine(4, 304, 66),
+    ],
+    contactLines: 4,
+    hasCoil: true,
+  },
   SOLENOID: {
     type: 'SOLENOID',
     label: 'Solenoid Block',
@@ -199,6 +219,7 @@ export const PARTS: Record<ModuleType, PartDef> = {
     contactLines: 0,
     hasCoil: true,
   },
+  ...FESTECH_PARTS,
 };
 
 export const partOf = (type: ModuleType): PartDef => PARTS[type];
@@ -222,11 +243,13 @@ export function benchInventory(): ModuleInstance[] {
   for (let i = 0; i < 3; i++) modules.push({ id: `SW${i + 1}`, type: 'TOGGLE', x: 1030 + i * 162, y: 370 });
   for (let i = 0; i < 3; i++) modules.push({ id: `LAMP${i + 1}`, type: 'LAMP', x: 1530 + i * 140, y: 370 });
   for (let i = 0; i < 5; i++) modules.push({ id: `RLY${i + 1}`, type: 'RELAY', x: 40 + i * 186, y: 580 });
-  for (let i = 0; i < 2; i++) modules.push({ id: `BIG${i + 1}`, type: 'BIGRELAY', x: 1000 + i * 290, y: 580 });
+  modules.push({ id: 'BIG1', type: 'BIGRELAY', x: 1000, y: 580 });
+  modules.push({ id: 'TRLY1', type: 'TMRRELAY', x: 1290, y: 580, delaySec: TIMER_DEFAULT_DELAY_SEC });
   for (let i = 0; i < 3; i++)
     modules.push({ id: `TMR${i + 1}`, type: 'TIMER', x: 1600 + i * 186, y: 580, delaySec: TIMER_DEFAULT_DELAY_SEC });
   modules.push({ id: 'SOL1', type: 'SOLENOID', x: 40, y: 920 });
   for (let i = 0; i < 3; i++) modules.push({ id: `CYL${i + 1}`, type: 'CYLINDER', x: 400 + i * 300, y: 920 });
+  modules.push(...FESTECH_INVENTORY);
   return modules;
 }
 

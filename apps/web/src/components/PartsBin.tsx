@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Check, Plus, Search, X } from 'lucide-react';
+import { Check, Plus, Search, Trash2, X } from 'lucide-react';
 import { PARTS, benchInventory, moduleLabel, type ModuleInstance, type ModuleType } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
 import { PartSymbol } from './PartSymbol';
@@ -11,8 +11,10 @@ const CATEGORIES: readonly { id: string; label: string; types: readonly ModuleTy
   { id: 'all', label: 'All parts', types: null },
   { id: 'power', label: 'Power', types: ['BREAKER', 'SUPPLY'] },
   { id: 'inputs', label: 'Inputs', types: ['PUSHBTN', 'TOGGLE'] },
-  { id: 'control', label: 'Control', types: ['RELAY', 'BIGRELAY', 'TIMER'] },
+  { id: 'control', label: 'Control', types: ['RELAY', 'BIGRELAY', 'TMRRELAY', 'TIMER'] },
   { id: 'outputs', label: 'Outputs', types: ['LAMP', 'SOLENOID', 'CYLINDER'] },
+  { id: 'festech', label: 'Festech panels', types: ['FT_PSU', 'FT_PBU', 'FT_RELAY3', 'FT_PLC', 'FT_LIMIT'] },
+  { id: 'pneumatics', label: 'Pneumatics', types: ['FT_AIR', 'FT_V52S', 'FT_V52D', 'FT_V32', 'FT_CYL', 'FT_SCYL'] },
 ];
 
 /** One line of catalogue copy per part, so the symbol is not the only clue. */
@@ -24,9 +26,21 @@ const BLURB: Record<ModuleType, string> = {
   LAMP: 'Indicator load across VCC and GND.',
   RELAY: 'Coil plus one NO/COM/NC line.',
   BIGRELAY: 'Coil plus four NO/COM/NC lines.',
+  TMRRELAY: 'On-delay large relay: once the coil is live it waits the set time, then all four lines switch NC to NO.',
   SOLENOID: 'Breakout block: six VCC/GND pairs for valve coils.',
   CYLINDER: 'Double-acting rod, driven by extend and retract coils.',
   TIMER: 'On-delay: COM feeds VCC once the set point runs out.',
+  FT_PSU: 'DC 24V / 5A: four +24V posts on top, four 0V posts below. Its rocker switches the bench on.',
+  FT_PBU: 'Three lit buttons, each 13-14 and 23-24 NO, 31-32 and 41-42 NC, lamp on X1-X2. +24V and 0V strips.',
+  FT_RELAY3: 'Three relays: coil A1-A2, COM 11/21/31/41, NC 12/22/32/42, NO 14/24/34/44.',
+  FT_PLC: 'OMRON CP1E: inputs 00-11 with LEDs, outputs 00-07, +24V and 0V posts. No ladder program loaded.',
+  FT_LIMIT: 'Roller lever switch: COM, N.O and N.C. Push the roller to throw it.',
+  FT_AIR: 'Compressed-air manifold: IN plus eight outlets, all under pressure. Blue tubing only.',
+  FT_V52S: 'Solenoid Y1 +/-. Air 1 in, 2 and 4 to the cylinder, 3 and 5 silenced exhaust. Springs back.',
+  FT_V52D: 'Solenoids Y14 and Y12. Same ports as the single; the spool stays where it was last sent.',
+  FT_V32: 'Normally closed: air 1 in, 2 out, 3 exhaust. Solenoid Y1 opens 1 to 2.',
+  FT_CYL: 'Air into A extends, into B retracts. Two reed sensors (+ / OUT) close at each end of stroke.',
+  FT_SCYL: 'Spring return: air into A extends, venting A lets the spring pull it home. Two reed sensors (+ / OUT).',
 };
 
 /** The bench stock grouped by part, in the order it sits on the bench. */
@@ -51,6 +65,7 @@ export function PartsBin({ onClose }: { onClose: () => void }) {
   const onBoard = useBoard((s) => s.circuit.modules);
   const addModule = useBoard((s) => s.addModule);
   const removeModule = useBoard((s) => s.removeModule);
+  const removeModules = useBoard((s) => s.removeModules);
   const groups = useGroups();
 
   const [category, setCategory] = useState('all');
@@ -104,6 +119,16 @@ export function PartsBin({ onClose }: { onClose: () => void }) {
               className="w-full rounded-sm border border-steel-400 bg-steel-50 py-1.5 pl-8 pr-2 text-xs text-carbon-900 outline-none focus:border-signal-amber"
             />
           </div>
+          {/* Empties the board in one undoable step, leads and all. */}
+          <button
+            type="button"
+            disabled={down.size === 0}
+            onClick={() => removeModules([...down])}
+            className="inline-flex items-center gap-1 rounded-sm border border-safety-red/40 bg-safety-red/10 px-2 py-1 text-[10px] font-semibold text-safety-red hover:bg-safety-red/20 disabled:opacity-40"
+          >
+            <Trash2 className="h-3 w-3" />
+            Clear all
+          </button>
           <button type="button" onClick={onClose} className="text-carbon-600 hover:text-carbon-900" aria-label="Close">
             <X className="h-4 w-4" />
           </button>
@@ -177,6 +202,19 @@ export function PartsBin({ onClose }: { onClose: () => void }) {
                             >
                               <Plus className="h-3 w-3" />
                               {spares.length > 1 ? 'Add all' : 'Add'}
+                            </button>
+                          )}
+                          {placed > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => removeModules(g.parts.filter((m) => down.has(m.id)).map((m) => m.id))}
+                              className={
+                                (spares.length > 0 ? '' : 'ml-auto ') +
+                                'inline-flex items-center gap-1 rounded-sm border border-safety-red/40 bg-safety-red/10 px-2 py-1 text-[10px] font-semibold text-safety-red hover:bg-safety-red/20'
+                              }
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              {placed > 1 ? 'Clear all' : 'Clear'}
                             </button>
                           )}
                         </div>

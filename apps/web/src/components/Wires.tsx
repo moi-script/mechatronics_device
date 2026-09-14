@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { PARTS, moduleLabel, type EndRef, type WireEnd } from '@mech/sim';
+import { PARTS, kindFrom, moduleLabel, type EndRef, type WireEnd } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
 import { STACK_DY, endPos, endTerminal, wirePath } from '@/lib/geometry';
 import { usePalette, useWireColors, useWireHighlights } from '@/store/useTheme';
@@ -51,6 +51,39 @@ function Plug({ x, y, color }: { x: number; y: number; color: string }) {
   );
 }
 
+/** Polyurethane air tubing: one blue, whatever lead colour is on the rack. */
+const TUBE = '#1f8fe5';
+const TUBE_EDGE = '#0b5c9e';
+
+/** Air tubing: thicker and glossier than a lead, with no plug on its ends. */
+function Tube({ d, selected, live }: { d: string; selected: boolean; live: boolean }) {
+  return (
+    <g pointerEvents="none">
+      {selected && (
+        <path d={d} fill="none" stroke={TUBE} strokeWidth={11} strokeLinecap="round" filter="url(#cableGlow)" />
+      )}
+      <path
+        d={d}
+        fill="none"
+        stroke={TUBE_EDGE}
+        strokeWidth={selected ? 10 : 9}
+        strokeLinecap="round"
+        filter="url(#cable)"
+      />
+      <path d={d} fill="none" stroke={TUBE} strokeWidth={selected ? 7.5 : 6.5} strokeLinecap="round" />
+      <path
+        d={d}
+        fill="none"
+        stroke="#ffffff"
+        strokeWidth={1.6}
+        strokeLinecap="round"
+        opacity={live ? 0.7 : 0.4}
+        transform="translate(0,-1.8)"
+      />
+    </g>
+  );
+}
+
 /** How far back everything the picked lead does not touch is drawn. */
 const DIM = 0.16;
 
@@ -87,6 +120,7 @@ export function Wires() {
   const pending = useBoard((s) => s.pending);
   const cursor = useBoard((s) => s.cursor);
   const wireColor = useBoard((s) => s.wireColor);
+  const tubeAir = useBoard((s) => s.sim.tubeAir);
   const WIRE_HEX = useWireColors();
   const WIRE_HI = useWireHighlights();
 
@@ -150,8 +184,9 @@ export function Wires() {
                 selectWire(selected ? null : wire.id);
               }}
             />
+            {wire.kind === 'tube' && <Tube d={d} selected={selected} live={!!tubeAir[wire.id]} />}
             {/* A picked lead is lit from within, so it reads as the live one. */}
-            {selected && (
+            {wire.kind !== 'tube' && selected && (
               <path
                 d={d}
                 fill="none"
@@ -163,44 +198,56 @@ export function Wires() {
               />
             )}
             {/* Round cable: a shaded core with a lengthwise highlight along the top. */}
-            <path
-              d={d}
-              fill="none"
-              stroke={WIRE_HEX[wire.color]}
-              strokeWidth={selected ? 7 : 5.5}
-              strokeLinecap="round"
-              filter={selected ? undefined : 'url(#cable)'}
-              pointerEvents="none"
-            />
-            <path
-              d={d}
-              fill="none"
-              stroke={WIRE_HI[wire.color]}
-              strokeWidth={selected ? 2.4 : 1.6}
-              strokeLinecap="round"
-              opacity={selected ? 0.95 : 0.75}
-              transform="translate(0,-1.2)"
-              pointerEvents="none"
-            />
+            {wire.kind !== 'tube' && (
+              <>
+                <path
+                  d={d}
+                  fill="none"
+                  stroke={WIRE_HEX[wire.color]}
+                  strokeWidth={selected ? 7 : 5.5}
+                  strokeLinecap="round"
+                  filter={selected ? undefined : 'url(#cable)'}
+                  pointerEvents="none"
+                />
+                <path
+                  d={d}
+                  fill="none"
+                  stroke={WIRE_HI[wire.color]}
+                  strokeWidth={selected ? 2.4 : 1.6}
+                  strokeLinecap="round"
+                  opacity={selected ? 0.95 : 0.75}
+                  transform="translate(0,-1.2)"
+                  pointerEvents="none"
+                />
+              </>
+            )}
           </g>
         );
       })}
 
-      {ends.map(({ wire, a, b, plugged }) => (
-        <g key={wire.id + '-plugs'} opacity={faded(wire.id)}>
-          <Plug x={a.x} y={a.y} color={WIRE_HEX[wire.color]} />
-          <Plug x={b.x} y={b.y} color={WIRE_HEX[wire.color]} />
-          {plugged.a && <Male x={a.x} y={a.y} wireId={wire.id} end="A" taken={takenMales.has(wire.id + '.A')} />}
-          {plugged.b && <Male x={b.x} y={b.y} wireId={wire.id} end="B" taken={takenMales.has(wire.id + '.B')} />}
-        </g>
-      ))}
+      {ends
+        .filter(({ wire }) => wire.kind !== 'tube')
+        .map(({ wire, a, b, plugged }) => (
+          <g key={wire.id + '-plugs'} opacity={faded(wire.id)}>
+            <Plug x={a.x} y={a.y} color={WIRE_HEX[wire.color]} />
+            <Plug x={b.x} y={b.y} color={WIRE_HEX[wire.color]} />
+            {plugged.a && <Male x={a.x} y={a.y} wireId={wire.id} end="A" taken={takenMales.has(wire.id + '.A')} />}
+            {plugged.b && <Male x={b.x} y={b.y} wireId={wire.id} end="B" taken={takenMales.has(wire.id + '.B')} />}
+          </g>
+        ))}
 
       {/* Both ends of the picked lead say, in words, what it joins. */}
       {tags.map((tag) => (
         <EndTag key={tag.key} x={tag.x} y={tag.y} text={tag.text} color={tag.color} />
       ))}
 
-      {pending && (
+      {pending && kindFrom(circuit, pending) === 'tube' && (
+        <g opacity={0.75}>
+          <Tube d={wirePath(endPos(circuit, pending), cursor)} selected={false} live={false} />
+        </g>
+      )}
+
+      {pending && kindFrom(circuit, pending) !== 'tube' && (
         <g pointerEvents="none">
           <path
             d={wirePath(endPos(circuit, pending), cursor)}

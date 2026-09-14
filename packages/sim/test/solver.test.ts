@@ -172,3 +172,68 @@ test('the board starts with only the essentials down, the rest in the bin', () =
   assert.ok(spareModules(start).some((m) => m.id === 'PB1'));
   assert.equal(spareModules({ modules: benchInventory(), wires: [] }).length, 0);
 });
+
+test('Festech: a push-button unit NO contact feeds a relay-unit coil, which throws all four changeovers', () => {
+  const c = board(
+    wire(t('PSU1', 'P1'), t('PBU1', 'V1')),
+    wire(t('PBU1', 'V5'), t('PBU1', 'B1_13')),
+    wire(t('PBU1', 'B1_14'), t('RU1', 'R2_A1')),
+    wire(t('RU1', 'R2_A2'), t('PSU1', 'N1')),
+  );
+  assert.equal(run(c, inputs()).actuated['RU1.R2'], false);
+  const r = run(c, inputs({ pressed: { 'PBU1.B1': true } }));
+  assert.equal(r.actuated['RU1.R2'], true);
+  assert.equal(r.pinNet['RU1.R2_11'], r.pinNet['RU1.R2_14']);
+});
+
+test('Festech: a 5/2 single-solenoid valve drives a cylinder out and the front reed sensor follows a stroke later', () => {
+  const tube = (a: EndRef, b: EndRef): Wire => ({ ...wire(a, b), kind: 'tube', color: 'blue' });
+  const c = board(
+    tube(t('AIR1', 'O1'), t('V52S1', 'A1')),
+    tube(t('V52S1', 'A4'), t('PCYL1', 'A')),
+    tube(t('V52S1', 'A2'), t('PCYL1', 'B')),
+    wire(t('PSU1', 'P1'), t('V52S1', 'Y_P')),
+    wire(t('V52S1', 'Y_N'), t('PSU1', 'N1')),
+  );
+  const first = run(c, inputs());
+  assert.equal(first.pistons.PCYL1.extended, true);
+  assert.equal(first.actuated['PCYL1.EXT'], false);
+  assert.equal(first.nextTickMs, 700);
+  const later = step(c, inputs({ now: T0 + 700 }), first.state);
+  assert.equal(later.actuated['PCYL1.EXT'], true);
+});
+
+test('air tubing only fits air ports', () => {
+  const c = board();
+  assert.equal(canConnect(c, 'x', 'A', t('PSU1', 'P1'), 'tube').ok, false);
+  assert.equal(canConnect(c, 'x', 'A', t('PCYL1', 'A'), 'lead').ok, false);
+  assert.equal(canConnect(c, 'x', 'A', t('PCYL1', 'A'), 'tube').ok, true);
+});
+
+test('Festech: a single-acting cylinder extends on air through a 3/2 valve and springs home when it vents', () => {
+  const tube = (a: EndRef, b: EndRef): Wire => ({ ...wire(a, b), kind: 'tube', color: 'blue' });
+  const c = board(
+    tube(t('AIR1', 'O2'), t('V32N1', 'A1')),
+    tube(t('V32N1', 'A2'), t('SCYL2', 'A')),
+    wire(t('PSU1', 'P1'), t('V32N1', 'Y_P')),
+    wire(t('V32N1', 'Y_N'), t('PSU1', 'N1')),
+  );
+  const out = run(c, inputs());
+  assert.equal(out.pistons.SCYL2.extended, true);
+  const home = step(c, inputs({ breakerClosed: false, now: T0 + 700 }), out.state);
+  assert.equal(home.pistons.SCYL2.extended, false);
+});
+
+test('the timer relay holds COM on NC for its set point, then throws all four lines to NO', () => {
+  const c = board(wire(t('SUPPLY', 'VCC1'), t('TRLY1', 'VCC')), wire(t('TRLY1', 'GND'), t('SUPPLY', 'GND1')));
+  const delay = timerDelayMs(c.modules.find((m) => m.id === 'TRLY1')!);
+  let r = run(c, inputs());
+  assert.equal(r.pinNet['TRLY1.COM3'], r.pinNet['TRLY1.NC3']);
+  assert.equal(r.nextTickMs, delay);
+  r = step(c, inputs({ now: T0 + delay - 1 }), r.state);
+  assert.equal(r.devices.TRLY1.actuated, false);
+  r = step(c, inputs({ now: T0 + delay }), r.state);
+  for (const line of [1, 2, 3, 4]) assert.equal(r.pinNet[`TRLY1.COM${line}`], r.pinNet[`TRLY1.NO${line}`]);
+  r = step(c, inputs({ now: T0 + delay + 10, breakerClosed: false }), r.state);
+  assert.equal(r.pinNet['TRLY1.COM1'], r.pinNet['TRLY1.NC1']);
+});

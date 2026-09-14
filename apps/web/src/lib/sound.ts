@@ -101,3 +101,76 @@ export function alarm(): void {
 export const setMuted = (value: boolean): void => {
   muted = value;
 };
+
+let airBuffer: AudioBuffer | null = null;
+
+/** A second of white noise, long enough for a full valve blast. */
+function airNoise(ac: AudioContext): AudioBuffer {
+  if (!airBuffer) {
+    const frames = Math.floor(ac.sampleRate * 1.0);
+    airBuffer = ac.createBuffer(1, frames, ac.sampleRate);
+    const data = airBuffer.getChannelData(0);
+    for (let i = 0; i < frames; i++) data[i] = Math.random() * 2 - 1;
+  }
+  return airBuffer;
+}
+
+/**
+ * Compressed air through a valve: a hard-edged noise burst whose band sweeps
+ * down as the pressure spends itself. Extending is the loud one — the full
+ * supply slamming into the cylinder, ending in the thud of the piston hitting
+ * the end cap. Retracting is the quieter exhaust hiss out of the silencer.
+ */
+export function airBlast(extend: boolean): void {
+  if (muted) return;
+  const ac = context();
+  if (!ac) return;
+
+  try {
+    const t = ac.currentTime;
+    const length = extend ? 0.75 : 0.55;
+    const peak = extend ? 0.9 : 0.35;
+
+    const source = ac.createBufferSource();
+    source.buffer = airNoise(ac);
+
+    // Strip the rumble so it reads as air, then sweep the band down with the pressure.
+    const high = ac.createBiquadFilter();
+    high.type = 'highpass';
+    high.frequency.value = 500;
+
+    const band = ac.createBiquadFilter();
+    band.type = 'bandpass';
+    band.Q.value = 0.7;
+    band.frequency.setValueAtTime(extend ? 5200 : 4200, t);
+    band.frequency.exponentialRampToValueAtTime(extend ? 1400 : 1800, t + length);
+
+    const gain = ac.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(peak, t + 0.008);
+    gain.gain.exponentialRampToValueAtTime(peak * 0.45, t + 0.12);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + length);
+
+    source.connect(high).connect(band).connect(gain).connect(ac.destination);
+    source.start(t);
+    source.stop(t + length + 0.05);
+
+    // The piston landing on the end cap, a stroke's length after the valve opens.
+    if (extend) {
+      const hit = t + 0.62;
+      const thud = ac.createOscillator();
+      thud.type = 'sine';
+      thud.frequency.setValueAtTime(140, hit);
+      thud.frequency.exponentialRampToValueAtTime(55, hit + 0.12);
+      const thudGain = ac.createGain();
+      thudGain.gain.setValueAtTime(0.0001, hit);
+      thudGain.gain.exponentialRampToValueAtTime(0.7, hit + 0.004);
+      thudGain.gain.exponentialRampToValueAtTime(0.0001, hit + 0.16);
+      thud.connect(thudGain).connect(ac.destination);
+      thud.start(hit);
+      thud.stop(hit + 0.2);
+    }
+  } catch {
+    // The rod still moves on screen.
+  }
+}

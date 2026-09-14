@@ -61,8 +61,14 @@ interface Pass {
   wireNet: Record<string, number>;
   coil: Record<string, boolean>;
   shortedNets: number[];
-  reversed: { moduleId: string; pinId: string }[];
+  reversed: { moduleId: string; pinId: string; onGround: boolean }[];
 }
+
+/** Actuator key: "" is the module itself, anything else a named sub-unit. */
+const actKey = (moduleId: string, actuator: string): string => (actuator ? `${moduleId}.${actuator}` : moduleId);
+
+/** How long a pneumatic stroke takes before the reed sensors see the piston arrive. */
+export const STROKE_MS = 700;
 
 /**
  * Every coil a part carries. Most have the one VCC/GND pair; the double-acting
@@ -79,10 +85,11 @@ function evaluate(circuit: Circuit, breakerClosed: boolean, actuated: Record<str
   const dsu = new DisjointSet();
 
   for (const m of circuit.modules) {
-    for (const p of PARTS[m.type].pins) dsu.add(pinKey(m.id, p.id));
+    for (const p of PARTS[m.type].pins) if (p.role !== 'AIR') dsu.add(pinKey(m.id, p.id));
   }
 
   for (const w of circuit.wires) {
+    if (w.kind === 'tube') continue;
     const a = endKey(w.id, 'A');
     const b = endKey(w.id, 'B');
     dsu.union(a, b); // the wire itself conducts
@@ -104,6 +111,17 @@ function evaluate(circuit: Circuit, breakerClosed: boolean, actuated: Record<str
     if (m.type === 'TIMER' && actuated[m.id]) {
       dsu.union(pinKey(m.id, 'COM1'), pinKey(m.id, 'VCC'));
     }
+    for (const bus of part.buses ?? []) {
+      for (const id of bus.slice(1)) dsu.union(pinKey(m.id, bus[0]), pinKey(m.id, id));
+    }
+    for (const s of part.switches ?? []) {
+      if (!!actuated[actKey(m.id, s.actuator)] === s.closedWhen) {
+        dsu.union(pinKey(m.id, s.pins[0]), pinKey(m.id, s.pins[1]));
+      }
+    }
+    for (const c of part.changeovers ?? []) {
+      dsu.union(pinKey(m.id, c.com), pinKey(m.id, actuated[actKey(m.id, c.actuator)] ? c.no : c.nc));
+    }
   }
 
   const rootToNet = new Map<string, number>();
@@ -124,6 +142,7 @@ function evaluate(circuit: Circuit, breakerClosed: boolean, actuated: Record<str
   const pinNet: Record<string, number> = {};
   for (const m of circuit.modules) {
     for (const p of PARTS[m.type].pins) {
+      if (p.role === 'AIR') continue;
       const key = pinKey(m.id, p.id);
       const id = netOf(key);
       pinNet[key] = id;
@@ -134,19 +153,19 @@ function evaluate(circuit: Circuit, breakerClosed: boolean, actuated: Record<str
   }
 
   const wireNet: Record<string, number> = {};
-  for (const w of circuit.wires) wireNet[w.id] = netOf(endKey(w.id, 'A'));
+  for (const w of circuit.wires) if (w.kind !== 'tube') wireNet[w.id] = netOf(endKey(w.id, 'A'));
 
   const shortedNets = nets.filter((n) => n.hot && n.gnd).map((n) => n.id);
 
   const coil: Record<string, boolean> = {};
-  const reversed: { moduleId: string; pinId: string }[] = [];
+  const reversed: Pass['reversed'] = [];
   for (const m of circuit.modules) {
     for (const c of coilsOf(PARTS[m.type])) {
       const vcc = nets[pinNet[pinKey(m.id, c.vcc)]];
       const gnd = nets[pinNet[pinKey(m.id, c.gnd)]];
       coil[coilKey(m.id, c.id)] = shortedNets.length === 0 && vcc.hot && gnd.gnd;
-      if (vcc.gnd && !vcc.hot) reversed.push({ moduleId: m.id, pinId: c.vcc });
-      if (gnd.hot && !gnd.gnd) reversed.push({ moduleId: m.id, pinId: c.gnd });
+      if (vcc.gnd && !vcc.hot) reversed.push({ moduleId: m.id, pinId: c.vcc, onGround: true });
+      if (gnd.hot && !gnd.gnd) reversed.push({ moduleId: m.id, pinId: c.gnd, onGround: false });
     }
   }
 
@@ -157,8 +176,12 @@ function evaluate(circuit: Circuit, breakerClosed: boolean, actuated: Record<str
  * When a timer's count started: the instant carried over from the last step if
  * its coil was already live, otherwise now. Dropping the coil clears it.
  */
-const timerStartOf = (m: ModuleInstance, coilOn: boolean, prevStart: Record<string, number>, now: number): number | null =>
-  coilOn ? (prevStart[m.id] ?? now) : null;
+const timerStartOf = (
+  m: ModuleInstance,
+  coilOn: boolean,
+  prevStart: Record<string, number>,
+  now: number,
+): number | null => (coilOn ? (prevStart[m.id] ?? now) : null);
 
 /** Contact position each part takes for a given coil / input state. */
 function actuationFor(
@@ -175,7 +198,8 @@ function actuationFor(
     case 'RELAY':
     case 'BIGRELAY':
       return !!coil[m.id];
-    case 'TIMER': {
+    case 'TIMER':
+    case 'TMRRELAY': {
       // On-delay: the contact only makes once the coil has been held for the
       // whole set point. The start instant is fixed for this step, so the
       // feedback loop below still settles.
@@ -185,6 +209,90 @@ function actuationFor(
     default:
       return false;
   }
+}
+
+/**
+ * Every actuator one module owns: the module itself for the original parts,
+ * plus named sub-units on the Festech panels — each button of the push-button
+ * unit, each relay of the relay unit, the piston position a cylinder's reed
+ * sensors read.
+ */
+function actuatorsFor(
+  m: ModuleInstance,
+  inputs: Inputs,
+  coil: Record<string, boolean>,
+  prevStart: Record<string, number>,
+  prevRod: Record<string, boolean>,
+  out: Record<string, boolean>,
+): void {
+  switch (m.type) {
+    case 'FT_PBU':
+      for (const b of ['B1', 'B2', 'B3']) out[actKey(m.id, b)] = !!inputs.pressed[actKey(m.id, b)];
+      return;
+    case 'FT_RELAY3':
+      for (const r of ['R1', 'R2', 'R3']) out[actKey(m.id, r)] = !!coil[coilKey(m.id, r)];
+      return;
+    case 'FT_LIMIT':
+      out[m.id] = !!inputs.pressed[m.id];
+      return;
+    case 'FT_CYL':
+    case 'FT_SCYL':
+      // The sensors read where the piston was at the start of this step; a
+      // stroke that starts now reaches them on the follow-up tick.
+      out[actKey(m.id, 'EXT')] = !!prevRod[m.id];
+      return;
+    default:
+      out[m.id] = actuationFor(m, inputs, coil, prevStart);
+  }
+}
+
+const actuationMap = (
+  circuit: Circuit,
+  inputs: Inputs,
+  coil: Record<string, boolean>,
+  prevStart: Record<string, number>,
+  prevRod: Record<string, boolean>,
+): Record<string, boolean> => {
+  const out: Record<string, boolean> = {};
+  for (const m of circuit.modules) actuatorsFor(m, inputs, coil, prevStart, prevRod, out);
+  return out;
+};
+
+/**
+ * The air side of the bench. Fittings joined by tubing, and the passages each
+ * valve spool opens, form air nets; a net fed from the distributor is under
+ * pressure and anything else is open to exhaust.
+ */
+function solveAir(
+  circuit: Circuit,
+  valves: Record<string, boolean>,
+): { air: Record<string, boolean>; tubeAir: Record<string, boolean> } {
+  const dsu = new DisjointSet();
+  for (const m of circuit.modules) {
+    for (const p of PARTS[m.type].pins) if (p.role === 'AIR') dsu.add(pinKey(m.id, p.id));
+  }
+  for (const w of circuit.wires) {
+    if (w.kind !== 'tube' || w.a.kind !== 'terminal' || w.b.kind !== 'terminal') continue;
+    dsu.union(pinKey(w.a.moduleId, w.a.pinId), pinKey(w.b.moduleId, w.b.pinId));
+  }
+  for (const m of circuit.modules) {
+    const k = (id: string) => pinKey(m.id, id);
+    const shifted = !!valves[m.id];
+    if (m.type === 'FT_V52S' || m.type === 'FT_V52D') dsu.union(k('A1'), k(shifted ? 'A4' : 'A2'));
+    if (m.type === 'FT_V32' && shifted) dsu.union(k('A1'), k('A2'));
+  }
+  const fed = new Set<string>();
+  for (const m of circuit.modules) {
+    if (!PARTS[m.type].airSource) continue;
+    for (const p of PARTS[m.type].pins) if (p.role === 'AIR') fed.add(dsu.find(pinKey(m.id, p.id)));
+  }
+  const air: Record<string, boolean> = {};
+  for (const key of dsu.keys()) air[key] = fed.has(dsu.find(key));
+  const tubeAir: Record<string, boolean> = {};
+  for (const w of circuit.wires) {
+    if (w.kind === 'tube' && w.a.kind === 'terminal') tubeAir[w.id] = !!air[pinKey(w.a.moduleId, w.a.pinId)];
+  }
+  return { air, tubeAir };
 }
 
 const sameActuation = (a: Record<string, boolean>, b: Record<string, boolean>): boolean =>
@@ -202,18 +310,13 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
 
   const prevStart = prev.timerStart ?? {};
   let coil = { ...prev.coil };
-  let actuated: Record<string, boolean> = {};
-  for (const m of circuit.modules) {
-    actuated[m.id] = actuationFor(m, inputs, coil, prevStart);
-  }
+  const prevRod = prev.rod ?? {};
+  let actuated = actuationMap(circuit, inputs, coil, prevStart, prevRod);
 
   let pass = evaluate(circuit, inputs.breakerClosed, actuated);
   for (let i = 0; i < MAX_PASSES; i++) {
     if (pass.shortedNets.length > 0) break;
-    const next: Record<string, boolean> = {};
-    for (const m of circuit.modules) {
-      next[m.id] = actuationFor(m, inputs, pass.coil, prevStart);
-    }
+    const next = actuationMap(circuit, inputs, pass.coil, prevStart, prevRod);
     if (sameActuation(next, actuated)) break;
     actuated = next;
     pass = evaluate(circuit, inputs.breakerClosed, actuated);
@@ -236,7 +339,7 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
     const key = `${r.moduleId}.${r.pinId}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    const rail = r.pinId === 'VCC' ? 'a ground net' : 'a supply net';
+    const rail = r.onGround ? 'a ground net' : 'a supply net';
     errors.push({
       code: 'REVERSED_POLARITY',
       moduleId: r.moduleId,
@@ -269,12 +372,44 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
     pistons[m.id] = { extended, extendCoil, retractCoil, stalled: extendCoil && retractCoil };
   }
 
+  // Valves: a single-solenoid spool follows its coil and springs back; the
+  // double-solenoid spool goes where the last lone coil sent it and stays.
+  const prevValve = prev.valve ?? {};
+  const valves: Record<string, boolean> = {};
+  const valve: Record<string, boolean> = {};
+  for (const m of circuit.modules) {
+    const on = (id: string) => !faulted && !!coil[coilKey(m.id, id)];
+    if (m.type === 'FT_V52S' || m.type === 'FT_V32') valves[m.id] = on('Y');
+    if (m.type === 'FT_V52D') {
+      const y14 = on('Y14');
+      const y12 = on('Y12');
+      valves[m.id] = y14 === y12 ? !!prevValve[m.id] : y14;
+      valve[m.id] = valves[m.id];
+    }
+  }
+
+  // Pneumatic cylinders move on whichever port is under pressure. A stroke
+  // that starts now is reported to the sensors on a follow-up tick.
+  const { air, tubeAir } = solveAir(circuit, valves);
+  let strokeStarted = false;
+  for (const m of circuit.modules) {
+    if (m.type !== 'FT_CYL' && m.type !== 'FT_SCYL') continue;
+    const a = !!air[pinKey(m.id, 'A')];
+    const b = !!air[pinKey(m.id, 'B')];
+    const was = prevRod[m.id] ?? false;
+    // The single-acting rod has no B port: its spring returns it whenever A vents.
+    const extended = m.type === 'FT_SCYL' ? a : a === b ? was : a;
+    if (extended !== was) strokeStarted = true;
+    rod[m.id] = extended;
+    pistons[m.id] = { extended, extendCoil: a, retractCoil: b, stalled: a && b };
+  }
+
   // Carry each running timer's start instant forward, and report the countdown.
   const timerStart: Record<string, number> = {};
   const timers: Record<string, TimerState> = {};
   let nextTickMs: number | null = null;
   for (const m of circuit.modules) {
-    if (m.type !== 'TIMER') continue;
+    if (m.type !== 'TIMER' && m.type !== 'TMRRELAY') continue;
     const delayMs = timerDelayMs(m);
     const start = faulted ? null : timerStartOf(m, !!coil[m.id], prevStart, inputs.now);
     if (start !== null) timerStart[m.id] = start;
@@ -285,6 +420,7 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
     // The board changes by itself when this one times out, so say when.
     if (running) nextTickMs = nextTickMs === null ? remainingMs : Math.min(nextTickMs, remainingMs);
   }
+  if (strokeStarted) nextTickMs = nextTickMs === null ? STROKE_MS : Math.min(nextTickMs, STROKE_MS);
 
   return {
     nets: pass.nets,
@@ -294,8 +430,13 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
     pistons,
     timers,
     nextTickMs,
+    actuated: faulted ? {} : actuated,
+    coils: faulted ? {} : coil,
+    air,
+    tubeAir,
+    valves,
     errors,
     faulted,
-    state: { coil: faulted ? {} : coil, timerStart: faulted ? {} : timerStart, rod },
+    state: { coil: faulted ? {} : coil, timerStart: faulted ? {} : timerStart, rod, valve },
   };
 }

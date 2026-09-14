@@ -6,7 +6,7 @@ export interface Point {
 }
 
 export const BOARD_W = 2010;
-export const BOARD_H = 2010;
+export const BOARD_H = 2420;
 
 /** Spacing of the bench ruling, in board units. */
 export const GRID_MINOR = 50;
