@@ -11,3 +11,4 @@ dist/
 *.tsbuildinfo
 out/
 apps/mobile/Mechatronic.apk
+apps/web/.offline-parked/

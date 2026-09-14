@@ -229,5 +229,5 @@ npm run apk          # builds apps/mobile/Mechatronic.apk (debug)
 npm run open -w @mech/mobile   # open in Android Studio
 ```
 
-Needs the Android SDK and JDK 21. Files that only work with a server
-(`route.web.ts`, `page.web.tsx`) are left out of the offline export.
+Needs the Android SDK and JDK 21. The server-only `api` and `view` routes are
+set aside during the offline export and restored afterwards.
