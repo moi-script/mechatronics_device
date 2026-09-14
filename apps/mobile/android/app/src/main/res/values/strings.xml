@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Mechatronic</string>
+    <string name="title_activity_main">Mechatronic</string>
+    <string name="package_name">com.johnmoises.mechatronic</string>
+    <string name="custom_url_scheme">com.johnmoises.mechatronic</string>
+</resources>

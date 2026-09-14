@@ -6,6 +6,7 @@ import {
   Eraser,
   FilePlus2,
   FolderOpen,
+  Info,
   MoreHorizontal,
   Monitor,
   PackagePlus,
@@ -26,7 +27,8 @@ import { useBoard } from '@/store/useBoard';
 import { useTheme } from '@/store/useTheme';
 import { useSound } from '@/store/useSound';
 import { useSession } from '@/store/useSession';
-import { api } from '@/lib/api';
+import { api, OFFLINE } from '@/lib/api';
+import { AboutDialog } from './AboutDialog';
 import { BrandMark } from './BrandMark';
 import { Popover } from './Popover';
 import { WirePicker } from './WirePicker';
@@ -139,6 +141,7 @@ export function Toolbar({
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [confirmingNew, setConfirmingNew] = useState(false);
   const [namingCircuit, setNamingCircuit] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   /** Set when Share triggered the save, so the link follows automatically. */
   const [shareAfterSave, setShareAfterSave] = useState(false);
@@ -316,15 +319,17 @@ export function Toolbar({
               trigger={<MoreHorizontal className="h-4 w-4" />}
               panel={(close) => (
                 <div className="flex flex-col">
-                  <MenuItem
-                    icon={<Share2 className="h-3.5 w-3.5" />}
-                    onClick={() => {
-                      close();
-                      void share();
-                    }}
-                  >
-                    Share link
-                  </MenuItem>
+                  {!OFFLINE && (
+                    <MenuItem
+                      icon={<Share2 className="h-3.5 w-3.5" />}
+                      onClick={() => {
+                        close();
+                        void share();
+                      }}
+                    >
+                      Share link
+                    </MenuItem>
+                  )}
                   <MenuItem
                     icon={<FilePlus2 className="h-3.5 w-3.5" />}
                     onClick={() => {
@@ -372,6 +377,18 @@ export function Toolbar({
                   >
                     Theme
                   </MenuItem>
+
+                  <div className="my-1 h-px bg-steel-400" />
+
+                  <MenuItem
+                    icon={<Info className="h-3.5 w-3.5" />}
+                    onClick={() => {
+                      close();
+                      setAboutOpen(true);
+                    }}
+                  >
+                    About
+                  </MenuItem>
                 </div>
               )}
             />
@@ -389,6 +406,8 @@ export function Toolbar({
         </div>
       </div>
 
+      {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
+
       {shareUrl && <ShareDialog url={shareUrl} onClose={() => setShareUrl(null)} />}
 
       {namingCircuit && (
@@ -397,7 +416,9 @@ export function Toolbar({
           message={
             shareAfterSave
               ? 'A share link points at your saved copy, so this circuit needs a name first.'
-              : 'It goes to your account, so you can pick it up on another machine.'
+              : OFFLINE
+                ? 'It stays on this device, under My circuits in the library.'
+                : 'It goes to your account, so you can pick it up on another machine.'
           }
           label="Circuit name"
           defaultValue="Untitled circuit"

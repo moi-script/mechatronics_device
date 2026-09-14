@@ -9,3 +9,5 @@ dist/
 
 .vercel
 *.tsbuildinfo
+out/
+apps/mobile/Mechatronic.apk

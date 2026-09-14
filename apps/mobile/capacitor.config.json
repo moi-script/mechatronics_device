@@ -1,0 +1,8 @@
+{
+  "appId": "com.johnmoises.mechatronic",
+  "appName": "Mechatronic",
+  "webDir": "../web/out",
+  "android": {
+    "backgroundColor": "#dde3ea"
+  }
+}

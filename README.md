@@ -217,3 +217,17 @@ A circuit that never settles (a relay wired to break its own coil) stops at the 
 ## Design
 
 `docs/superpowers/specs/2026-08-27-mechatronic-trainer-design.md`
+
+## Android app (offline)
+
+`apps/mobile` wraps the web app with Capacitor. The site is exported as static
+files with `NEXT_PUBLIC_OFFLINE=1`, so it needs no API or internet. Circuits are
+saved on the phone, and share links are hidden.
+
+```bash
+npm run apk          # builds apps/mobile/Mechatronic.apk (debug)
+npm run open -w @mech/mobile   # open in Android Studio
+```
+
+Needs the Android SDK and JDK 21. Files that only work with a server
+(`route.web.ts`, `page.web.tsx`) are left out of the offline export.

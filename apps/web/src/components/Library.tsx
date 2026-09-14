@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { PRESETS, type Preset } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
-import { api, type CircuitSummary, type User } from '@/lib/api';
+import { api, OFFLINE, type CircuitSummary, type User } from '@/lib/api';
 import { useSession } from '@/store/useSession';
 import { ConfirmDialog } from './ConfirmDialog';
 
@@ -376,7 +376,7 @@ export function Library({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        {user && (
+        {user && !OFFLINE && (
           <footer className="flex items-center justify-between border-t border-steel-300 bg-steel-100 px-4 py-2 text-[11px] text-carbon-600">
             <span className="truncate">Signed in as {user.name}</span>
             <button
