@@ -16,7 +16,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { PRESETS, type Preset } from '@mech/sim';
+import { PRESETS, type BoardType, type Preset } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
 import { api, CLOUD_AVAILABLE, hasCloudSession, OFFLINE, savingToDevice, type CircuitSummary, type User } from '@/lib/api';
 import { exportCircuit, importCircuit } from '@/lib/projectFile';
@@ -98,36 +98,68 @@ function AuthForm({ onDone }: { onDone: (u: User) => void }) {
  * Starts a fresh, unsaved board. It sits at the head of the panel because this
  * is where people come looking for "another circuit", saved or not.
  */
+/** The benches a project can start on, in the order they are offered. */
+const BOARDS: { id: BoardType; name: string; blurb: string }[] = [
+  {
+    id: 'trainer',
+    name: 'Trainer bench',
+    blurb: 'The full panel: supply, buttons, lamps, relays, timers and the Festech units.',
+  },
+  {
+    id: 'pneumatics',
+    name: 'Pneumatics board',
+    blurb: 'One cylinder to a row, with a limit switch bolted at each end of its stroke.',
+  },
+];
+
 function NewProject({ onStarted }: { onStarted: () => void }) {
   const newProject = useBoard((s) => s.newProject);
   const setHint = useBoard((s) => s.setHint);
   const wireCount = useBoard((s) => s.circuit.wires.length);
   const [confirming, setConfirming] = useState(false);
 
-  const start = () => {
-    newProject();
-    setHint('New project started. Save it to keep it under its own name.');
+  const [board, setBoard] = useState<BoardType>('trainer');
+
+  const start = (type: BoardType = board) => {
+    newProject(type);
+    const bench = BOARDS.find((b) => b.id === type)!;
+    setHint(bench.name + ' started. Save it to keep it under its own name.');
     setConfirming(false);
     onStarted();
   };
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => (wireCount > 0 ? setConfirming(true) : start())}
-        className="group flex w-full items-center gap-3 rounded-md border border-dashed border-steel-400 bg-steel-100 px-3 py-3 text-left transition hover:border-signal-amber hover:bg-steel-200"
-      >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-steel-400 bg-steel-50 text-carbon-800 group-hover:text-signal-amber">
-          <FilePlus2 className="h-4 w-4" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-xs font-semibold text-carbon-900">Add new project</span>
-          <span className="mt-0.5 block text-[10px] leading-relaxed text-carbon-600">
-            A clean bench, saved separately from the circuit you have open.
+      <div className="rounded-md border border-dashed border-steel-400 bg-steel-100 p-3">
+        <div className="flex items-center gap-2">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-steel-400 bg-steel-50 text-carbon-800">
+            <FilePlus2 className="h-4 w-4" />
           </span>
-        </span>
-      </button>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-carbon-900">Add new project</p>
+            <p className="mt-0.5 text-[10px] leading-relaxed text-carbon-600">
+              A clean bench, saved separately from the circuit you have open.
+            </p>
+          </div>
+        </div>
+        <div className="mt-2.5 grid gap-1.5 sm:grid-cols-2">
+          {BOARDS.map((b) => (
+            <button
+              key={b.id}
+              type="button"
+              onClick={() => {
+                setBoard(b.id);
+                if (wireCount > 0) setConfirming(true);
+                else start(b.id);
+              }}
+              className="rounded-sm border border-steel-400 bg-steel-50 px-2.5 py-2 text-left transition hover:border-signal-amber hover:bg-steel-200"
+            >
+              <span className="block text-[11px] font-semibold text-carbon-900">{b.name}</span>
+              <span className="mt-0.5 block text-[10px] leading-relaxed text-carbon-600">{b.blurb}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {confirming && (
         <ConfirmDialog
@@ -139,7 +171,7 @@ function NewProject({ onStarted }: { onStarted: () => void }) {
           }
           detail="Save the board first if you want to keep it."
           confirmLabel="Start new project"
-          onConfirm={start}
+          onConfirm={() => start()}
           onCancel={() => setConfirming(false)}
         />
       )}
@@ -213,7 +245,13 @@ function Presets({ onLoaded }: { onLoaded: () => void }) {
   const load = (p: Preset) => {
     // A preset brings its own parts, so it replaces the board outright.
     loadCircuit(p.build(), null);
-    setHint('Loaded "' + p.name + '". Close the breaker to run it.');
+    setHint(
+      'Loaded "' +
+        p.name +
+        '"' +
+        (p.board === 'pneumatics' ? ' on the pneumatics board' : '') +
+        '. Close the breaker to run it.',
+    );
     setReplacing(null);
     onLoaded();
   };
@@ -230,7 +268,14 @@ function Presets({ onLoaded }: { onLoaded: () => void }) {
                   <Sparkles className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-semibold text-carbon-900">{p.name}</div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-carbon-900">{p.name}</span>
+                    {p.board === 'pneumatics' && (
+                      <span className="shrink-0 rounded-sm bg-signal-blue/15 px-1.5 py-0.5 text-[9px] font-semibold text-signal-blue">
+                        PNEUMATICS BOARD
+                      </span>
+                    )}
+                  </div>
                   <p className="mt-0.5 text-[10px] leading-relaxed text-carbon-600">{p.summary}</p>
                   <button
                     type="button"

@@ -71,7 +71,9 @@ export function parse(text: string): { name: string; circuit: Circuit } {
 
   return {
     name: typeof doc.name === 'string' && doc.name.trim() ? doc.name.trim() : 'Imported circuit',
-    circuit: { modules: circuit.modules, wires: circuit.wires },
+    // The board comes with it: a pneumatics circuit opened on the trainer
+    // bench would be missing the switches its rows are built around.
+    circuit: { modules: circuit.modules, wires: circuit.wires, board: circuit.board ?? 'trainer' },
   };
 }
 

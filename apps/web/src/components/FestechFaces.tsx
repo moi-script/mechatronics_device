@@ -5,6 +5,7 @@ import {
   FT_PLC_INPUT_ROWS,
   FT_PLC_OUTPUT_Y,
   FT_RELAY_BLOCK_Y,
+  moduleLabel,
   PARTS,
   type ModuleInstance,
 } from '@mech/sim';
@@ -385,7 +386,10 @@ export function FestechFace({ m }: { m: ModuleInstance }) {
     }
 
     case 'FT_LIMIT': {
-      const down = !!pressed[m.id];
+      // Bolted to a stroke it is thrown by the rod, so the face follows the
+      // solver rather than the pointer.
+      const down = !!acts[m.id];
+      const mount = m.mount;
       return (
         <>
           {/* Roller lever: push it to throw the contact. */}
@@ -421,6 +425,11 @@ export function FestechFace({ m }: { m: ModuleInstance }) {
           <Text x={20} y={100} anchor="start" color={down ? p.green : p.label}>
             {down ? 'COM - N.O' : 'COM - N.C'}
           </Text>
+          {mount && (
+            <Text x={20} y={62} anchor="start" size={10} color={p.label}>
+              {moduleLabel(m).replace('Limit switch ', '') + ' · ' + (mount.at === 'out' ? 'END OF STROKE' : 'HOME')}
+            </Text>
+          )}
         </>
       );
     }

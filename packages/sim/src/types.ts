@@ -82,6 +82,24 @@ export interface PartDef {
   airSource?: boolean;
 }
 
+/**
+ * Which bench a circuit is built on. The trainer is the full panel; the
+ * pneumatics board is the same parts laid out for air work, one cylinder per
+ * row with a limit switch bolted at each end of its stroke.
+ */
+export type BoardType = 'trainer' | 'pneumatics';
+
+/**
+ * A limit switch bolted to a cylinder's stroke. `home` is the switch the rod
+ * sits on when it is back, `out` the one it runs into when it extends — so the
+ * rod trips it by arriving, which is the whole point of a limit switch and the
+ * one thing a switch you press by hand cannot show.
+ */
+export interface LimitMount {
+  cylinderId: string;
+  at: 'home' | 'out';
+}
+
 export interface ModuleInstance {
   id: string;
   type: ModuleType;
@@ -89,6 +107,8 @@ export interface ModuleInstance {
   y: number;
   /** Timer set point, in seconds. TIMER only; omitted means the default. */
   delaySec?: number;
+  /** Where a limit switch is bolted. FT_LIMIT only; loose ones are hand-pressed. */
+  mount?: LimitMount;
 }
 
 /**
@@ -138,6 +158,8 @@ export interface Wire {
 export interface Circuit {
   modules: ModuleInstance[];
   wires: Wire[];
+  /** Which bench this was built on. Absent means the trainer, as it always was. */
+  board?: BoardType;
 }
 
 export interface Inputs {

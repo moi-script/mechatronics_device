@@ -37,7 +37,35 @@ npm run typecheck
 `/board` is the trainer itself. The offline export swaps the two so the APK opens straight
 onto the board — see [Android app](#android-app-offline).
 
+## Boards
+
+There are two benches, and a circuit remembers which one it was built on.
+
+**Trainer bench** is the full panel below: supply, buttons, lamps, relays, timers, and the
+Festech units.
+
+**Pneumatics board** lays the same stock out for air work — one cylinder to a row, its
+valve at the head of the row and a limit switch bolted at each end of the stroke:
+
+    V_A   LS_A0        CYL_A                LS_A1
+    valve  a0    [======|rod========]        a1
+           home                        end of stroke
+
+Four rows: A and B are double-acting on 5/2 double-solenoid valves, C double-acting on a
+spring-return valve, D single-acting on a 3/2. The electrics that drive the solenoids sit
+in a band along the top.
+
+A mounted limit switch is thrown by the rod arriving, not by being clicked — `a0` is made
+while its rod is home, `a1` while it is out — because a limit switch that has to be pressed
+by hand is not reporting anything the board did not already know. A loose one, dragged out
+of the bin on the trainer bench, is still hand-pressed.
+
+Pick the bench under *Add new project* in the library. Loading a preset switches to the
+bench it was built on.
+
 ## The board
+
+The trainer bench:
 
 | Part | Count | Pins |
 |---|---|---|
@@ -253,12 +281,13 @@ the speed of the solver, and the sensor lines agree with what is drawn on screen
 The library ships circuits that drop onto the bench whole, parts and leads, so a sequence
 can be run and traced before it is built from bare terminals.
 
-| Preset | What it does |
-|---|---|
-| Three-step lamp sequence | A timer lights LAMP1, then each push button steps the lamp along and drops the one before it. |
-| Pneumatic sequence A+ A- B+ B- | One press of button 1 on the Festech push-button unit runs both cylinders through the cycle. |
+| Preset | Bench | What it does |
+|---|---|---|
+| Three-step lamp sequence | Trainer | A timer lights LAMP1, then each push button steps the lamp along and drops the one before it. |
+| Pneumatic sequence A+ A- B+ B- | Trainer | One press of button 1 runs both cylinders through the cycle, stepped by the reed sensors on the barrels. |
+| A+ A- B+ B- on limit switches | Pneumatics | The same sequence on the pneumatics board, stepped by the switches the rods run into. |
 
-The pneumatic one is the lab sequence: **A+ A- B+ B-**, on two double-acting cylinders,
+Both pneumatic ones run the lab sequence: **A+ A- B+ B-**, on two double-acting cylinders,
 each on a 5/2 double-solenoid valve. Every step after the first is started by a limit
 switch — the reed sensors clamped to each barrel — and relay R2 is the memory that tells
 the rear sensor of a cylinder standing at rest from the same sensor reporting a rod that
@@ -266,6 +295,11 @@ has just come home, which is the only reason the cycle knows to move on to B rat
 starting B the moment the breaker closes. R3 ends the cycle: it drops R2 and sends B home
 off B's own front sensor. The wiring, contact by contact, is commented in
 `packages/sim/src/presets.ts`.
+
+The pneumatics-board version wants one relay instead of two, because a limit switch has a
+changeover contact where a reed sensor has only a closing one: `a1`'s NC contact is what
+drops A+ as the rod arrives, and `b1`'s NC is what drops the memory relay and ends the
+cycle.
 
 ## Design
 

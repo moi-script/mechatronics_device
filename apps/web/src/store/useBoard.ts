@@ -12,6 +12,7 @@ import {
   step,
   TIMER_MAX_DELAY_SEC,
   TIMER_MIN_DELAY_SEC,
+  type BoardType,
   type Circuit,
   type EndRef,
   type Inputs,
@@ -85,8 +86,8 @@ interface BoardStore extends Core {
   deleteWire(id: string): void;
   clearWires(): void;
   loadCircuit(c: Circuit, id?: string | null): void;
-  /** Clear the bench back to a fresh, unsaved board. */
-  newProject(): void;
+  /** Clear the bench back to a fresh, unsaved board, of this type or the one in hand. */
+  newProject(board?: BoardType): void;
   setSavedCircuitId(id: string | null): void;
 
   setHint(h: string | null): void;
@@ -173,7 +174,7 @@ export const useBoard = create<BoardStore>((set, get) => ({
   addModule: (id) =>
     set((s) => {
       if (s.circuit.modules.some((m) => m.id === id)) return {};
-      const slot = benchSlot(id);
+      const slot = benchSlot(id, s.circuit.board ?? 'trainer');
       if (!slot) return {};
       return {
         ...resolve({ ...s, circuit: { ...s.circuit, modules: [...s.circuit.modules, slot] } }),
@@ -379,13 +380,13 @@ export const useBoard = create<BoardStore>((set, get) => ({
       savedCircuitId: id,
     })),
 
-  newProject: () =>
+  newProject: (board) =>
     set((s) => ({
       // A new project is its own circuit, so the saved id goes with the old
       // board: the next Save writes a second entry rather than overwriting.
       ...resolve({
         ...s,
-        circuit: emptyCircuit(),
+        circuit: emptyCircuit(board ?? s.circuit.board ?? 'trainer'),
         simState: emptyState(),
         breakerOn: false,
         tripped: false,

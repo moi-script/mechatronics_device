@@ -232,9 +232,19 @@ function actuatorsFor(
     case 'FT_RELAY3':
       for (const r of ['R1', 'R2', 'R3']) out[actKey(m.id, r)] = !!coil[coilKey(m.id, r)];
       return;
-    case 'FT_LIMIT':
+    case 'FT_LIMIT': {
+      // Bolted to a stroke, the rod throws it by arriving: the switch at the
+      // home end is made while the rod is back, the one at the far end while
+      // it is out. A loose switch is still pressed by hand.
+      const mount = m.mount;
+      if (mount) {
+        const rodOut = !!sensedRod[mount.cylinderId];
+        out[m.id] = mount.at === 'out' ? rodOut : !rodOut;
+        return;
+      }
       out[m.id] = !!inputs.pressed[m.id];
       return;
+    }
     case 'FT_CYL':
     case 'FT_SCYL':
       // The sensors read where the piston has actually got to, which is not

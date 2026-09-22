@@ -1,5 +1,5 @@
 import { benchSlot } from './parts';
-import type { Circuit, EndRef, ModuleInstance, Wire, WireColor } from './types';
+import type { BoardType, Circuit, EndRef, ModuleInstance, Wire, WireColor } from './types';
 
 /**
  * A worked circuit that can be dropped onto the bench whole, so a student can
@@ -12,6 +12,8 @@ export interface Preset {
   name: string;
   /** One line, for the list. */
   summary: string;
+  /** Which bench it is built on. Absent means the trainer. */
+  board?: BoardType;
   /** What the circuit does, step by step, in the order it happens. */
   steps: string[];
   build(): Circuit;
@@ -50,10 +52,14 @@ class Harness {
 }
 
 /** The bench parts a preset uses, at their slots in the bench layout. */
-const layout = (ids: string[], tweak: (m: ModuleInstance) => ModuleInstance = (m) => m): ModuleInstance[] =>
+const layout = (
+  ids: string[],
+  tweak: (m: ModuleInstance) => ModuleInstance = (m) => m,
+  board: BoardType = 'trainer',
+): ModuleInstance[] =>
   ids.map((id) => {
-    const slot = benchSlot(id);
-    if (!slot) throw new Error(`No bench slot for module ${id}`);
+    const slot = benchSlot(id, board);
+    if (!slot) throw new Error(`No ${board} bench slot for module ${id}`);
     return tweak(slot);
   });
 
@@ -267,7 +273,99 @@ export const PNEUMATIC_SEQUENCE_PRESET: Preset = {
   },
 };
 
+/**
+ * The same sequence on the pneumatics board, stepped by real limit switches.
+ *
+ *   PB1 -> A extends
+ *   a1  -> A retracts
+ *   a0  -> B extends
+ *   b1  -> B retracts, and the board comes back to rest
+ *
+ * Each switch is bolted to a stroke: a0 sits under the rod of A while it is
+ * home, a1 at the far end where it runs into it. That is the difference from
+ * the trainer version, which reads the reed sensors clamped to the barrel — a
+ * limit switch is a mechanical thing the rod hits, and on this board it is
+ * thrown by the rod arriving rather than by anyone pressing it.
+ *
+ * A changeover contact on each switch is what makes this simpler than the
+ * reed-sensor version: one relay does the whole job instead of two.
+ *
+ *   R1   set by a1, held through b1's NC contact, dropped when B arrives
+ *        11-12 NC  in series with the button, so A+ drops once A is out
+ *        21-24 NO  its own hold
+ *        31-34 NO  arms B+, in series with a0
+ *
+ * The problem it solves is still a0: closed at rest and closed again after A
+ * comes home, so on its own it would send B out the moment the breaker closed.
+ * R1 is the memory that tells those two apart.
+ */
+export const PNEUMATIC_BOARD_SEQUENCE: Preset = {
+  id: 'pneumatic-board-a-b-sequence',
+  name: 'A+ A- B+ B- on limit switches',
+  summary: 'The pneumatics board: one press of button 1, and the rods trip the switches that run the rest.',
+  board: 'pneumatics',
+  steps: [
+    'Close the breaker. Both rods are home, each sitting on its own a0 switch.',
+    'Press button 1 on the push-button unit: cylinder A extends (A+).',
+    'A runs into a1, which picks up relay R1 and sends A back home (A-).',
+    'A settles back onto a0, and with R1 still held that sends cylinder B out (B+).',
+    'B runs into b1, which drops R1 and sends B home (B-). The cycle is over and button 1 starts it again.',
+  ],
+  build(): Circuit {
+    const h = new Harness('pneu2');
+
+    // --- power ---------------------------------------------------------------
+    h.add(['PSU1', 'P1'], ['RU1', 'V1']);
+    h.add(['PSU1', 'N1'], ['RU1', 'G1'], 'blue');
+    h.add(['RU1', 'V2'], ['PBU1', 'V5']); // fed from the far end, clear of the buttons
+
+    // --- step 1: button 1 extends A, until a1 drops the command --------------
+    h.add(['PBU1', 'V4'], ['PBU1', 'B1_13']);
+    h.add(['PBU1', 'B1_14'], ['RU1', 'R1_12']); // R1 NC: open once A is out
+    h.add(['RU1', 'R1_11'], ['V_A', 'Y14_P']);
+    h.add(['V_A', 'Y14_N'], ['RU1', 'G2'], 'blue');
+
+    // --- step 2: a1 sends A home, and remembers that it went out -------------
+    h.add(['RU1', 'V3'], ['LS_A1', 'COM']);
+    h.add(['LS_A1', 'NO'], ['V_A', 'Y12_P'], 'green'); // A-
+    h.add(['V_A', 'Y12_N'], ['RU1', 'G3'], 'blue');
+    h.add(['LS_A1', 'NO'], ['RU1', 'R1_A1'], 'yellow'); // sets R1
+    h.add(['RU1', 'R1_A2'], ['RU1', 'G4'], 'blue');
+    h.add(['RU1', 'V4'], ['LS_B1', 'COM']);
+    h.add(['LS_B1', 'NC'], ['RU1', 'R1_24'], 'yellow'); // hold feed, broken when B arrives
+    h.add(['RU1', 'R1_21'], ['RU1', 'R1_A1'], 'yellow');
+
+    // --- step 3: a0 with R1 still held sends B out ---------------------------
+    h.add(['RU1', 'V5'], ['LS_A0', 'COM']);
+    h.add(['LS_A0', 'NO'], ['RU1', 'R1_31'], 'green');
+    h.add(['RU1', 'R1_34'], ['V_B', 'Y14_P'], 'green');
+    h.add(['V_B', 'Y14_N'], ['RU1', 'G5'], 'blue');
+
+    // --- step 4: b1 sends B home and drops R1, which ends the cycle ----------
+    h.add(['LS_B1', 'NO'], ['V_B', 'Y12_P']);
+    h.add(['V_B', 'Y12_N'], ['PSU1', 'N2'], 'blue');
+
+    // --- air: the distributor feeds both valves ------------------------------
+    h.tube(['AIR1', 'O1'], ['V_A', 'A1']);
+    h.tube(['V_A', 'A4'], ['CYL_A', 'A']);
+    h.tube(['V_A', 'A2'], ['CYL_A', 'B']);
+    h.tube(['AIR1', 'O2'], ['V_B', 'A1']);
+    h.tube(['V_B', 'A4'], ['CYL_B', 'A']);
+    h.tube(['V_B', 'A2'], ['CYL_B', 'B']);
+
+    return {
+      board: 'pneumatics',
+      modules: layout(
+        ['BREAKER', 'PSU1', 'AIR1', 'PBU1', 'RU1', 'V_A', 'LS_A0', 'CYL_A', 'LS_A1', 'V_B', 'LS_B0', 'CYL_B', 'LS_B1'],
+        (m) => m,
+        'pneumatics',
+      ),
+      wires: h.done(),
+    };
+  },
+};
+
 /** Every preset the bench can load, in the order they are offered. */
-export const PRESETS: readonly Preset[] = [SEQUENCE_PRESET, PNEUMATIC_SEQUENCE_PRESET];
+export const PRESETS: readonly Preset[] = [SEQUENCE_PRESET, PNEUMATIC_SEQUENCE_PRESET, PNEUMATIC_BOARD_SEQUENCE];
 
 export const presetById = (id: string): Preset | undefined => PRESETS.find((p) => p.id === id);

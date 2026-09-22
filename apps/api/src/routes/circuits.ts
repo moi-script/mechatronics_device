@@ -29,6 +29,11 @@ const circuitSchema = z.object({
         y: z.number().finite(),
         // A timer carries its set point; anything else leaves it off.
         delaySec: z.number().finite().min(1).max(3600).optional(),
+        // Where a limit switch is bolted. Drop it and the switch comes back
+        // loose, waiting for a finger that is never coming.
+        mount: z
+          .object({ cylinderId: z.string().max(40), at: z.enum(['home', 'out']) })
+          .optional(),
       }),
     )
     .max(64),
@@ -46,6 +51,8 @@ const circuitSchema = z.object({
       }),
     )
     .max(400),
+  /** Which bench it was built on. Absent means the trainer, as it always was. */
+  board: z.enum(['trainer', 'pneumatics']).optional(),
 });
 
 const name = z.string().trim().min(1).max(120);

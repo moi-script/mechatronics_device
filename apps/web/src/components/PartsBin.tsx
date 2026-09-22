@@ -2,7 +2,14 @@
 
 import { useMemo, useState } from 'react';
 import { Check, Plus, Search, Trash2, X } from 'lucide-react';
-import { PARTS, benchInventory, moduleLabel, type ModuleInstance, type ModuleType } from '@mech/sim';
+import {
+  PARTS,
+  benchInventory,
+  moduleLabel,
+  type BoardType,
+  type ModuleInstance,
+  type ModuleType,
+} from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
 import { PartSymbol } from './PartSymbol';
 
@@ -44,16 +51,16 @@ const BLURB: Record<ModuleType, string> = {
 };
 
 /** The bench stock grouped by part, in the order it sits on the bench. */
-function useGroups(): { type: ModuleType; parts: ModuleInstance[] }[] {
+function useGroups(board: BoardType): { type: ModuleType; parts: ModuleInstance[] }[] {
   return useMemo(() => {
     const groups: { type: ModuleType; parts: ModuleInstance[] }[] = [];
-    for (const m of benchInventory()) {
+    for (const m of benchInventory(board)) {
       const group = groups.find((g) => g.type === m.type);
       if (group) group.parts.push(m);
       else groups.push({ type: m.type, parts: [m] });
     }
     return groups;
-  }, []);
+  }, [board]);
 }
 
 /**
@@ -66,7 +73,8 @@ export function PartsBin({ onClose }: { onClose: () => void }) {
   const addModule = useBoard((s) => s.addModule);
   const removeModule = useBoard((s) => s.removeModule);
   const removeModules = useBoard((s) => s.removeModules);
-  const groups = useGroups();
+  const board = useBoard((s) => s.circuit.board ?? 'trainer');
+  const groups = useGroups(board);
 
   const [category, setCategory] = useState('all');
   const [query, setQuery] = useState('');

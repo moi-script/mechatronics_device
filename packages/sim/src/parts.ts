@@ -1,4 +1,4 @@
-import type { ModuleType, PartDef, PinDef, ModuleInstance, Circuit } from './types';
+import type { BoardType, ModuleType, PartDef, PinDef, ModuleInstance, Circuit } from './types';
 import { FESTECH_INVENTORY, FESTECH_PARTS } from './festech';
 
 const pin = (id: string, label: string, role: PinDef['role'], x: number, y: number, line?: number): PinDef => ({
@@ -230,11 +230,56 @@ export const pinKey = (moduleId: string, pinId: string): string => `${moduleId}.
 export const endKey = (wireId: string, end: 'A' | 'B'): string => `~${wireId}.${end}`;
 
 /**
+ * The pneumatics board: the same stock, laid out for air work.
+ *
+ * One cylinder to a row, with a limit switch bolted at each end of its stroke
+ * and its valve at the head of the row, so a row reads the way the circuit
+ * works — air in on the left, rod travelling right, a switch waiting at each
+ * end. The electrics that drive the solenoids sit in a band along the top.
+ *
+ * The switches are mounted rather than loose because a limit switch that has
+ * to be pressed by hand is not a limit switch: what it reports is that the rod
+ * arrived, and only the rod can say that.
+ */
+const CYL_ROW_Y = (row: number) => 560 + row * 250;
+
+export function pneumaticInventory(): ModuleInstance[] {
+  const modules: ModuleInstance[] = [
+    { id: 'BREAKER', type: 'BREAKER', x: 40, y: 40 },
+    { id: 'PSU1', type: 'FT_PSU', x: 220, y: 40 },
+    { id: 'AIR1', type: 'FT_AIR', x: 620, y: 40 },
+    { id: 'AIR2', type: 'FT_AIR', x: 620, y: 220 },
+    { id: 'PBU1', type: 'FT_PBU', x: 960, y: 40 },
+    { id: 'RU1', type: 'FT_RELAY3', x: 1340, y: 40 },
+  ];
+
+  // Row per cylinder: A and B are double-acting on double-solenoid valves, C
+  // double-acting on a spring-return valve, D single-acting on a 3/2.
+  const rows: { letter: string; valve: ModuleType; cyl: ModuleType }[] = [
+    { letter: 'A', valve: 'FT_V52D', cyl: 'FT_CYL' },
+    { letter: 'B', valve: 'FT_V52D', cyl: 'FT_CYL' },
+    { letter: 'C', valve: 'FT_V52S', cyl: 'FT_CYL' },
+    { letter: 'D', valve: 'FT_V32', cyl: 'FT_SCYL' },
+  ];
+
+  rows.forEach(({ letter, valve, cyl }, i) => {
+    const y = CYL_ROW_Y(i);
+    const cylinderId = `CYL_${letter}`;
+    modules.push({ id: `V_${letter}`, type: valve, x: 40, y: y + 10 });
+    modules.push({ id: `LS_${letter}0`, type: 'FT_LIMIT', x: 400, y, mount: { cylinderId, at: 'home' } });
+    modules.push({ id: cylinderId, type: cyl, x: 620, y });
+    modules.push({ id: `LS_${letter}1`, type: 'FT_LIMIT', x: 1120, y, mount: { cylinderId, at: 'out' } });
+  });
+
+  return modules;
+}
+
+/**
  * The fixed inventory, in its default bench arrangement: every part the
  * trainer owns, at the spot it lives on the bench. Nothing is ever created
  * beyond this list — the parts bin just hands out what is not already down.
  */
-export function benchInventory(): ModuleInstance[] {
+export function trainerInventory(): ModuleInstance[] {
   const modules: ModuleInstance[] = [
     { id: 'BREAKER', type: 'BREAKER', x: 40, y: 40 },
     { id: 'SUPPLY', type: 'SUPPLY', x: 210, y: 40 },
@@ -253,33 +298,57 @@ export function benchInventory(): ModuleInstance[] {
   return modules;
 }
 
+/** Every part a given bench owns, at its own slot. */
+export const benchInventory = (board: BoardType = 'trainer'): ModuleInstance[] =>
+  board === 'pneumatics' ? pneumaticInventory() : trainerInventory();
+
 /**
- * What is already on the board when the bench is opened. The rest waits in the
- * parts bin, so a first-time student is not met with the whole inventory.
+ * What is already on the board when a bench is opened. The rest waits in the
+ * parts bin, so a first-time student is not met with the whole inventory. The
+ * pneumatics board opens with its first row down, since a row is the smallest
+ * thing there that does anything.
  */
 export const STARTING_MODULE_IDS: readonly string[] = ['BREAKER', 'SUPPLY'];
+const PNEUMATIC_STARTING_IDS: readonly string[] = ['BREAKER', 'PSU1', 'AIR1'];
 
-export function defaultModules(): ModuleInstance[] {
-  return benchInventory().filter((m) => STARTING_MODULE_IDS.includes(m.id));
+const startingIds = (board: BoardType): readonly string[] =>
+  board === 'pneumatics' ? PNEUMATIC_STARTING_IDS : STARTING_MODULE_IDS;
+
+export function defaultModules(board: BoardType = 'trainer'): ModuleInstance[] {
+  const start = startingIds(board);
+  return benchInventory(board).filter((m) => start.includes(m.id));
 }
 
 /** The stock still in the bin: bench parts that are not on the board. */
 export function spareModules(circuit: Circuit): ModuleInstance[] {
   const down = new Set(circuit.modules.map((m) => m.id));
-  return benchInventory().filter((m) => !down.has(m.id));
+  return benchInventory(circuit.board ?? 'trainer').filter((m) => !down.has(m.id));
 }
 
 /** The bench slot for one id, so the bin can put a part back where it belongs. */
-export const benchSlot = (id: string): ModuleInstance | undefined => benchInventory().find((m) => m.id === id);
+export const benchSlot = (id: string, board: BoardType = 'trainer'): ModuleInstance | undefined =>
+  benchInventory(board).find((m) => m.id === id);
 
-export const emptyCircuit = (): Circuit => ({
-  modules: defaultModules(),
+export const emptyCircuit = (board: BoardType = 'trainer'): Circuit => ({
+  modules: defaultModules(board),
   wires: [],
+  board,
 });
 
-/** Human label for a module id, e.g. "Relay 2". */
+/** Rows on the pneumatics board are lettered, and their parts carry the letter. */
+const PNEUMATIC_ID = /^(CYL|LS|V)_([A-Z])([01])?$/;
+
+/** Human label for a module id, e.g. "Relay 2", "Cylinder A", "Limit switch a1". */
 export function moduleLabel(m: ModuleInstance): string {
   const base = PARTS[m.type].label;
+  const row = m.id.match(PNEUMATIC_ID);
+  if (row) {
+    const [, kind, letter, end] = row;
+    // A limit switch is known by the end of the stroke it sits at, the way the
+    // sequence sheet names it: a0 at home, a1 out.
+    if (kind === 'LS') return `Limit switch ${letter.toLowerCase()}${end ?? ''}`;
+    return `${base} ${letter}`;
+  }
   const n = m.id.match(/\d+$/);
   return n ? `${base} ${n[0]}` : base;
 }
