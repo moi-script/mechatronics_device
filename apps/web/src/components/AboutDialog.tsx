@@ -118,7 +118,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
           <section>
             <p className="text-xs leading-relaxed text-carbon-800">
-              A replica of the mechatronics lab trainer board, built so the course can be practised away from the
+              A replica of the mechatronics lab trainer board, built so the course can be practiced away from the
               lab. Wire the Festech bench modules, close the breaker, and watch the relay logic run.
             </p>
             {OFFLINE && (

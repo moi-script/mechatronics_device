@@ -5,7 +5,7 @@ import { BrandMark } from '@/components/BrandMark';
 import { HeroCircuit } from '@/components/landing/HeroCircuit';
 
 export const metadata: Metadata = {
-  title: 'Mechatronic Trainer — practise the lab board anywhere',
+  title: 'Mechatronic Trainer — practice the lab board anywhere',
   description:
     'A working replica of the mechatronics lab trainer board at the National College of Science and Technology, for ECE, BSCOE, EE and IE students. Run leads between real terminals, close the breaker, and watch the relay logic run — on the web, or as an offline Android app.',
 };
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 const APK = { href: '/mechatronic-trainer.apk', size: '4.8 MB', version: '1.0', android: 'Android 6.0 and up' };
 const REPO = 'https://github.com/moi-script/mechatronics_device';
 
-/** The programmes that take the mechatronics laboratory at NCST. */
+/** The programs that take the mechatronics laboratory at NCST. */
 const PROGRAMS = [
   { code: 'ECE', name: 'Electronics Engineering' },
   { code: 'BSCOE', name: 'Computer Engineering' },
@@ -52,7 +52,7 @@ const BEHAVIOUR = [
   },
   {
     title: 'A practice timer, kept off the panel',
-    body: 'The session alarm sits in the toolbar, not on the board, because nothing you wire depends on a clock. Set five minutes or sixty, or leave it off and practise untimed.',
+    body: 'The session alarm sits in the toolbar, not on the board, because nothing you wire depends on a clock. Set five minutes or sixty, or leave it off and practice untimed.',
   },
 ];
 
@@ -140,8 +140,8 @@ export default function Page() {
               NCST, the National College of Science and Technology
             </h2>
             <p className="mt-1.5 max-w-[62ch] text-sm leading-relaxed text-carbon-600">
-              The panel here is the one in the engineering laboratory, part for part, so the wiring you practise at home
-              is the wiring you are marked on in the lab. It follows the course for all four programmes.
+              The panel here is the one in the engineering laboratory, part for part, so the wiring you practice at home
+              is the wiring you are marked on in the lab. It follows the course for all four programs.
             </p>
             <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-steel-300 pt-5 sm:grid-cols-4">
               {PROGRAMS.map((p) => (
