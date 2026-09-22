@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 /** The file served from apps/web/public, kept in step by the APK build script. */
-const APK = { href: '/mechatronic-trainer.apk', size: '4.8 MB', version: '1.0', android: 'Android 6.0 and up' };
+const APK = { href: '/mechatronic-trainer.apk', size: '5.0 MB', version: '1.0', android: 'Android 6.0 and up' };
 const REPO = 'https://github.com/moi-script/mechatronics_device';
 
 /** The programs that take the mechatronics laboratory at NCST. */
@@ -49,6 +49,10 @@ const BEHAVIOUR = [
   {
     title: 'Two faults, reported the way the bench reports them',
     body: 'Short a net across supply and ground with no load between them and the breaker trips, leaving the board dead until you reset it. Put a device the wrong way round and it reads as reversed polarity rather than quietly working.',
+  },
+  {
+    title: 'A circuit is a file you can send',
+    body: 'Save the board as a file and it carries the whole thing: every part, every lead, every length of tubing. Send it over chat, open it on another device, or keep it yourself. Nobody needs an account at either end, which is what makes it the honest way to share work with a classmate.',
   },
   {
     title: 'A practice timer, kept off the panel',
@@ -190,8 +194,10 @@ export default function Page() {
             <div>
               <h2 className="font-cond text-3xl font-bold text-carbon-900">Take it on the phone</h2>
               <p className="mt-3 max-w-[58ch] text-[15px] leading-relaxed text-carbon-800">
-                The Android build carries the whole trainer inside the app, so it works with the data off. Circuits you
-                save there stay on the device, and sharing is hidden because there is no server behind it.
+                The Android build carries the whole trainer inside the app, so it works with the data off. Circuits are
+                kept on the phone until you sign in; after that they go to your account, and any device you sign in on
+                opens them. Either way a circuit can be sent as a file, which is how you hand one to a classmate who
+                has no account.
               </p>
               <ol className="mt-7 space-y-4 pl-8">
                 {INSTALL.map((step, i) => (

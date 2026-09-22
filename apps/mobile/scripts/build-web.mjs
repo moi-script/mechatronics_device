@@ -20,6 +20,10 @@ const web = fileURLToPath(new URL('../../web', import.meta.url));
 const appDir = path.join(web, 'src', 'app');
 const parked = path.join(web, '.offline-parked');
 const serverOnly = ['api', 'view'];
+// The site serves the APK as a download from public/. A static export copies
+// public/ wholesale, so left in place the app would ship a copy of itself.
+const publicDir = path.join(web, 'public');
+const downloads = ['mechatronic-trainer.apk'];
 const landing = path.join(appDir, 'page.tsx');
 const board = path.join(appDir, 'board', 'page.tsx');
 
@@ -32,6 +36,10 @@ const restore = () => {
       renameSync(from, path.join(appDir, name));
     }
   }
+  for (const name of downloads) {
+    const from = path.join(parked, name);
+    if (existsSync(from)) renameSync(from, path.join(publicDir, name));
+  }
   rmSync(parked, { recursive: true, force: true });
 };
 
@@ -40,6 +48,10 @@ mkdirSync(parked, { recursive: true });
 for (const name of serverOnly) renameSync(path.join(appDir, name), path.join(parked, name));
 renameSync(landing, path.join(parked, 'page.tsx'));
 copyFileSync(board, landing);
+for (const name of downloads) {
+  const from = path.join(publicDir, name);
+  if (existsSync(from)) renameSync(from, path.join(parked, name));
+}
 
 try {
   execSync('npx next build', {

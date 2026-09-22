@@ -98,6 +98,22 @@ dismiss it.
 Because nothing on the board depends on a clock any more, the simulation is purely
 event-driven: it re-solves on each interaction instead of ticking.
 
+## Circuit files
+
+A circuit saves as a file — `<name>.mech.json` — holding the whole board: parts, leads and
+tubing, with a short header naming the format and version.
+
+    { "format": "mechatronic-trainer-circuit", "version": 1, "name": ..., "savedAt": ..., "circuit": { "modules": [...], "wires": [...] } }
+
+**Save as a file** is in the toolbar's overflow menu, and every saved circuit has a send
+button in the library. **Open a circuit file** sits beside *Add new project* in the library
+and takes it back. In the browser that is a download and a file picker; in the Android app
+it is the system share sheet and the device's own picker, so a circuit goes to a classmate
+through whatever they already use. Neither end needs an account.
+
+A circuit written straight out of the database, without the header, is accepted too: it is
+the same data, and refusing it would be pedantry.
+
 ## Accounts
 
 Wiring the board needs no account. Saving does: circuits belong to a person, so pressing
@@ -105,6 +121,13 @@ Save while signed out opens the account panel rather than failing. Registering o
 in there returns to the board with the save intact.
 
 Sessions are a JWT in an httpOnly cookie, so no token is reachable from page scripts.
+
+The Android app is the exception. A Capacitor webview is a different origin from the site,
+so the session cookie would be cross-site and Android often drops it: the app sends
+`X-Mech-Client: app`, gets the same JWT in the response body, and carries it as a bearer
+token. Only a client that asks that way is given one, so the website's session stays out of
+reach of scripts. The API answers the app's origin without credentials, since a request
+that authenticates itself should carry nothing ambient.
 
 ## Sharing
 
@@ -251,8 +274,14 @@ off B's own front sensor. The wiring, contact by contact, is commented in
 ## Android app (offline)
 
 `apps/mobile` wraps the web app with Capacitor. The site is exported as static
-files with `NEXT_PUBLIC_OFFLINE=1`, so it needs no API or internet. Circuits are
-saved on the phone, and share links are hidden.
+files with `NEXT_PUBLIC_OFFLINE=1`, so the board itself needs no API and no
+internet, ever.
+
+Accounts are optional there. Circuits are kept on the phone until someone signs
+in, and go to their cloud account after that, so the same build serves a student
+with no account and one who wants their boards on every device they own. The
+live site and API are baked in at build time (`MECH_SITE_URL` and `MECH_API_URL`
+override them); leave them unset and the app is device-only.
 
 ```bash
 npm run apk          # builds apps/mobile/Mechatronic.apk (debug)
