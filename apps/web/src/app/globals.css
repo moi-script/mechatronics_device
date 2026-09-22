@@ -151,9 +151,11 @@ body {
 }
 
 /*
- * The landing hero: three leads draw in plugging order, then the lamp lights.
- * Every step ends on the energised state and runs once, so the global
- * reduced-motion override above simply lands the drawing already lit.
+ * The landing hero draws its three leads in plugging order on load, so the
+ * circuit assembles itself once before anyone touches it. Everything after
+ * that is driven by the visitor and the solver, not by CSS. Each step ends on
+ * the drawn state and runs once, so the reduced-motion override above simply
+ * lands the leads already plugged.
  */
 .hero-lead {
   stroke-dasharray: 1;
@@ -168,15 +170,6 @@ body {
 .hero-lead-3 {
   animation-delay: 1.25s;
 }
-.hero-bulb {
-  animation: hero-light 0.5s ease-out 1.85s both;
-}
-.hero-glow {
-  animation: hero-halo 0.6s ease-out 1.85s both;
-}
-.hero-cap {
-  animation: hero-press 0.45s ease-out 1.8s both;
-}
 
 @keyframes hero-plug {
   from {
@@ -184,35 +177,5 @@ body {
   }
   to {
     stroke-dashoffset: 0;
-  }
-}
-
-@keyframes hero-light {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes hero-halo {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 0.28;
-  }
-}
-
-@keyframes hero-press {
-  0% {
-    transform: translateY(0);
-  }
-  45% {
-    transform: translateY(3px);
-  }
-  100% {
-    transform: translateY(0);
   }
 }

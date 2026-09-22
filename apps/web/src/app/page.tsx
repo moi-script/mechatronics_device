@@ -131,7 +131,7 @@ export default function Page() {
               </a>
             </div>
           </div>
-          <HeroCircuit className="w-full rounded-xl border border-steel-400 shadow-sm" />
+          <HeroCircuit className="w-full" />
         </section>
 
         <section className="border-t border-steel-400 bg-steel-50">
