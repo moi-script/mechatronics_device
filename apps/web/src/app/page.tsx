@@ -20,6 +20,12 @@ const APK = {
   href: published.url,
   size: (published.bytes / 1_000_000).toFixed(1) + ' MB',
   version: published.versionName,
+  released: new Date(published.releasedAt + 'T00:00:00Z').toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }),
   android: 'Android 6.0 and up',
 };
 const REPO = 'https://github.com/moi-script/mechatronics_device';
@@ -141,7 +147,9 @@ export default function Page() {
               >
                 <Download className="h-4 w-4" />
                 Download for Android
-                <span className="font-mono text-xs font-normal text-carbon-600">{APK.size}</span>
+                <span className="font-mono text-xs font-normal text-carbon-600">
+                  {APK.version} · {APK.size}
+                </span>
               </a>
             </div>
           </div>
@@ -203,6 +211,9 @@ export default function Page() {
           <div className="mx-auto grid max-w-5xl gap-10 px-5 py-16 lg:grid-cols-[minmax(0,1fr)_20rem]">
             <div>
               <h2 className="font-cond text-3xl font-bold text-carbon-900">Take it on the phone</h2>
+              <p className="mt-2 font-mono text-xs text-carbon-600">
+                Latest build {APK.version} · released {APK.released}
+              </p>
               <p className="mt-3 max-w-[58ch] text-[15px] leading-relaxed text-carbon-800">
                 The Android build carries the whole trainer inside the app, so it works with the data off. Circuits are
                 kept on the phone until you sign in; after that they go to your account, and any device you sign in on
@@ -247,6 +258,7 @@ export default function Page() {
                 {[
                   ['Version', APK.version],
                   ['Size', APK.size],
+                  ['Released', APK.released],
                   ['Requires', APK.android],
                   ['Network', 'None'],
                 ].map(([k, v]) => (
