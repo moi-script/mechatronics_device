@@ -15,6 +15,8 @@ export interface CircuitDoc {
   name: string;
   modules: unknown;
   wires: unknown;
+  /** Which bench it was built on. Absent means the trainer, as it always was. */
+  board?: string;
   shareId?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -39,6 +41,7 @@ const circuitSchema = new Schema<CircuitDoc>(
     name: { type: String, required: true },
     modules: { type: Schema.Types.Mixed, required: true },
     wires: { type: Schema.Types.Mixed, required: true },
+    board: { type: String, enum: ['trainer', 'pneumatics'] },
     shareId: { type: String, index: true, sparse: true },
   },
   { timestamps: true },

@@ -62,9 +62,11 @@ const updateSchema = z.object({ name: name.optional(), circuit: circuitSchema.op
 /** How many circuits one account may keep. */
 const MAX_PER_USER = 100;
 
-const toCircuit = (doc: { modules: unknown; wires: unknown }) => ({
+const toCircuit = (doc: { modules: unknown; wires: unknown; board?: string }) => ({
   modules: doc.modules,
   wires: doc.wires,
+  // Absent for everything saved before there was a second bench.
+  board: doc.board ?? 'trainer',
 });
 
 const badId = (res: Parameters<Parameters<typeof circuitsRouter.get>[1]>[1], id: string): boolean => {
@@ -102,6 +104,7 @@ circuitsRouter.post('/circuits', requireUser, async (req: AuthedRequest, res) =>
     name: parsed.data.name,
     modules: parsed.data.circuit.modules,
     wires: parsed.data.circuit.wires,
+    board: parsed.data.circuit.board ?? 'trainer',
   });
   res.status(201).json({ id: String(doc._id) });
 });
@@ -129,6 +132,7 @@ circuitsRouter.put('/circuits/:id', requireUser, async (req: AuthedRequest, res)
   if (parsed.data.circuit) {
     update.modules = parsed.data.circuit.modules;
     update.wires = parsed.data.circuit.wires;
+    update.board = parsed.data.circuit.board ?? 'trainer';
   }
 
   // Scoped by ownerId, so one account can never write another's circuit.
