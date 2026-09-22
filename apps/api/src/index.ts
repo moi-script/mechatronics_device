@@ -16,17 +16,28 @@ if (env.trustProxy) app.set('trust proxy', 1);
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'same-site' } }));
 
+/**
+ * The origins an installed Capacitor app runs on. They are not web pages
+ * anyone can visit, and they are answered without credentials, so nothing
+ * ambient rides along: the app authenticates with a bearer token it holds
+ * itself.
+ */
+const APP_ORIGIN = /^(https?|capacitor):\/\/localhost(:\d+)?$/;
+
 app.use(
-  cors({
-    origin(origin, cb) {
-      // Same-origin and server-to-server calls arrive without an Origin header.
-      // An unlisted origin gets no CORS headers, so the browser refuses the
-      // response; the request itself is not rejected, which keeps the Next.js
-      // proxy working. Cross-site POSTs are already blocked by the SameSite
-      // session cookie.
-      cb(null, !origin || env.origins.includes(origin));
-    },
-    credentials: true,
+  cors((req, cb) => {
+    const origin = req.headers.origin;
+    // Same-origin and server-to-server calls arrive without an Origin header.
+    // An unlisted origin gets no CORS headers, so the browser refuses the
+    // response; the request itself is not rejected, which keeps the Next.js
+    // proxy working. Cross-site POSTs are already blocked by the SameSite
+    // session cookie.
+    if (!origin) return cb(null, { origin: true, credentials: true });
+    if (env.origins.includes(origin)) return cb(null, { origin: true, credentials: true });
+    if (APP_ORIGIN.test(origin)) {
+      return cb(null, { origin: true, credentials: false, allowedHeaders: ['Content-Type', 'Authorization', 'X-Mech-Client'] });
+    }
+    cb(null, { origin: false });
   }),
 );
 

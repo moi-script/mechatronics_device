@@ -7,6 +7,7 @@ import {
   FilePlus2,
   FolderOpen,
   Info,
+  FileDown,
   MoreHorizontal,
   Monitor,
   PackagePlus,
@@ -27,7 +28,8 @@ import { useBoard } from '@/store/useBoard';
 import { useTheme } from '@/store/useTheme';
 import { useSound } from '@/store/useSound';
 import { useSession } from '@/store/useSession';
-import { api, OFFLINE } from '@/lib/api';
+import { api, hasCloudSession, OFFLINE, SITE_URL } from '@/lib/api';
+import { exportCircuit } from '@/lib/projectFile';
 import { AboutDialog } from './AboutDialog';
 import { BrandMark } from './BrandMark';
 import { Popover } from './Popover';
@@ -141,6 +143,7 @@ export function Toolbar({
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [confirmingNew, setConfirmingNew] = useState(false);
   const [namingCircuit, setNamingCircuit] = useState(false);
+  const [namingFile, setNamingFile] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   /** Set when Share triggered the save, so the link follows automatically. */
@@ -148,7 +151,28 @@ export function Toolbar({
 
   const linkFor = async (id: string) => {
     const { shareId } = await api.share(id);
-    setShareUrl(`${window.location.origin}/view/${shareId}`);
+    // A share link is served by the website, which the app is not: inside the
+    // APK the origin is the webview's own, so the site's address is used.
+    const origin = OFFLINE ? SITE_URL : window.location.origin;
+    setShareUrl(`${origin}/view/${shareId}`);
+  };
+
+  /** The board as it stands, handed to the device as a file under a name. */
+  const saveToFile = async (name: string) => {
+    setBusy(true);
+    try {
+      const how = await exportCircuit(name, useBoard.getState().circuit);
+      setNamingFile(false);
+      setHint(
+        how === 'shared'
+          ? 'Circuit file ready to send.'
+          : 'Circuit saved as a file. Send it to anyone, or open it on another device.',
+      );
+    } catch (err) {
+      setHint((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const save = async () => {
@@ -319,7 +343,7 @@ export function Toolbar({
               trigger={<MoreHorizontal className="h-4 w-4" />}
               panel={(close) => (
                 <div className="flex flex-col">
-                  {!OFFLINE && (
+                  {(!OFFLINE || hasCloudSession()) && (
                     <MenuItem
                       icon={<Share2 className="h-3.5 w-3.5" />}
                       onClick={() => {
@@ -330,6 +354,15 @@ export function Toolbar({
                       Share link
                     </MenuItem>
                   )}
+                  <MenuItem
+                    icon={<FileDown className="h-3.5 w-3.5" />}
+                    onClick={() => {
+                      close();
+                      setNamingFile(true);
+                    }}
+                  >
+                    {OFFLINE ? 'Send as a file' : 'Save as a file'}
+                  </MenuItem>
                   <MenuItem
                     icon={<FilePlus2 className="h-3.5 w-3.5" />}
                     onClick={() => {
@@ -416,7 +449,7 @@ export function Toolbar({
           message={
             shareAfterSave
               ? 'A share link points at your saved copy, so this circuit needs a name first.'
-              : OFFLINE
+              : OFFLINE && !hasCloudSession()
                 ? 'It stays on this device, under My circuits in the library.'
                 : 'It goes to your account, so you can pick it up on another machine.'
           }
@@ -430,6 +463,20 @@ export function Toolbar({
             setNamingCircuit(false);
             setShareAfterSave(false);
           }}
+        />
+      )}
+
+      {namingFile && (
+        <PromptDialog
+          title="Save this circuit as a file"
+          message="The file holds the whole board. Send it to a classmate, or open it on another device — no account needed at either end."
+          label="Circuit name"
+          defaultValue="Untitled circuit"
+          placeholder="Start/stop latch"
+          confirmLabel={OFFLINE ? 'Send the file' : 'Save the file'}
+          busy={busy}
+          onSubmit={saveToFile}
+          onCancel={() => setNamingFile(false)}
         />
       )}
 

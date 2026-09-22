@@ -1,9 +1,17 @@
-import { Router } from 'express';
+import { Router, type Response } from 'express';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { Circuit, User } from '../models';
-import { COOKIE, cookieOptions, readUser, requireUser, signToken, type AuthedRequest } from '../auth-middleware';
+import {
+  COOKIE,
+  cookieOptions,
+  readUser,
+  requireUser,
+  signToken,
+  wantsToken,
+  type AuthedRequest,
+} from '../auth-middleware';
 
 export const authRouter = Router();
 
@@ -34,6 +42,18 @@ const shape = (u: { _id: unknown; email: string; name: string }) => ({
   name: u.name,
 });
 
+/**
+ * Hand back a session: the cookie for the website, and for the installed app
+ * the same token in the body, since it has to carry its own. Only a client
+ * that says it is the app is given the token, so the website's session stays
+ * where scripts cannot read it.
+ */
+function grant(req: Parameters<typeof wantsToken>[0], res: Response, userId: string): { token?: string } {
+  const token = signToken(userId);
+  res.cookie(COOKIE, token, cookieOptions);
+  return wantsToken(req) ? { token } : {};
+}
+
 authRouter.post('/register', credentialLimit, async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -48,8 +68,7 @@ authRouter.post('/register', credentialLimit, async (req, res) => {
   }
 
   const user = await User.create({ email: address, name, passwordHash: await bcrypt.hash(secret, 12) });
-  res.cookie(COOKIE, signToken(String(user._id)), cookieOptions);
-  res.status(201).json({ user: shape(user) });
+  res.status(201).json({ user: shape(user), ...grant(req, res, String(user._id)) });
 });
 
 authRouter.post('/login', credentialLimit, async (req, res) => {
@@ -70,8 +89,7 @@ authRouter.post('/login', credentialLimit, async (req, res) => {
     return;
   }
 
-  res.cookie(COOKIE, signToken(String(user._id)), cookieOptions);
-  res.json({ user: shape(user) });
+  res.json({ user: shape(user), ...grant(req, res, String(user._id)) });
 });
 
 authRouter.post('/logout', (_req, res) => {

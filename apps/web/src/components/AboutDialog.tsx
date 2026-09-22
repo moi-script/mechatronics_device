@@ -123,7 +123,9 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
             </p>
             {OFFLINE && (
               <p className="mt-2 text-[11px] leading-relaxed text-carbon-600">
-                This is the offline app. Everything runs on the phone, and saved circuits stay on this device.
+                This is the Android app. The board runs entirely on the phone, with no network needed. Circuits are
+                kept on the device until you sign in, and go to your account after that. Either way a circuit can be
+                sent as a file, which is the way to hand one to someone who has no account.
               </p>
             )}
           </section>

@@ -15,28 +15,96 @@ export interface CircuitSummary {
 
 /**
  * Set for the Android build, which ships as static files inside the APK with
- * no server behind it. Circuits then live on the device instead of an account.
+ * no server of its own.
  */
 export const OFFLINE = process.env.NEXT_PUBLIC_OFFLINE === '1';
 
+/**
+ * Where the app reaches the live API, baked in when the APK is built. The site
+ * itself never needs this: it calls /api on its own origin and the Next.js
+ * route forwards it.
+ *
+ * With it set, the app can sign in to a cloud account; without it, the app is
+ * device-only and never touches a network. Either way the board runs offline,
+ * so a dead network or a sleeping free-tier API costs nothing but the account.
+ */
+export const CLOUD_URL = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/+$/, '');
+export const CLOUD_AVAILABLE = !OFFLINE || CLOUD_URL !== '';
+
+/** Where the site lives, for share links the app cannot serve itself. */
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/+$/, '');
+
+// ---- Session token, for the app ----
+//
+// A Capacitor webview is a different origin from the site, so the session
+// cookie would be cross-site and Android often drops it. The app asks the API
+// for the token instead and carries it itself.
+
+const TOKEN_KEY = 'mech-token';
+
+const readToken = (): string | null => {
+  if (!OFFLINE) return null;
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const writeToken = (token: string | null): void => {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // A webview with storage blocked just stays signed out.
+  }
+};
+
+/** Signed in to a cloud account from the app. */
+export const hasCloudSession = (): boolean => readToken() !== null;
+
 async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch('/api' + path, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+  const token = readToken();
+  const base = OFFLINE ? CLOUD_URL : '/api';
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(init.headers as object) };
+  if (OFFLINE) headers['X-Mech-Client'] = 'app';
+  if (token) headers.Authorization = 'Bearer ' + token;
+
+  const res = await fetch(base + path, {
+    // The app authenticates with its token, so it sends nothing ambient.
+    credentials: OFFLINE ? 'omit' : 'include',
     ...init,
+    headers,
   });
   const body = await res.json().catch(() => ({}));
+  if (res.status === 401 && token) writeToken(null); // the token expired or was revoked
   if (!res.ok) throw new Error((body as { error?: string }).error ?? 'Request failed (' + res.status + ')');
   return body as T;
 }
 
 const post = (data: unknown) => ({ method: 'POST', body: JSON.stringify(data) });
 
-const online = {
+/** Keeps the token the API hands back when the app signs in. */
+async function withToken<T extends { token?: string }>(call: Promise<T>): Promise<T> {
+  const out = await call;
+  if (out.token) writeToken(out.token);
+  return out;
+}
+
+const cloud = {
   me: () => req<{ user: User | null }>('/auth/me'),
-  register: (d: { email: string; password: string; name: string }) => req<{ user: User }>('/auth/register', post(d)),
-  login: (d: { email: string; password: string }) => req<{ user: User }>('/auth/login', post(d)),
-  logout: () => req<{ ok: true }>('/auth/logout', { method: 'POST' }),
+  register: (d: { email: string; password: string; name: string }) =>
+    withToken(req<{ user: User; token?: string }>('/auth/register', post(d))),
+  login: (d: { email: string; password: string }) =>
+    withToken(req<{ user: User; token?: string }>('/auth/login', post(d))),
+  logout: async () => {
+    try {
+      await req<{ ok: true }>('/auth/logout', { method: 'POST' });
+    } finally {
+      writeToken(null);
+    }
+    return { ok: true } as const;
+  },
 
   listCircuits: () => req<{ circuits: CircuitSummary[] }>('/circuits'),
   getCircuit: (id: string) => req<{ circuit: Circuit; name: string; id: string }>('/circuits/' + id),
@@ -48,7 +116,7 @@ const online = {
   shared: (shareId: string) => req<{ circuit: Circuit; name: string }>('/share/' + shareId),
 };
 
-// ---- On-device storage for the offline build ----
+// ---- On-device storage, for an app with nobody signed in ----
 
 interface StoredCircuit {
   id: string;
@@ -82,9 +150,10 @@ function find(id: string): StoredCircuit {
   return hit;
 }
 
-const noNetwork = () => Promise.reject(new Error('Sharing needs the web version, since links are served online.'));
+const noNetwork = () =>
+  Promise.reject(new Error('Sign in to share a link, or send the circuit as a file instead.'));
 
-const offline: typeof online = {
+const device: typeof cloud = {
   me: async () => ({ user: DEVICE_USER }),
   register: async () => ({ user: DEVICE_USER }),
   login: async () => ({ user: DEVICE_USER }),
@@ -106,9 +175,7 @@ const offline: typeof online = {
   },
   updateCircuit: async (id, d) => {
     const existing = find(id);
-    writeAll(
-      readAll().map((c) => (c.id === id ? { ...existing, ...d, updatedAt: new Date().toISOString() } : c)),
-    );
+    writeAll(readAll().map((c) => (c.id === id ? { ...existing, ...d, updatedAt: new Date().toISOString() } : c)));
     return { ok: true };
   },
   deleteCircuit: async (id) => {
@@ -119,4 +186,38 @@ const offline: typeof online = {
   shared: noNetwork,
 };
 
-export const api = OFFLINE ? offline : online;
+/**
+ * The website always talks to its own API. The app keeps circuits on the
+ * device until someone signs in, and from then on works out of their account
+ * — so the same build serves a student with no account and one who wants their
+ * boards on every device they own.
+ */
+const route: typeof cloud = {
+  me: async () => {
+    if (!hasCloudSession()) return device.me();
+    try {
+      const out = await cloud.me();
+      // A token the API no longer honours drops us back to the device.
+      return out.user ? out : device.me();
+    } catch {
+      // Offline, or the API is asleep: the device's own circuits still open.
+      return device.me();
+    }
+  },
+  register: (d) => (CLOUD_URL ? cloud.register(d) : device.register(d)),
+  login: (d) => (CLOUD_URL ? cloud.login(d) : device.login(d)),
+  logout: async () => (hasCloudSession() ? cloud.logout() : device.logout()),
+
+  listCircuits: () => (hasCloudSession() ? cloud.listCircuits() : device.listCircuits()),
+  getCircuit: (id) => (hasCloudSession() ? cloud.getCircuit(id) : device.getCircuit(id)),
+  createCircuit: (d) => (hasCloudSession() ? cloud.createCircuit(d) : device.createCircuit(d)),
+  updateCircuit: (id, d) => (hasCloudSession() ? cloud.updateCircuit(id, d) : device.updateCircuit(id, d)),
+  deleteCircuit: (id) => (hasCloudSession() ? cloud.deleteCircuit(id) : device.deleteCircuit(id)),
+  share: (id) => (hasCloudSession() ? cloud.share(id) : device.share(id)),
+  shared: (shareId) => (hasCloudSession() ? cloud.shared(shareId) : device.shared(shareId)),
+};
+
+export const api = OFFLINE ? route : cloud;
+
+/** True when circuits are going to the device rather than an account. */
+export const savingToDevice = (): boolean => OFFLINE && !hasCloudSession();

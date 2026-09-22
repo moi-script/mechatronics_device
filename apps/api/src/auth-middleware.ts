@@ -23,9 +23,24 @@ export const cookieOptions = {
   maxAge: 30 * 24 * 60 * 60 * 1000,
 };
 
+/**
+ * The installed app has no cookie jar it can rely on — a Capacitor webview is
+ * a different origin from the site, so the session cookie would be cross-site
+ * and Android often drops it. It asks for a token instead and sends it back
+ * itself, which is why this header exists alongside the cookie.
+ */
+export const APP_CLIENT = 'x-mech-client';
+export const wantsToken = (req: Request): boolean => req.get(APP_CLIENT) === 'app';
+
+/** The bearer token on a request, if it carries one. */
+function bearer(req: Request): string | undefined {
+  const header = req.get('authorization');
+  return header?.startsWith('Bearer ') ? header.slice(7).trim() || undefined : undefined;
+}
+
 /** Attaches userId when a valid token is present; never rejects. */
 export function readUser(req: AuthedRequest, _res: Response, next: NextFunction): void {
-  const token = req.cookies?.[COOKIE];
+  const token = bearer(req) ?? req.cookies?.[COOKIE];
   if (token) {
     try {
       const payload = jwt.verify(token, env.jwtSecret) as { sub?: unknown };

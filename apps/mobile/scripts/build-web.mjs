@@ -13,6 +13,9 @@ import { copyFileSync, existsSync, mkdirSync, renameSync, rmSync } from 'node:fs
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+/** The live site the app signs in to, overridable with MECH_SITE_URL. */
+const SITE = 'https://mechatronicdevice.vercel.app';
+
 const web = fileURLToPath(new URL('../../web', import.meta.url));
 const appDir = path.join(web, 'src', 'app');
 const parked = path.join(web, '.offline-parked');
@@ -42,7 +45,16 @@ try {
   execSync('npx next build', {
     cwd: web,
     stdio: 'inherit',
-    env: { ...process.env, NEXT_PUBLIC_OFFLINE: '1' },
+    env: {
+      ...process.env,
+      NEXT_PUBLIC_OFFLINE: '1',
+      // Baked in, because the app has no server to ask. SITE is where share
+      // links live; API is the account the app can sign in to. Unset either
+      // one and the app simply does without that part: the board itself never
+      // needs a network.
+      NEXT_PUBLIC_SITE_URL: process.env.MECH_SITE_URL ?? SITE,
+      NEXT_PUBLIC_API_URL: process.env.MECH_API_URL ?? SITE + '/api',
+    },
   });
 } finally {
   restore();

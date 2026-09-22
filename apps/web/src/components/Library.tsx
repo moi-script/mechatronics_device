@@ -5,16 +5,21 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
+  CloudUpload,
+  FileDown,
   FilePlus2,
+  FileUp,
   FolderOpen,
   LogOut,
+  Smartphone,
   Sparkles,
   Trash2,
   X,
 } from 'lucide-react';
 import { PRESETS, type Preset } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
-import { api, OFFLINE, type CircuitSummary, type User } from '@/lib/api';
+import { api, CLOUD_AVAILABLE, hasCloudSession, OFFLINE, savingToDevice, type CircuitSummary, type User } from '@/lib/api';
+import { exportCircuit, importCircuit } from '@/lib/projectFile';
 import { useSession } from '@/store/useSession';
 import { ConfirmDialog } from './ConfirmDialog';
 
@@ -143,6 +148,57 @@ function NewProject({ onStarted }: { onStarted: () => void }) {
 }
 
 /**
+ * Opening a circuit that arrived as a file: from a classmate over chat, from
+ * your own storage, from the laptop you built it on. The picker is the
+ * device's own, so wherever the file landed is where it can be found.
+ */
+function OpenFile({ onOpened }: { onOpened: () => void }) {
+  const loadCircuit = useBoard((s) => s.loadCircuit);
+  const setHint = useBoard((s) => s.setHint);
+  const [error, setError] = useState<string | null>(null);
+
+  const take = async (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    try {
+      const { name, circuit } = await importCircuit(file);
+      // No id: it belongs to whoever opened it, and Save makes it theirs.
+      loadCircuit(circuit, null);
+      setHint('Opened "' + name + '" from a file. Save it to keep it.');
+      onOpened();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  return (
+    <>
+      <label className="group flex w-full cursor-pointer items-center gap-3 rounded-md border border-dashed border-steel-400 bg-steel-100 px-3 py-3 text-left transition hover:border-signal-amber hover:bg-steel-200">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-steel-400 bg-steel-50 text-carbon-800 group-hover:text-signal-amber">
+          <FileUp className="h-4 w-4" />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-xs font-semibold text-carbon-900">Open a circuit file</span>
+          <span className="mt-0.5 block text-[10px] leading-relaxed text-carbon-600">
+            A .mech.json file someone sent you, or one you saved yourself.
+          </span>
+        </span>
+        <input
+          type="file"
+          accept=".json,application/json"
+          className="sr-only"
+          onChange={(e) => {
+            void take(e.target.files?.[0]);
+            e.target.value = '';
+          }}
+        />
+      </label>
+      {error && <p className="mt-1.5 text-[10px] text-safety-red">{error}</p>}
+    </>
+  );
+}
+
+/**
  * The worked circuits that ship with the bench. They need no account: a preset
  * is built locally and dropped straight onto the board, parts and all.
  */
@@ -240,8 +296,17 @@ export function Library({ onClose }: { onClose: () => void }) {
   const [circuits, setCircuits] = useState<CircuitSummary[]>([]);
   const [tab, setTab] = useState<'presets' | 'saved'>('presets');
   const [deleting, setDeleting] = useState<CircuitSummary | null>(null);
+  /**
+   * In the app, circuits go to the device until someone signs in. These two
+   * say which of those we are looking at, and whether the sign-in form has
+   * been asked for.
+   */
+  const [onDevice, setOnDevice] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
+  const [sending, setSending] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
+    setOnDevice(savingToDevice());
     try {
       const { circuits } = await api.listCircuits();
       setCircuits(circuits);
@@ -300,8 +365,9 @@ export function Library({ onClose }: { onClose: () => void }) {
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          <div className="mb-4">
+          <div className="mb-4 space-y-2">
             <NewProject onStarted={onClose} />
+            <OpenFile onOpened={onClose} />
           </div>
 
           {tab === 'presets' && <Presets onLoaded={onClose} />}
@@ -318,13 +384,41 @@ export function Library({ onClose }: { onClose: () => void }) {
                 </div>
               )}
 
-              {!error && status === 'ready' && !user && (
+              {!error && status === 'ready' && (!user || signingIn) && (
                 <AuthForm
                   onDone={(u) => {
                     setUser(u);
+                    setSigningIn(false);
                     void refresh();
                   }}
                 />
+              )}
+
+              {/* The app's own circuits, and the offer to put them somewhere
+                  they survive a lost phone. */}
+              {onDevice && !signingIn && (
+                <div className="mb-3 rounded-md border border-steel-300 bg-steel-100 p-3">
+                  <p className="flex items-center gap-1.5 text-[11px] font-semibold text-carbon-900">
+                    <Smartphone className="h-3.5 w-3.5" />
+                    Saved on this device
+                  </p>
+                  <p className="mt-1 text-[10px] leading-relaxed text-carbon-600">
+                    They stay here, with no account and no network needed.
+                    {CLOUD_AVAILABLE
+                      ? ' Sign in and new saves go to your account instead, where any device you sign in on can open them.'
+                      : ' Send one as a file to move it to another device.'}
+                  </p>
+                  {CLOUD_AVAILABLE && (
+                    <button
+                      type="button"
+                      onClick={() => setSigningIn(true)}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-sm border border-steel-400 bg-steel-50 px-2.5 py-1.5 text-[11px] font-semibold text-carbon-900 hover:bg-steel-200"
+                    >
+                      <CloudUpload className="h-3.5 w-3.5" />
+                      Sign in or sign up
+                    </button>
+                  )}
+                </div>
               )}
 
               {user && circuits.length === 0 && (
@@ -361,6 +455,26 @@ export function Library({ onClose }: { onClose: () => void }) {
                         </button>
                         <button
                           type="button"
+                          disabled={sending === c.id}
+                          onClick={async () => {
+                            setSending(c.id);
+                            try {
+                              const { circuit, name } = await api.getCircuit(c.id);
+                              await exportCircuit(name, circuit);
+                            } catch {
+                              // A cancelled share sheet is not a failure worth shouting about.
+                            } finally {
+                              setSending(null);
+                            }
+                          }}
+                          className="text-carbon-600 hover:text-carbon-900 disabled:opacity-50"
+                          aria-label={'Send ' + c.name + ' as a file'}
+                          title="Send as a file"
+                        >
+                          <FileDown className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => setDeleting(c)}
                           className="text-carbon-600 hover:text-safety-red"
                           aria-label={'Delete ' + c.name}
@@ -376,7 +490,7 @@ export function Library({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        {user && !OFFLINE && (
+        {user && !onDevice && (
           <footer className="flex items-center justify-between border-t border-steel-300 bg-steel-100 px-4 py-2 text-[11px] text-carbon-600">
             <span className="truncate">Signed in as {user.name}</span>
             <button
@@ -384,6 +498,7 @@ export function Library({ onClose }: { onClose: () => void }) {
               onClick={async () => {
                 await signOut();
                 setCircuits([]);
+                void refresh();
               }}
               className="inline-flex shrink-0 items-center gap-1 hover:text-carbon-900"
             >
