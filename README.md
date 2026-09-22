@@ -342,5 +342,38 @@ page — the board takes the web root for that build, so the APK's `index.html` 
 the trainer rather than a page advertising it.
 
 `npm run apk` also drops a copy at `apps/web/public/mechatronic-trainer.apk`, which is
-what the landing page's download button serves. That copy is committed, so rebuild it
-whenever the app changes or the site will keep handing out the old one.
+what the landing page's download button serves, and writes `apk-version.json` next to it.
+Both are committed, so rebuild them whenever the app changes or the site will keep handing
+out the old one.
+
+### Versions and updates
+
+There is no store behind this app, so nothing would otherwise tell a phone it is out of
+date. Three pieces make that work:
+
+- **The version climbs by itself.** `scripts/version.mjs` takes the commit count as
+  `versionCode` and `1.<count>` as the name, writes it to `android/version.properties` for
+  Gradle, and bakes it into the web bundle. Android decides what is newer by `versionCode`
+  alone, so it has to climb — it used to be `1` forever.
+- **The site says what the newest is.** `apk-version.json` carries the version, the
+  download URL and the size. It is served with `Access-Control-Allow-Origin: *`, because
+  the app asks for it from its own origin inside the webview.
+- **The app asks on startup.** A second and a half after opening it compares the two and,
+  if it is behind, offers the download. Android will not let any app outside a store
+  install anything by itself, so the button hands the file to the browser and the person
+  taps Install. Turning an offer down is remembered for that version only.
+
+`MECH_VERSION_CODE=40 npm run apk` builds a deliberately older app, which is how to see
+the notice without waiting for another commit.
+
+### Signing
+
+Debug builds are signed with the machine's own debug key, which expires after a year and
+differs between machines. Android only lets an APK update an installed app when both carry
+the same signature, so a new build signed with a different key cannot install over the old
+one — it has to be uninstalled first, taking any circuits saved on the device with it.
+
+Copy `apps/mobile/keystore.properties.example` to `keystore.properties`, create the key it
+describes with `keytool`, and `npm run apk` builds a signed release instead. Neither the
+key nor the passwords are committed. Keep both: without them no later build can ever
+update an installed app.

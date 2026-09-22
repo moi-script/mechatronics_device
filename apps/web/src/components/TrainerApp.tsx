@@ -6,6 +6,7 @@ import { Library } from '@/components/Library';
 import { PartsBin } from '@/components/PartsBin';
 import { SidePanel } from '@/components/SidePanel';
 import { Toolbar } from '@/components/Toolbar';
+import { UpdateNotice } from '@/components/UpdateNotice';
 
 export function TrainerApp() {
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -25,6 +26,8 @@ export function TrainerApp() {
         </main>
         <SidePanel open={panelOpen} onClose={() => setPanelOpen(false)} />
       </div>
+      {/* Only the installed app can be behind; on the site this renders nothing. */}
+      <UpdateNotice />
       {binOpen && <PartsBin onClose={() => setBinOpen(false)} />}
       {libraryOpen && <Library onClose={() => setLibraryOpen(false)} />}
     </div>

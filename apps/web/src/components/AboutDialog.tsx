@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { ExternalLink, Github, Mail, X } from 'lucide-react';
 import { OFFLINE } from '@/lib/api';
+import { VERSION_NAME } from './UpdateNotice';
 import { BrandMark } from './BrandMark';
 
 /** Copy follows the author's portfolio at portfolio-five-xi-51.vercel.app. */
@@ -126,6 +127,11 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
                 This is the Android app. The board runs entirely on the phone, with no network needed. Circuits are
                 kept on the device until you sign in, and go to your account after that. Either way a circuit can be
                 sent as a file, which is the way to hand one to someone who has no account.
+              </p>
+            )}
+            {OFFLINE && VERSION_NAME && (
+              <p className="mt-2 font-mono text-[10px] text-carbon-600">
+                Version {VERSION_NAME}. It checks for a newer one when you open it.
               </p>
             )}
           </section>

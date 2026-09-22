@@ -23,6 +23,15 @@ const config: NextConfig = offline
       async headers() {
         return [
           {
+            // The installed app reads this to see whether it is out of date,
+            // and it asks from its own origin inside the webview.
+            source: '/apk-version.json',
+            headers: [
+              { key: 'Access-Control-Allow-Origin', value: '*' },
+              { key: 'Cache-Control', value: 'no-store' },
+            ],
+          },
+          {
             source: '/:path*',
             headers: [
               { key: 'X-Content-Type-Options', value: 'nosniff' },

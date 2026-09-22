@@ -12,3 +12,8 @@ dist/
 out/
 apps/mobile/Mechatronic.apk
 apps/web/.offline-parked/
+
+# The Android signing key and its passwords never go in the repository.
+apps/mobile/keystore.properties
+apps/mobile/*.jks
+apps/mobile/android/version.properties

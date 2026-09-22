@@ -1,5 +1,25 @@
 apply plugin: 'com.android.application'
 
+// Written by apps/mobile/scripts/version.mjs before every build, so the
+// version climbs with the repository instead of being typed in and forgotten.
+def versionProps = new Properties()
+def versionFile = rootProject.file('version.properties')
+if (versionFile.exists()) {
+    versionFile.withInputStream { versionProps.load(it) }
+}
+
+// Release signing, when a key has been set up. Android only lets an APK update
+// an installed app when both are signed with the same key, and the debug key
+// is per-machine and expires after a year — so a real key is what makes an
+// update install over the one already on the phone instead of being refused.
+// See apps/mobile/keystore.properties.example. Without it, builds stay debug
+// signed, which is fine for a phone you install by hand.
+def keystoreProps = new Properties()
+def keystoreFile = rootProject.file('../keystore.properties')
+if (keystoreFile.exists()) {
+    keystoreFile.withInputStream { keystoreProps.load(it) }
+}
+
 android {
     namespace "com.johnmoises.mechatronic"
     compileSdk rootProject.ext.compileSdkVersion
@@ -7,8 +27,8 @@ android {
         applicationId "com.johnmoises.mechatronic"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode versionProps.getProperty('versionCode', '1').toInteger()
+        versionName versionProps.getProperty('versionName', '1.0')
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +36,23 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (keystoreProps.getProperty('storeFile')) {
+            release {
+                storeFile rootProject.file('../' + keystoreProps.getProperty('storeFile'))
+                storePassword keystoreProps.getProperty('storePassword')
+                keyAlias keystoreProps.getProperty('keyAlias')
+                keyPassword keystoreProps.getProperty('keyPassword')
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (keystoreProps.getProperty('storeFile')) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

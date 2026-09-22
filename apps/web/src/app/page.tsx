@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Download, Github, MoveRight } from 'lucide-react';
 import { BrandMark } from '@/components/BrandMark';
 import { HeroCircuit } from '@/components/landing/HeroCircuit';
+import published from '../../public/apk-version.json';
 
 export const metadata: Metadata = {
   title: 'Mechatronic Trainer — practice the lab board anywhere',
@@ -10,8 +11,17 @@ export const metadata: Metadata = {
     'A working replica of the mechatronics lab trainer board at the National College of Science and Technology, for ECE, BSCOE, EE and IE students. Run leads between real terminals, close the breaker, and watch the relay logic run — on the web, or as an offline Android app.',
 };
 
-/** The file served from apps/web/public, kept in step by the APK build script. */
-const APK = { href: '/mechatronic-trainer.apk', size: '5.0 MB', version: '1.0', android: 'Android 6.0 and up' };
+/**
+ * What the APK build last published. Read from the file it writes, so the
+ * numbers on this page cannot drift away from the file being handed out — and
+ * it is the same file an installed app checks to see whether it is behind.
+ */
+const APK = {
+  href: published.url,
+  size: (published.bytes / 1_000_000).toFixed(1) + ' MB',
+  version: published.versionName,
+  android: 'Android 6.0 and up',
+};
 const REPO = 'https://github.com/moi-script/mechatronics_device';
 
 /** The programs that take the mechatronics laboratory at NCST. */
@@ -210,8 +220,9 @@ export default function Page() {
                 ))}
               </ol>
               <p className="mt-6 max-w-[58ch] text-sm leading-relaxed text-carbon-600">
-                It is a debug build signed with a development key, which is why Android asks before installing it. To
-                build your own instead,{' '}
+                It is a debug build signed with a development key, which is why Android asks before installing it.
+                Once installed, the app checks this page's version on startup and offers you the new one when there is
+                one. To build your own instead,{' '}
                 <a href={REPO} target="_blank" rel="noreferrer" className="font-semibold text-carbon-900 underline">
                   the source is on GitHub
                 </a>{' '}

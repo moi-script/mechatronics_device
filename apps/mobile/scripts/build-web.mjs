@@ -12,6 +12,7 @@ import { execSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { appVersion } from './version.mjs';
 
 /** The live site the app signs in to, overridable with MECH_SITE_URL. */
 const SITE = 'https://mechatronicdevice.vercel.app';
@@ -53,6 +54,9 @@ for (const name of downloads) {
   if (existsSync(from)) renameSync(from, path.join(parked, name));
 }
 
+const version = appVersion();
+console.log(`Building app version ${version.versionName} (code ${version.versionCode})`);
+
 try {
   execSync('npx next build', {
     cwd: web,
@@ -66,6 +70,9 @@ try {
       // needs a network.
       NEXT_PUBLIC_SITE_URL: process.env.MECH_SITE_URL ?? SITE,
       NEXT_PUBLIC_API_URL: process.env.MECH_API_URL ?? SITE + '/api',
+      // What this build is, so it can tell whether the one on the site is newer.
+      NEXT_PUBLIC_APP_VERSION_CODE: String(version.versionCode),
+      NEXT_PUBLIC_APP_VERSION_NAME: version.versionName,
     },
   });
 } finally {
