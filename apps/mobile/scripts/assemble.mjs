@@ -1,4 +1,6 @@
-// Builds a debug APK with Gradle and copies it to apps/mobile/Mechatronic.apk.
+// Builds a debug APK with Gradle and copies it to apps/mobile/Mechatronic.apk,
+// and to apps/web/public, which is where the landing page's download link
+// points — so the site always hands out the build that was made last.
 import { execSync } from 'node:child_process';
 import { copyFileSync, existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
@@ -22,5 +24,8 @@ execSync(`"${gradlew}" assembleDebug`, { cwd: android, stdio: 'inherit', env });
 
 const apk = fileURLToPath(new URL('../android/app/build/outputs/apk/debug/app-debug.apk', import.meta.url));
 const out = fileURLToPath(new URL('../Mechatronic.apk', import.meta.url));
+const download = fileURLToPath(new URL('../../web/public/mechatronic-trainer.apk', import.meta.url));
 copyFileSync(apk, out);
+copyFileSync(apk, download);
 console.log('\nAPK ready: ' + out);
+console.log('Download copy: ' + download);

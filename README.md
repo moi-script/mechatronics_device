@@ -31,6 +31,12 @@ npm test        # solver test suite
 npm run typecheck
 ```
 
+## Pages
+
+`/` is the landing page: what the bench holds, how it behaves, and the Android download.
+`/board` is the trainer itself. The offline export swaps the two so the APK opens straight
+onto the board — see [Android app](#android-app-offline).
+
 ## The board
 
 | Part | Count | Pins |
@@ -230,4 +236,10 @@ npm run open -w @mech/mobile   # open in Android Studio
 ```
 
 Needs the Android SDK and JDK 21. The server-only `api` and `view` routes are
-set aside during the offline export and restored afterwards.
+set aside during the offline export and restored afterwards, and so is the landing
+page — the board takes the web root for that build, so the APK's `index.html` is
+the trainer rather than a page advertising it.
+
+`npm run apk` also drops a copy at `apps/web/public/mechatronic-trainer.apk`, which is
+what the landing page's download button serves. That copy is committed, so rebuild it
+whenever the app changes or the site will keep handing out the old one.
