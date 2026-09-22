@@ -7,12 +7,20 @@ import { HeroCircuit } from '@/components/landing/HeroCircuit';
 export const metadata: Metadata = {
   title: 'Mechatronic Trainer — practise the lab board anywhere',
   description:
-    'A working replica of the mechatronics lab trainer board. Run leads between real terminals, close the breaker, and watch the relay logic run. On the web, and as an offline Android app.',
+    'A working replica of the mechatronics lab trainer board at the National College of Science and Technology, for ECE, BSCOE, EE and IE students. Run leads between real terminals, close the breaker, and watch the relay logic run — on the web, or as an offline Android app.',
 };
 
 /** The file served from apps/web/public, kept in step by the APK build script. */
 const APK = { href: '/mechatronic-trainer.apk', size: '4.8 MB', version: '1.0', android: 'Android 6.0 and up' };
 const REPO = 'https://github.com/moi-script/mechatronics_device';
+
+/** The programmes that take the mechatronics laboratory at NCST. */
+const PROGRAMS = [
+  { code: 'ECE', name: 'Electronics Engineering' },
+  { code: 'BSCOE', name: 'Computer Engineering' },
+  { code: 'EE', name: 'Electrical Engineering' },
+  { code: 'IE', name: 'Industrial Engineering' },
+];
 
 /** The bench inventory, matching packages/sim exactly. */
 const BENCH = [
@@ -101,7 +109,8 @@ export default function Page() {
               wired it right.
             </p>
             <p className="mt-3 max-w-[54ch] text-[15px] leading-relaxed text-carbon-600">
-              Nothing to install to try it, and no account until you want to save a circuit.
+              Built for the engineering students of the National College of Science and Technology. Nothing to install
+              to try it, and no account until you want to save a circuit.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
@@ -123,6 +132,26 @@ export default function Page() {
             </div>
           </div>
           <HeroCircuit className="w-full rounded-xl border border-steel-400 shadow-sm" />
+        </section>
+
+        <section className="border-t border-steel-400 bg-steel-50">
+          <div className="mx-auto max-w-5xl px-5 py-9">
+            <h2 className="font-cond text-xl font-bold text-carbon-900">
+              NCST, the National College of Science and Technology
+            </h2>
+            <p className="mt-1.5 max-w-[62ch] text-sm leading-relaxed text-carbon-600">
+              The panel here is the one in the engineering laboratory, part for part, so the wiring you practise at home
+              is the wiring you are marked on in the lab. It follows the course for all four programmes.
+            </p>
+            <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-steel-300 pt-5 sm:grid-cols-4">
+              {PROGRAMS.map((p) => (
+                <div key={p.code}>
+                  <dt className="font-mono text-sm font-semibold text-carbon-900">{p.code}</dt>
+                  <dd className="mt-0.5 text-xs leading-snug text-carbon-600">{p.name}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
         </section>
 
         <section id="bench" className="border-y border-steel-400 bg-steel-100">
@@ -226,7 +255,7 @@ export default function Page() {
             >
               John Moises
             </a>
-            . Not affiliated with Festech.
+            {' '}for the NCST engineering laboratory. Not affiliated with NCST or Festech.
           </p>
           <Link href="/board" className="font-semibold text-carbon-900">
             Open the board
