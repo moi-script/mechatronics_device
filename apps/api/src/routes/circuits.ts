@@ -27,6 +27,8 @@ const circuitSchema = z.object({
         type: z.string().max(20),
         x: z.number().finite(),
         y: z.number().finite(),
+        // A timer carries its set point; anything else leaves it off.
+        delaySec: z.number().finite().min(1).max(3600).optional(),
       }),
     )
     .max(64),
@@ -35,6 +37,10 @@ const circuitSchema = z.object({
       z.object({
         id: z.string().max(40),
         color: z.enum(WIRE_COLORS),
+        // Omitted means an electrical lead. Air tubing has to survive the round
+        // trip, or a saved pneumatic circuit comes back with its tubes turned
+        // into leads and no air reaching anything.
+        kind: z.enum(['lead', 'tube']).optional(),
         a: endRef,
         b: endRef,
       }),
