@@ -220,6 +220,30 @@ Two faults are reported:
 A circuit that never settles (a relay wired to break its own coil) stops at the solver's
 50-pass cap rather than hanging.
 
+On the pneumatic side, a valve spool moves with its coil and the rod follows the air, but
+the reed sensors only see the piston arrive one full stroke (700 ms) after it sets off. A
+sequence stepped along by its own sensors therefore runs at the speed of the rods, not at
+the speed of the solver, and the sensor lines agree with what is drawn on screen.
+
+## Worked circuits
+
+The library ships circuits that drop onto the bench whole, parts and leads, so a sequence
+can be run and traced before it is built from bare terminals.
+
+| Preset | What it does |
+|---|---|
+| Three-step lamp sequence | A timer lights LAMP1, then each push button steps the lamp along and drops the one before it. |
+| Pneumatic sequence A+ A- B+ B- | One press of button 1 on the Festech push-button unit runs both cylinders through the cycle. |
+
+The pneumatic one is the lab sequence: **A+ A- B+ B-**, on two double-acting cylinders,
+each on a 5/2 double-solenoid valve. Every step after the first is started by a limit
+switch — the reed sensors clamped to each barrel — and relay R2 is the memory that tells
+the rear sensor of a cylinder standing at rest from the same sensor reporting a rod that
+has just come home, which is the only reason the cycle knows to move on to B rather than
+starting B the moment the breaker closes. R3 ends the cycle: it drops R2 and sends B home
+off B's own front sensor. The wiring, contact by contact, is commented in
+`packages/sim/src/presets.ts`.
+
 ## Design
 
 `docs/superpowers/specs/2026-08-27-mechatronic-trainer-design.md`

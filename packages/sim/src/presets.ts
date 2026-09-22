@@ -33,6 +33,17 @@ class Harness {
     });
   }
 
+  /** Run air tubing between two fittings. Tubing is blue on the bench. */
+  tube(from: [string, string], to: [string, string]): void {
+    this.wires.push({
+      id: `${this.prefix}-t${this.wires.length + 1}`,
+      color: 'blue',
+      kind: 'tube',
+      a: { kind: 'terminal', moduleId: from[0], pinId: from[1] } as EndRef,
+      b: { kind: 'terminal', moduleId: to[0], pinId: to[1] } as EndRef,
+    });
+  }
+
   done(): Wire[] {
     return this.wires;
   }
@@ -144,7 +155,119 @@ export const SEQUENCE_PRESET: Preset = {
   },
 };
 
+/**
+ * A+ A- B+ B-, on the Festech pneumatic panels, from one press of button 1.
+ *
+ *   PB1 -> A extends
+ *   a1  -> A retracts
+ *   a0  -> B extends
+ *   b1  -> B retracts, and the board comes back to rest
+ *
+ * The limit switches are the reed sensors clamped to each barrel: a0 and b0
+ * close while their piston sits home, a1 and b1 while it sits out. Nothing
+ * else knows where a rod is, so every step but the first is started by one.
+ *
+ * Both valves are 5/2 double-solenoid, which is what makes a one-press cycle
+ * possible: the spool stays where the last pulse put it, so a step only needs
+ * a signal long enough to throw it, not held for the whole stroke.
+ *
+ * The problem the relays solve is a0. It is closed at rest and closed again
+ * after A comes home, so on its own it would fire B+ the moment the breaker
+ * closed. R2 is the memory that tells the two apart: it picks up on a1, holds
+ * itself in, and B+ runs through its contact, so B+ can only happen on the a0
+ * that follows an a1.
+ *
+ *   R2   set by a1, held through R3's NC contact
+ *        11-12 NC  breaks A+ once A is out, so both A solenoids are never live
+ *        21-24 NO  its own hold
+ *        31-34 NO  A-
+ *        41-44 NO  arms B+, in series with a0
+ *   R3   picked up by b1, not held
+ *        11-12 NC  drops R2, which ends the cycle
+ *        21-22 NC  breaks B+ before B- fires
+ *
+ * b1 drives R3 and the B- solenoid together, so the last step needs no memory:
+ * B retracts, b1 opens, everything falls away, and the board is back where it
+ * started with the spools holding both rods home.
+ */
+export const PNEUMATIC_SEQUENCE_PRESET: Preset = {
+  id: 'pneumatic-a-b-sequence',
+  name: 'Pneumatic sequence A+ A- B+ B-',
+  summary: 'One press of button 1 runs both cylinders through the full cycle, stepped along by the reed sensors.',
+  steps: [
+    'Close the breaker. Both rods sit home, held there by the spools at rest.',
+    'Press button 1 on the push-button unit: cylinder A extends (A+).',
+    "A's front sensor closes, picks up relay R2, and sends A back home (A-).",
+    "A's rear sensor closes with R2 still held, so cylinder B extends (B+).",
+    "B's front sensor picks up R3, which drops R2 and sends B home (B-). The cycle is over and button 1 starts it again.",
+  ],
+  build(): Circuit {
+    const h = new Harness('pneu');
+
+    // --- power ---------------------------------------------------------------
+    // Everything is distributed from the relay unit's two strips, and the
+    // button unit is fed from the post at the far end of its own strip: a lead
+    // run to the near end would hang across the button faces, and a lead lying
+    // over a cap is a lead you have to move before you can press it.
+    h.add(['PSU1', 'P1'], ['RU1', 'V1']);
+    h.add(['PSU1', 'N1'], ['RU1', 'G1'], 'blue');
+    h.add(['RU1', 'V2'], ['PBU1', 'V5']);
+
+    // --- step 1: button 1 extends A -----------------------------------------
+    h.add(['PBU1', 'V4'], ['PBU1', 'B1_13']);
+    h.add(['PBU1', 'B1_14'], ['RU1', 'R2_12']); // through R2 NC, so A+ drops once A is out
+    h.add(['RU1', 'R2_11'], ['V52D1', 'Y14_P']);
+    h.add(['V52D1', 'Y14_N'], ['RU1', 'G4'], 'blue');
+
+    // --- step 2: a1 picks up R2, R2 retracts A ------------------------------
+    h.add(['RU1', 'V3'], ['PCYL1', 'S2_P']); // a1: A extended
+    h.add(['PCYL1', 'S2_O'], ['RU1', 'R2_A1']);
+    h.add(['RU1', 'R2_A2'], ['RU1', 'G2'], 'blue');
+    h.add(['RU1', 'V4'], ['RU1', 'R3_12'], 'yellow'); // hold feed, broken by R3
+    h.add(['RU1', 'R3_11'], ['RU1', 'R2_24'], 'yellow');
+    h.add(['RU1', 'R2_21'], ['RU1', 'R2_A1'], 'yellow');
+    h.add(['RU1', 'V5'], ['RU1', 'R2_31'], 'green'); // A-
+    h.add(['RU1', 'R2_34'], ['V52D1', 'Y12_P'], 'green');
+    h.add(['V52D1', 'Y12_N'], ['RU1', 'G5'], 'blue');
+
+    // --- step 3: a0 with R2 still held extends B ----------------------------
+    h.add(['RU1', 'V3'], ['PCYL1', 'S1_P']); // a0: A home, stacked on a1's feed
+    h.add(['PCYL1', 'S1_O'], ['RU1', 'R2_41'], 'green');
+    h.add(['RU1', 'R2_44'], ['RU1', 'R3_22'], 'green'); // through R3 NC, so B+ drops before B-
+    h.add(['RU1', 'R3_21'], ['V52D2', 'Y14_P'], 'green');
+    h.add(['V52D2', 'Y14_N'], ['PSU1', 'N2'], 'blue');
+
+    // --- step 4: b1 picks up R3, which retracts B and ends the cycle --------
+    h.add(['RU1', 'V2'], ['PCYL2', 'S2_P']); // b1: B extended
+    h.add(['PCYL2', 'S2_O'], ['RU1', 'R3_A1']);
+    h.add(['RU1', 'R3_A2'], ['RU1', 'G3'], 'blue');
+    h.add(['PCYL2', 'S2_O'], ['V52D2', 'Y12_P']);
+    h.add(['V52D2', 'Y12_N'], ['PSU1', 'N3'], 'blue');
+
+    // --- air: the distributor feeds both valves, each valve its own cylinder -
+    // At rest a 5/2 spool feeds 1 to 2, so port 2 goes to the retract side and
+    // the rods are held home before anyone touches the bench.
+    h.tube(['AIR1', 'O1'], ['V52D1', 'A1']);
+    h.tube(['V52D1', 'A4'], ['PCYL1', 'A']);
+    h.tube(['V52D1', 'A2'], ['PCYL1', 'B']);
+    h.tube(['AIR1', 'O2'], ['V52D2', 'A1']);
+    h.tube(['V52D2', 'A4'], ['PCYL2', 'A']);
+    h.tube(['V52D2', 'A2'], ['PCYL2', 'B']);
+
+    return {
+      modules: layout(
+        ['BREAKER', 'PSU1', 'PBU1', 'RU1', 'AIR1', 'V52D1', 'V52D2', 'PCYL1', 'PCYL2'],
+        // Nothing from the original trainer row is used, so the breaker comes
+        // down to sit above the Festech panels rather than leaving the loaded
+        // board with a screen of empty bench between it and everything else.
+        (m) => (m.id === 'BREAKER' ? { ...m, x: 40, y: 990 } : m),
+      ),
+      wires: h.done(),
+    };
+  },
+};
+
 /** Every preset the bench can load, in the order they are offered. */
-export const PRESETS: readonly Preset[] = [SEQUENCE_PRESET];
+export const PRESETS: readonly Preset[] = [SEQUENCE_PRESET, PNEUMATIC_SEQUENCE_PRESET];
 
 export const presetById = (id: string): Preset | undefined => PRESETS.find((p) => p.id === id);

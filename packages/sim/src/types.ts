@@ -159,6 +159,12 @@ export interface SimState {
    */
   rod: Record<string, boolean>;
   /**
+   * Piston id -> when the rod set off for where it is now. The reed sensors
+   * only see it arrive a full stroke later, so the board cannot step itself
+   * along faster than the rod actually moves.
+   */
+  rodAt: Record<string, number>;
+  /**
    * Timer id -> the instant its coil went live. A timer counts from here and
    * loses the count the moment its coil drops, exactly like the bench unit.
    */
@@ -246,4 +252,4 @@ export interface SimResult {
   state: SimState;
 }
 
-export const emptyState = (): SimState => ({ coil: {}, timerStart: {}, rod: {}, valve: {} });
+export const emptyState = (): SimState => ({ coil: {}, timerStart: {}, rod: {}, rodAt: {}, valve: {} });

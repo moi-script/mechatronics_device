@@ -222,7 +222,7 @@ function actuatorsFor(
   inputs: Inputs,
   coil: Record<string, boolean>,
   prevStart: Record<string, number>,
-  prevRod: Record<string, boolean>,
+  sensedRod: Record<string, boolean>,
   out: Record<string, boolean>,
 ): void {
   switch (m.type) {
@@ -237,9 +237,9 @@ function actuatorsFor(
       return;
     case 'FT_CYL':
     case 'FT_SCYL':
-      // The sensors read where the piston was at the start of this step; a
-      // stroke that starts now reaches them on the follow-up tick.
-      out[actKey(m.id, 'EXT')] = !!prevRod[m.id];
+      // The sensors read where the piston has actually got to, which is not
+      // where it is headed until a full stroke has gone by.
+      out[actKey(m.id, 'EXT')] = !!sensedRod[m.id];
       return;
     default:
       out[m.id] = actuationFor(m, inputs, coil, prevStart);
@@ -251,10 +251,10 @@ const actuationMap = (
   inputs: Inputs,
   coil: Record<string, boolean>,
   prevStart: Record<string, number>,
-  prevRod: Record<string, boolean>,
+  sensedRod: Record<string, boolean>,
 ): Record<string, boolean> => {
   const out: Record<string, boolean> = {};
-  for (const m of circuit.modules) actuatorsFor(m, inputs, coil, prevStart, prevRod, out);
+  for (const m of circuit.modules) actuatorsFor(m, inputs, coil, prevStart, sensedRod, out);
   return out;
 };
 
@@ -311,12 +311,28 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
   const prevStart = prev.timerStart ?? {};
   let coil = { ...prev.coil };
   const prevRod = prev.rod ?? {};
-  let actuated = actuationMap(circuit, inputs, coil, prevStart, prevRod);
+  const prevRodAt = prev.rodAt ?? {};
+
+  /**
+   * Where the reed sensors think each piston is. A rod that set off less than
+   * a stroke ago has not reached the far sensor yet, so it still reads at the
+   * end it left — which is what keeps a sensor-stepped sequence running at the
+   * speed of the rods instead of the speed of the solver.
+   */
+  const sensedRod: Record<string, boolean> = {};
+  for (const m of circuit.modules) {
+    if (m.type !== 'FT_CYL' && m.type !== 'FT_SCYL') continue;
+    const was = !!prevRod[m.id];
+    const at = prevRodAt[m.id];
+    sensedRod[m.id] = at === undefined || inputs.now - at >= STROKE_MS ? was : !was;
+  }
+
+  let actuated = actuationMap(circuit, inputs, coil, prevStart, sensedRod);
 
   let pass = evaluate(circuit, inputs.breakerClosed, actuated);
   for (let i = 0; i < MAX_PASSES; i++) {
     if (pass.shortedNets.length > 0) break;
-    const next = actuationMap(circuit, inputs, pass.coil, prevStart, prevRod);
+    const next = actuationMap(circuit, inputs, pass.coil, prevStart, sensedRod);
     if (sameActuation(next, actuated)) break;
     actuated = next;
     pass = evaluate(circuit, inputs.breakerClosed, actuated);
@@ -391,7 +407,9 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
   // Pneumatic cylinders move on whichever port is under pressure. A stroke
   // that starts now is reported to the sensors on a follow-up tick.
   const { air, tubeAir } = solveAir(circuit, valves);
-  let strokeStarted = false;
+  const rodAt: Record<string, number> = {};
+  // How long until the rod furthest from its destination gets there.
+  let strokeLeft: number | null = null;
   for (const m of circuit.modules) {
     if (m.type !== 'FT_CYL' && m.type !== 'FT_SCYL') continue;
     const a = !!air[pinKey(m.id, 'A')];
@@ -399,7 +417,13 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
     const was = prevRod[m.id] ?? false;
     // The single-acting rod has no B port: its spring returns it whenever A vents.
     const extended = m.type === 'FT_SCYL' ? a : a === b ? was : a;
-    if (extended !== was) strokeStarted = true;
+    // A rod that has just set off starts its stroke now; one that was already
+    // on its way keeps the instant it left, so the clock is not restarted by
+    // every re-solve. A rod standing still is a stroke old and fully sensed.
+    const at = extended !== was ? inputs.now : (prevRodAt[m.id] ?? inputs.now - STROKE_MS);
+    rodAt[m.id] = at;
+    const left = STROKE_MS - (inputs.now - at);
+    if (left > 0) strokeLeft = strokeLeft === null ? left : Math.min(strokeLeft, left);
     rod[m.id] = extended;
     pistons[m.id] = { extended, extendCoil: a, retractCoil: b, stalled: a && b };
   }
@@ -420,7 +444,7 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
     // The board changes by itself when this one times out, so say when.
     if (running) nextTickMs = nextTickMs === null ? remainingMs : Math.min(nextTickMs, remainingMs);
   }
-  if (strokeStarted) nextTickMs = nextTickMs === null ? STROKE_MS : Math.min(nextTickMs, STROKE_MS);
+  if (strokeLeft !== null) nextTickMs = nextTickMs === null ? strokeLeft : Math.min(nextTickMs, strokeLeft);
 
   return {
     nets: pass.nets,
@@ -437,6 +461,6 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
     valves,
     errors,
     faulted,
-    state: { coil: faulted ? {} : coil, timerStart: faulted ? {} : timerStart, rod, valve },
+    state: { coil: faulted ? {} : coil, timerStart: faulted ? {} : timerStart, rod, rodAt, valve },
   };
 }
