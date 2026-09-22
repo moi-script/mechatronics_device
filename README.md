@@ -377,3 +377,8 @@ Copy `apps/mobile/keystore.properties.example` to `keystore.properties`, create 
 describes with `keytool`, and `npm run apk` builds a signed release instead. Neither the
 key nor the passwords are committed. Keep both: without them no later build can ever
 update an installed app.
+
+From **1.44** the published APK is a signed release. Anything installed from an earlier
+build carries the old debug signature, so it has to be uninstalled before this one will
+install — the one and only time that is true, and the reason for doing it before handing
+the app around.

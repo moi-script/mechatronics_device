@@ -220,9 +220,10 @@ export default function Page() {
                 ))}
               </ol>
               <p className="mt-6 max-w-[58ch] text-sm leading-relaxed text-carbon-600">
-                It is a debug build signed with a development key, which is why Android asks before installing it.
-                Once installed, the app checks this page's version on startup and offers you the new one when there is
-                one. To build your own instead,{' '}
+                Android asks before installing anything that did not come from the Play Store, which is why it warns
+                you. Once installed, the app checks this page on startup and offers you the newer build when there is
+                one. Coming from a build older than 1.44 means uninstalling that one first — it was signed with a
+                temporary key, and Android will not update across a change of key. To build your own instead,{' '}
                 <a href={REPO} target="_blank" rel="noreferrer" className="font-semibold text-carbon-900 underline">
                   the source is on GitHub
                 </a>{' '}
