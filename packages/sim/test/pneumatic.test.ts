@@ -83,7 +83,9 @@ test('the breaker holds the whole sequence dead', () => {
   assert.deepEqual(r.errors, []);
 });
 
-test('the pneumatic sequence is offered on the bench', () => {
-  assert.equal(presetById('pneumatic-a-b-sequence'), PNEUMATIC_SEQUENCE_PRESET);
-  assert.ok(PRESETS.includes(PNEUMATIC_SEQUENCE_PRESET));
+test('the pneumatic sequence is not in the shipped library', () => {
+  // It is saved in the accounts that use it, so the library does not carry a
+  // second copy for people to load by mistake.
+  assert.equal(presetById('pneumatic-a-b-sequence'), undefined);
+  assert.ok(!PRESETS.includes(PNEUMATIC_SEQUENCE_PRESET));
 });

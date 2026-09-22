@@ -52,8 +52,15 @@ valve at the head of the row and a limit switch bolted at each end of the stroke
            home                        end of stroke
 
 Four rows: A and B are double-acting on 5/2 double-solenoid valves, C double-acting on a
-spring-return valve, D single-acting on a 3/2. The electrics that drive the solenoids sit
-in a band along the top.
+spring-return valve, D single-acting on a 3/2. The panels that drive them are bolted along
+the top rail in bench order — supply, push-button unit, both relay units, the PLC trainer —
+with the air distributors under them and the spare valves and two hand-operated limit
+switches parked at the end.
+
+A new pneumatics project starts with all of it down, because that is how the bench is
+found in the lab: everything bolted to the rails already, and the work is the tubing and
+the wiring between it. The trainer bench still opens nearly bare, where choosing the parts
+is part of the exercise.
 
 A mounted limit switch is thrown by the rod arriving, not by being clicked — `a0` is made
 while its rod is home, `a1` while it is out — because a limit switch that has to be pressed
@@ -284,8 +291,15 @@ can be run and traced before it is built from bare terminals.
 | Preset | Bench | What it does |
 |---|---|---|
 | Three-step lamp sequence | Trainer | A timer lights LAMP1, then each push button steps the lamp along and drops the one before it. |
+
+Two more are built and tested in `packages/sim/src/presets.ts` but not listed in the
+library, because they are saved in the accounts that use them and a second copy on the
+shelf only invites loading the wrong one:
+
+| Circuit | Bench | What it does |
+|---|---|---|
 | Pneumatic sequence A+ A- B+ B- | Trainer | One press of button 1 runs both cylinders through the cycle, stepped by the reed sensors on the barrels. |
-| A+ A- B+ B- on limit switches | Pneumatics | The same sequence on the pneumatics board, stepped by the switches the rods run into. |
+| A+ A- B+ B- on limit switches | Pneumatics | The same sequence, stepped by the switches the rods run into. |
 
 Both pneumatic ones run the lab sequence: **A+ A- B+ B-**, on two double-acting cylinders,
 each on a 5/2 double-solenoid valve. Every step after the first is started by a limit

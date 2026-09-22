@@ -241,16 +241,25 @@ export const endKey = (wireId: string, end: 'A' | 'B'): string => `~${wireId}.${
  * to be pressed by hand is not a limit switch: what it reports is that the rod
  * arrived, and only the rod can say that.
  */
-const CYL_ROW_Y = (row: number) => 560 + row * 250;
+/** The panel rail along the top, then a rail per cylinder below it. */
+const PANEL_Y = 40;
+const AIR_Y = 500;
+const CYL_ROW_Y = (row: number) => 700 + row * 250;
 
 export function pneumaticInventory(): ModuleInstance[] {
+  // The rail across the top, in the order it is bolted up on the bench:
+  // supply, buttons, the two relay units, and the PLC trainer at the end.
   const modules: ModuleInstance[] = [
-    { id: 'BREAKER', type: 'BREAKER', x: 40, y: 40 },
-    { id: 'PSU1', type: 'FT_PSU', x: 220, y: 40 },
-    { id: 'AIR1', type: 'FT_AIR', x: 620, y: 40 },
-    { id: 'AIR2', type: 'FT_AIR', x: 620, y: 220 },
-    { id: 'PBU1', type: 'FT_PBU', x: 960, y: 40 },
-    { id: 'RU1', type: 'FT_RELAY3', x: 1340, y: 40 },
+    { id: 'BREAKER', type: 'BREAKER', x: 40, y: PANEL_Y + 60 },
+    { id: 'PSU1', type: 'FT_PSU', x: 220, y: PANEL_Y },
+    { id: 'PBU1', type: 'FT_PBU', x: 620, y: PANEL_Y },
+    { id: 'RU1', type: 'FT_RELAY3', x: 1000, y: PANEL_Y },
+    { id: 'RU2', type: 'FT_RELAY3', x: 1460, y: PANEL_Y },
+    { id: 'PLC1', type: 'FT_PLC', x: 1920, y: PANEL_Y },
+    // The air comes off the service unit into the distributors, and everything
+    // downstream is tubed from there.
+    { id: 'AIR1', type: 'FT_AIR', x: 40, y: AIR_Y },
+    { id: 'AIR2', type: 'FT_AIR', x: 380, y: AIR_Y },
   ];
 
   // Row per cylinder: A and B are double-acting on double-solenoid valves, C
@@ -270,6 +279,16 @@ export function pneumaticInventory(): ModuleInstance[] {
     modules.push({ id: cylinderId, type: cyl, x: 620, y });
     modules.push({ id: `LS_${letter}1`, type: 'FT_LIMIT', x: 1120, y, mount: { cylinderId, at: 'out' } });
   });
+
+  // The stock that is not committed to a row: the spare valves and the two
+  // hand-operated limit switches, parked at the end of the bench the way they
+  // lie on the real one.
+  const spares = CYL_ROW_Y(rows.length);
+  modules.push({ id: 'V_SPARE1', type: 'FT_V52S', x: 40, y: spares });
+  modules.push({ id: 'V_SPARE2', type: 'FT_V52D', x: 320, y: spares });
+  modules.push({ id: 'V_SPARE3', type: 'FT_V32', x: 670, y: spares });
+  modules.push({ id: 'LS1', type: 'FT_LIMIT', x: 930, y: spares });
+  modules.push({ id: 'LS2', type: 'FT_LIMIT', x: 1140, y: spares });
 
   return modules;
 }
@@ -309,14 +328,18 @@ export const benchInventory = (board: BoardType = 'trainer'): ModuleInstance[] =
  * thing there that does anything.
  */
 export const STARTING_MODULE_IDS: readonly string[] = ['BREAKER', 'SUPPLY'];
-const PNEUMATIC_STARTING_IDS: readonly string[] = ['BREAKER', 'PSU1', 'AIR1'];
 
-const startingIds = (board: BoardType): readonly string[] =>
-  board === 'pneumatics' ? PNEUMATIC_STARTING_IDS : STARTING_MODULE_IDS;
-
+/**
+ * The trainer opens nearly bare, since its work starts with choosing parts.
+ * The pneumatics board opens fully rigged — panels along the top rail, a
+ * cylinder to a row with its valve and switches, spares at the end — because
+ * that is how the bench is found in the lab: everything bolted down already,
+ * and the work is the tubing and the wiring between it.
+ */
 export function defaultModules(board: BoardType = 'trainer'): ModuleInstance[] {
-  const start = startingIds(board);
-  return benchInventory(board).filter((m) => start.includes(m.id));
+  const bench = benchInventory(board);
+  if (board === 'pneumatics') return bench;
+  return bench.filter((m) => STARTING_MODULE_IDS.includes(m.id));
 }
 
 /** The stock still in the bin: bench parts that are not on the board. */

@@ -365,7 +365,12 @@ export const PNEUMATIC_BOARD_SEQUENCE: Preset = {
   },
 };
 
-/** Every preset the bench can load, in the order they are offered. */
-export const PRESETS: readonly Preset[] = [SEQUENCE_PRESET, PNEUMATIC_SEQUENCE_PRESET, PNEUMATIC_BOARD_SEQUENCE];
+/**
+ * Every preset the bench offers. The two pneumatic sequences are built and
+ * tested here but not listed: they live in the accounts of the people who use
+ * them, and a library that ships a copy of a circuit you already have saved
+ * only invites you to load the wrong one.
+ */
+export const PRESETS: readonly Preset[] = [SEQUENCE_PRESET];
 
 export const presetById = (id: string): Preset | undefined => PRESETS.find((p) => p.id === id);
