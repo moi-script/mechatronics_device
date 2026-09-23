@@ -141,18 +141,24 @@ export default function Page() {
                 Open the board
                 <MoveRight className="h-4 w-4" />
               </Link>
-              <ApkDownloadLink
-                href={APK.href}
-                className="inline-flex items-center gap-2 rounded-sm border border-steel-400 bg-steel-100 px-5 py-3 text-[15px] font-semibold text-carbon-900 hover:bg-steel-50"
-              >
-                <Download className="h-4 w-4" />
-                Download for Android
-                <span className="font-mono text-xs font-normal text-carbon-600">
-                  {APK.version} · {APK.size}
-                </span>
-              </ApkDownloadLink>
+              {/*
+                The button and its tally travel together, so the count stays
+                beside the thing it counts however the row wraps. The build and
+                size used to sit inside the button; they are on the panel below
+                twice over, and carrying them here left no width for anything
+                to stand beside.
+              */}
+              <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-2">
+                <ApkDownloadLink
+                  href={APK.href}
+                  className="inline-flex items-center gap-2 rounded-sm border border-steel-400 bg-steel-100 px-5 py-3 text-[15px] font-semibold text-carbon-900 hover:bg-steel-50"
+                >
+                  <Download className="h-4 w-4" />
+                  Download for Android
+                </ApkDownloadLink>
+                <DownloadCount />
+              </span>
             </div>
-            <DownloadCount className="mt-3 block font-mono text-xs text-carbon-600" />
           </div>
           <HeroCircuit className="w-full" />
         </section>
@@ -254,7 +260,6 @@ export default function Page() {
                 <Download className="h-4 w-4" />
                 Download the APK
               </ApkDownloadLink>
-              <DownloadCount className="mt-2 block text-center font-mono text-xs text-carbon-600" />
               <dl className="mt-5 space-y-2 border-t border-steel-300 pt-4 font-mono text-xs text-carbon-600">
                 {[
                   ['Version', APK.version],
@@ -268,6 +273,12 @@ export default function Page() {
                     <dd className="text-carbon-900">{v}</dd>
                   </div>
                 ))}
+                <div className="flex items-center justify-between gap-4">
+                  <dt>Downloads</dt>
+                  <dd>
+                    <DownloadCount labelled={false} />
+                  </dd>
+                </div>
               </dl>
             </div>
           </div>

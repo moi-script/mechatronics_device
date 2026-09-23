@@ -74,14 +74,30 @@ export function ApkDownloadLink({ href, className, children }: Props) {
 }
 
 /**
- * How many downloads there have been, once the API says.
+ * How many downloads there have been, read off the panel the way this app
+ * reads off every other count.
  *
- * Zero is a real answer and says so, because a tally that hides until it is
- * flattering is indistinguishable from one that is broken — and the first
- * thing a new deployment shows is zero. Only an API that never answered
- * leaves the line out, since then there is genuinely nothing to report.
+ * The board already shows LEADS 00 and FAULTS 00 in zero-padded registers, so
+ * a download tally has somewhere to live that was not invented for it: a
+ * totalizer, the cycle counter bolted beside a machine. That also settles what
+ * nothing looks like — 0000 is a reading an instrument is happy to give, where
+ * a sentence saying there are none reads like an apology.
+ *
+ * Steel and carbon only. The amber belongs to the download button; a register
+ * competing with it would be a second thing asking to be pressed, and this one
+ * cannot be pressed at all.
+ *
+ * Zero is a real answer. Only an API that never replied leaves the register
+ * out, because then there is genuinely nothing to read.
  */
-export function DownloadCount({ className }: { className?: string }) {
+export function DownloadCount({
+  className,
+  /** Off where the surrounding row already names what is being counted. */
+  labelled = true,
+}: {
+  className?: string;
+  labelled?: boolean;
+}) {
   const [total, setTotal] = useState<number | null>(null);
 
   useEffect(() => {
@@ -105,11 +121,32 @@ export function DownloadCount({ className }: { className?: string }) {
 
   if (total === null) return null;
 
+  // Four places keeps the register a fixed width as the count climbs, and
+  // widens only if it ever outgrows them.
+  const digits = String(total).padStart(4, '0').split('');
+
   return (
-    <span className={className}>
-      {total === 0
-        ? 'No downloads yet'
-        : `${total.toLocaleString('en-GB')} ${total === 1 ? 'download' : 'downloads'}`}
+    <span className={'inline-flex shrink-0 items-center gap-2 ' + (className ?? '')}>
+      <span
+        className="flex overflow-hidden rounded-[2px] border border-steel-400 bg-steel-50"
+        role="img"
+        aria-label={total.toLocaleString('en-GB') + (total === 1 ? ' download' : ' downloads')}
+      >
+        {digits.map((d, i) => (
+          <span
+            key={i}
+            aria-hidden
+            className="border-l border-steel-300 px-[5px] py-[3px] font-mono text-[13px] leading-none font-semibold tabular-nums text-carbon-900 first:border-l-0"
+          >
+            {d}
+          </span>
+        ))}
+      </span>
+      {labelled && (
+        <span aria-hidden className="text-xs text-carbon-600">
+          {total === 1 ? 'download' : 'downloads'}
+        </span>
+      )}
     </span>
   );
 }
