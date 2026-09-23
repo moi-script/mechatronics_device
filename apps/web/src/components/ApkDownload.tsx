@@ -17,10 +17,43 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { OFFLINE } from '@/lib/api';
 
+/**
+ * A random name this browser calls itself, so the tally can tell a second tap
+ * from a second person.
+ *
+ * The server cannot work this out for itself: every request reaches it through
+ * Vercel and then Render, so the address it sees belongs to a proxy that moves
+ * between instances, not to anyone downloading. Letting the browser say who it
+ * is keeps the count independent of how the site happens to be hosted.
+ *
+ * It identifies nobody — it is random, it lives on the one device, and the
+ * server stores only a hash of it.
+ */
+const DEVICE = 'mech-device';
+
+function deviceId(): string {
+  try {
+    const seen = localStorage.getItem(DEVICE);
+    if (seen) return seen;
+    const made = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem(DEVICE, made);
+    return made;
+  } catch {
+    // Storage blocked: the download still counts, it just cannot be told
+    // apart from another one later.
+    return 'anonymous';
+  }
+}
+
 /** Tell the API a download is starting. Never blocks it, never throws. */
 function count(): void {
   try {
-    void fetch('/api/downloads', { method: 'POST', keepalive: true }).catch(() => {});
+    void fetch('/api/downloads', {
+      method: 'POST',
+      keepalive: true,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device: deviceId() }),
+    }).catch(() => {});
   } catch {
     // A blocked or failed count is not worth interrupting a download over.
   }
@@ -41,10 +74,12 @@ export function ApkDownloadLink({ href, className, children }: Props) {
 }
 
 /**
- * How many downloads there have been, once the API says. It renders nothing
- * until then — and nothing at all if the API is asleep or the count is zero,
- * because an empty number beside a download button reads worse than no
- * number at all.
+ * How many downloads there have been, once the API says.
+ *
+ * Zero is a real answer and says so, because a tally that hides until it is
+ * flattering is indistinguishable from one that is broken — and the first
+ * thing a new deployment shows is zero. Only an API that never answered
+ * leaves the line out, since then there is genuinely nothing to report.
  */
 export function DownloadCount({ className }: { className?: string }) {
   const [total, setTotal] = useState<number | null>(null);
@@ -68,11 +103,13 @@ export function DownloadCount({ className }: { className?: string }) {
     };
   }, []);
 
-  if (total === null || total === 0) return null;
+  if (total === null) return null;
 
   return (
     <span className={className}>
-      {total.toLocaleString('en-GB')} {total === 1 ? 'download' : 'downloads'}
+      {total === 0
+        ? 'No downloads yet'
+        : `${total.toLocaleString('en-GB')} ${total === 1 ? 'download' : 'downloads'}`}
     </span>
   );
 }

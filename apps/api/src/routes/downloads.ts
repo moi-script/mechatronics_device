@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Router, type Request } from 'express';
 import rateLimit from 'express-rate-limit';
+import { z } from 'zod';
 import { dbReady } from '../db';
 import { Counter, DownloadHit } from '../models';
 
@@ -10,20 +11,35 @@ export const downloadsRouter = Router();
 const TALLY = 'apk-downloads';
 
 /**
- * Enough to recognise the same person coming back today, and nothing more.
- * The address and browser go in, a hash comes out, and only the hash is
+ * The random name the browser calls itself by, if it sent a usable one.
+ *
+ * Deliberately not the client's address. Every request arrives here through
+ * Vercel and then Render, so the address belongs to a proxy that moves between
+ * instances — two taps from one phone look like two people, which is exactly
+ * what the tally must not do. What the browser stores for itself is stable in
+ * a way the network path is not.
+ */
+const sent = z.object({ device: z.string().min(1).max(64) });
+
+/**
+ * Enough to recognise the same browser coming back today, and nothing more.
+ * A random id and the date go in, a hash comes out, and only the hash is
  * stored — so the count can tell a repeat from a new download without the
- * database ever holding who either of them was.
+ * database holding anything that points at a person.
  *
  * The day is part of it deliberately. Someone downloading again next week is
  * a real download: they are taking a newer build, or putting it on a second
  * phone. Someone tapping twice in a minute is not.
+ *
+ * A browser that sent nothing usable falls back to its address, which is
+ * wrong behind a proxy but is only ever reached by something that is not the
+ * download button.
  */
 function fingerprint(req: Request): string {
+  const parsed = sent.safeParse(req.body);
+  const who = parsed.success ? 'device:' + parsed.data.device : 'addr:' + (req.ip ?? '');
   const day = new Date().toISOString().slice(0, 10);
-  return createHash('sha256')
-    .update([req.ip ?? '', req.headers['user-agent'] ?? '', day].join('|'))
-    .digest('hex');
+  return createHash('sha256').update([who, day].join('|')).digest('hex');
 }
 
 /** The tally as it stands, or null when the database cannot be reached. */
