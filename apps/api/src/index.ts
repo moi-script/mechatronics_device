@@ -7,6 +7,7 @@ import { env } from './env';
 import { closeDb, connectDb, dbReady } from './db';
 import { authRouter } from './routes/auth';
 import { circuitsRouter } from './routes/circuits';
+import { downloadsRouter } from './routes/downloads';
 
 const app = express();
 
@@ -61,6 +62,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api', circuitsRouter);
+app.use('/api', downloadsRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Not found.' });

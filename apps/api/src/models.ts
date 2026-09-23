@@ -52,3 +52,43 @@ const model = <T>(name: string, schema: Schema<T>): Model<T> =>
 
 export const User = model('User', userSchema);
 export const Circuit = model('Circuit', circuitSchema);
+
+/**
+ * A named running total. Kept as its own tiny document so a count can be
+ * raised with one atomic `$inc` rather than read, added to and written back,
+ * which would lose increments whenever two people downloaded at once.
+ */
+export interface CounterDoc {
+  _id: string;
+  count: number;
+}
+
+const counterSchema = new Schema<CounterDoc>(
+  { _id: { type: String }, count: { type: Number, required: true, default: 0 } },
+  { versionKey: false },
+);
+
+/**
+ * One row per download already counted, so the same phone tapping the button
+ * four times is still one download. The row holds a hash, never an address:
+ * it only has to collide with itself.
+ *
+ * These expire; the tally is the record, and these exist only to keep it
+ * honest for as long as a repeat is plausible.
+ */
+export interface DownloadHitDoc {
+  _id: Types.ObjectId;
+  key: string;
+  at: Date;
+}
+
+const downloadHitSchema = new Schema<DownloadHitDoc>(
+  {
+    key: { type: String, required: true, unique: true },
+    at: { type: Date, required: true, default: Date.now, expires: '30d' },
+  },
+  { versionKey: false },
+);
+
+export const Counter = model('Counter', counterSchema);
+export const DownloadHit = model('DownloadHit', downloadHitSchema);

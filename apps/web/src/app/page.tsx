@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Download, Github, MoveRight } from 'lucide-react';
 import { BrandMark } from '@/components/BrandMark';
 import { HeroCircuit } from '@/components/landing/HeroCircuit';
+import { ApkDownloadLink, DownloadCount } from '@/components/ApkDownload';
 import published from '../../public/apk-version.json';
 
 export const metadata: Metadata = {
@@ -140,9 +141,8 @@ export default function Page() {
                 Open the board
                 <MoveRight className="h-4 w-4" />
               </Link>
-              <a
+              <ApkDownloadLink
                 href={APK.href}
-                download
                 className="inline-flex items-center gap-2 rounded-sm border border-steel-400 bg-steel-100 px-5 py-3 text-[15px] font-semibold text-carbon-900 hover:bg-steel-50"
               >
                 <Download className="h-4 w-4" />
@@ -150,8 +150,9 @@ export default function Page() {
                 <span className="font-mono text-xs font-normal text-carbon-600">
                   {APK.version} · {APK.size}
                 </span>
-              </a>
+              </ApkDownloadLink>
             </div>
+            <DownloadCount className="mt-3 block font-mono text-xs text-carbon-600" />
           </div>
           <HeroCircuit className="w-full" />
         </section>
@@ -246,14 +247,14 @@ export default function Page() {
               <BrandMark className="h-10 w-10" />
               <p className="mt-3 font-cond text-lg font-bold text-carbon-900">Mechatronic</p>
               <p className="text-sm text-carbon-600">Offline Android app</p>
-              <a
+              <ApkDownloadLink
                 href={APK.href}
-                download
                 className="mt-5 flex items-center justify-center gap-2 rounded-sm bg-signal-amber px-4 py-3 text-[15px] font-bold text-carbon-900 hover:brightness-105"
               >
                 <Download className="h-4 w-4" />
                 Download the APK
-              </a>
+              </ApkDownloadLink>
+              <DownloadCount className="mt-2 block text-center font-mono text-xs text-carbon-600" />
               <dl className="mt-5 space-y-2 border-t border-steel-300 pt-4 font-mono text-xs text-carbon-600">
                 {[
                   ['Version', APK.version],
