@@ -156,7 +156,7 @@ export default function Page() {
                   <Download className="h-4 w-4" />
                   Download for Android
                 </ApkDownloadLink>
-                <DownloadCount />
+                <DownloadCount className="text-sm text-carbon-600" />
               </span>
             </div>
           </div>
@@ -275,7 +275,7 @@ export default function Page() {
                 ))}
                 <div className="flex items-center justify-between gap-4">
                   <dt>Downloads</dt>
-                  <dd>
+                  <dd className="text-carbon-900">
                     <DownloadCount labelled={false} />
                   </dd>
                 </div>
