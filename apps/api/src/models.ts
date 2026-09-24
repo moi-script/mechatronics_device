@@ -5,6 +5,8 @@ export interface UserDoc {
   email: string;
   passwordHash: string;
   name: string;
+  /** A pending password reset: the code's hash, when it lapses, and wrong guesses so far. */
+  reset?: { codeHash: string; expires: Date; tries: number };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +29,10 @@ const userSchema = new Schema<UserDoc>(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
     name: { type: String, required: true },
+    reset: {
+      type: new Schema({ codeHash: String, expires: Date, tries: Number }, { _id: false }),
+      required: false,
+    },
   },
   { timestamps: true },
 );

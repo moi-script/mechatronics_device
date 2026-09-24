@@ -37,4 +37,18 @@ export const env = {
   trustProxy: process.env.TRUST_PROXY === 'true',
   /** Needed when the browser calls the API cross-site rather than through a proxy. */
   crossSiteCookies: process.env.CROSS_SITE_COOKIES === 'true',
+  /**
+   * Outgoing mail, for password reset codes. Unset means no mail goes out:
+   * locally the code is printed to the console instead, and in production the
+   * reset endpoint says it is not available.
+   */
+  smtp: process.env.SMTP_HOST
+    ? {
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT ?? 465),
+        user: process.env.SMTP_USER ?? '',
+        pass: process.env.SMTP_PASS ?? '',
+        from: process.env.MAIL_FROM ?? process.env.SMTP_USER ?? '',
+      }
+    : null,
 } as const;

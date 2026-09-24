@@ -27,3 +27,11 @@ services:
         sync: false
       - key: WEB_ORIGIN
         sync: false
+      # Outgoing mail for password reset codes. Without SMTP_HOST the site
+      # says reset is unavailable. For Gmail: smtp.gmail.com and an App Password.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false

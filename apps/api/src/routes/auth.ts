@@ -1,7 +1,9 @@
 import { Router, type Response } from 'express';
+import { randomInt } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
+import { canSendMail, sendResetCode } from '../mail';
 import { Circuit, User } from '../models';
 import {
   COOKIE,
@@ -89,6 +91,76 @@ authRouter.post('/login', credentialLimit, async (req, res) => {
     return;
   }
 
+  res.json({ user: shape(user), ...grant(req, res, String(user._id)) });
+});
+
+const RESET_MINUTES = 15;
+const RESET_TRIES = 5;
+
+/**
+ * Emails a six-digit code rather than a link, so the same flow works in the
+ * installed app, which has no page a link could open. The answer is the same
+ * whether or not the address is registered, so this cannot be used to find out.
+ */
+authRouter.post('/forgot', credentialLimit, async (req, res) => {
+  const parsed = z.object({ email }).safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Enter the email you registered with.' });
+    return;
+  }
+  if (!canSendMail()) {
+    res.status(503).json({ error: 'Password reset is not available right now.' });
+    return;
+  }
+
+  const user = await User.findOne({ email: parsed.data.email });
+  if (user) {
+    const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+    user.reset = {
+      codeHash: await bcrypt.hash(code, 10),
+      expires: new Date(Date.now() + RESET_MINUTES * 60_000),
+      tries: 0,
+    };
+    await user.save();
+    try {
+      await sendResetCode(user.email, code);
+    } catch (err) {
+      console.error('[mail]', err);
+      res.status(502).json({ error: 'The email could not be sent. Try again in a moment.' });
+      return;
+    }
+  }
+  res.json({ ok: true });
+});
+
+const resetSchema = z.object({ email, code: z.string().trim().regex(/^\d{6}$/, 'The code is six digits.'), password });
+
+authRouter.post('/reset', credentialLimit, async (req, res) => {
+  const parsed = resetSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Check the details you entered.' });
+    return;
+  }
+
+  const bad = () => res.status(400).json({ error: 'That code is wrong or has expired. Ask for a new one.' });
+  const user = await User.findOne({ email: parsed.data.email });
+  const pending = user?.reset;
+  if (!user || !pending || pending.expires < new Date() || pending.tries >= RESET_TRIES) {
+    bad();
+    return;
+  }
+
+  if (!(await bcrypt.compare(parsed.data.code, pending.codeHash))) {
+    // Counted on the account, not the caller, so spreading guesses over many
+    // addresses cannot outrun it.
+    await User.updateOne({ _id: user._id }, { $inc: { 'reset.tries': 1 } });
+    bad();
+    return;
+  }
+
+  user.passwordHash = await bcrypt.hash(parsed.data.password, 12);
+  user.reset = undefined;
+  await user.save();
   res.json({ user: shape(user), ...grant(req, res, String(user._id)) });
 });
 

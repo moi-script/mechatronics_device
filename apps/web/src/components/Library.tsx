@@ -24,17 +24,36 @@ import { useSession } from '@/store/useSession';
 import { ConfirmDialog } from './ConfirmDialog';
 
 function AuthForm({ onDone }: { onDone: (u: User) => void }) {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [form, setForm] = useState({ email: '', password: '', name: '' });
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'reset'>('login');
+  const [form, setForm] = useState({ email: '', password: '', name: '', code: '' });
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const go = (next: typeof mode) => {
+    setMode(next);
+    setError(null);
+    setNotice(null);
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      const { user } = mode === 'login' ? await api.login(form) : await api.register(form);
+      if (mode === 'forgot') {
+        await api.forgot({ email: form.email });
+        setForm({ ...form, code: '', password: '' });
+        setMode('reset');
+        setNotice('If that email is registered, a six-digit code is on its way. Check spam too.');
+        return;
+      }
+      const { user } =
+        mode === 'login'
+          ? await api.login(form)
+          : mode === 'register'
+            ? await api.register(form)
+            : await api.reset(form);
       onDone(user);
     } catch (err) {
       setError((err as Error).message);
@@ -45,10 +64,21 @@ function AuthForm({ onDone }: { onDone: (u: User) => void }) {
 
   const field =
     'w-full rounded-sm border border-steel-400 bg-steel-100 px-3 py-2 text-sm text-carbon-900 outline-none focus:border-signal-amber';
+  const link = 'w-full text-xs text-carbon-600 hover:text-carbon-900';
+
+  const intro = {
+    login: 'Sign in to keep your circuits between sessions.',
+    register: 'Sign in to keep your circuits between sessions.',
+    forgot: 'Enter the email you registered with and we will send you a code to set a new password.',
+    reset: 'Enter the code from the email and choose a new password.',
+  }[mode];
+
+  const action = { login: 'Sign in', register: 'Create account', forgot: 'Send code', reset: 'Set new password' }[mode];
 
   return (
     <form onSubmit={submit} className="space-y-3">
-      <p className="text-xs text-carbon-600">Sign in to keep your circuits between sessions.</p>
+      <p className="text-xs text-carbon-600">{intro}</p>
+      {notice && <p className="text-xs text-run-green">{notice}</p>}
       {mode === 'register' && (
         <input
           className={field}
@@ -64,31 +94,53 @@ function AuthForm({ onDone }: { onDone: (u: User) => void }) {
         placeholder="Email"
         value={form.email}
         onChange={(e) => setForm({ ...form, email: e.target.value })}
+        readOnly={mode === 'reset'}
         required
       />
-      <input
-        className={field}
-        type="password"
-        placeholder="Password"
-        value={form.password}
-        onChange={(e) => setForm({ ...form, password: e.target.value })}
-        required
-        minLength={6}
-      />
+      {mode === 'reset' && (
+        <input
+          className={field}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          placeholder="Six-digit code"
+          value={form.code}
+          onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+          required
+          pattern="\d{6}"
+        />
+      )}
+      {mode !== 'forgot' && (
+        <input
+          className={field}
+          type="password"
+          placeholder={mode === 'reset' ? 'New password' : 'Password'}
+          autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+          value={form.password}
+          onChange={(e) => setForm({ ...form, password: e.target.value })}
+          required
+          minLength={mode === 'login' ? 1 : 8}
+        />
+      )}
       {error && <p className="text-xs text-safety-red">{error}</p>}
       <button
         type="submit"
         disabled={busy}
         className="w-full rounded-sm border border-run-green/40 bg-run-green/10 py-2 text-sm font-semibold text-run-green hover:bg-run-green/20 disabled:opacity-50"
       >
-        {mode === 'login' ? 'Sign in' : 'Create account'}
+        {action}
       </button>
-      <button
-        type="button"
-        onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-        className="w-full text-xs text-carbon-600 hover:text-carbon-900"
-      >
-        {mode === 'login' ? 'No account yet? Register' : 'Already registered? Sign in'}
+      {mode === 'login' && (
+        <button type="button" onClick={() => go('forgot')} className={link}>
+          Forgot password?
+        </button>
+      )}
+      {mode === 'reset' && (
+        <button type="button" onClick={() => go('forgot')} className={link}>
+          Didn&apos;t get it? Send another code
+        </button>
+      )}
+      <button type="button" onClick={() => go(mode === 'login' ? 'register' : 'login')} className={link}>
+        {mode === 'login' ? 'No account yet? Register' : mode === 'register' ? 'Already registered? Sign in' : 'Back to sign in'}
       </button>
     </form>
   );

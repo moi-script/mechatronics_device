@@ -97,6 +97,9 @@ const cloud = {
     withToken(req<{ user: User; token?: string }>('/auth/register', post(d))),
   login: (d: { email: string; password: string }) =>
     withToken(req<{ user: User; token?: string }>('/auth/login', post(d))),
+  forgot: (d: { email: string }) => req<{ ok: true }>('/auth/forgot', post(d)),
+  reset: (d: { email: string; code: string; password: string }) =>
+    withToken(req<{ user: User; token?: string }>('/auth/reset', post(d))),
   logout: async () => {
     try {
       await req<{ ok: true }>('/auth/logout', { method: 'POST' });
@@ -157,6 +160,8 @@ const device: typeof cloud = {
   me: async () => ({ user: DEVICE_USER }),
   register: async () => ({ user: DEVICE_USER }),
   login: async () => ({ user: DEVICE_USER }),
+  forgot: async () => ({ ok: true }),
+  reset: async () => ({ user: DEVICE_USER }),
   logout: async () => ({ ok: true }),
 
   listCircuits: async () => ({
@@ -206,6 +211,8 @@ const route: typeof cloud = {
   },
   register: (d) => (CLOUD_URL ? cloud.register(d) : device.register(d)),
   login: (d) => (CLOUD_URL ? cloud.login(d) : device.login(d)),
+  forgot: (d) => (CLOUD_URL ? cloud.forgot(d) : device.forgot(d)),
+  reset: (d) => (CLOUD_URL ? cloud.reset(d) : device.reset(d)),
   logout: async () => (hasCloudSession() ? cloud.logout() : device.logout()),
 
   listCircuits: () => (hasCloudSession() ? cloud.listCircuits() : device.listCircuits()),
