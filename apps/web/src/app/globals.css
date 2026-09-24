@@ -129,6 +129,25 @@ body {
   touch-action: none;
 }
 
+/*
+ * SVG blurs and drop shadows are the costliest thing on the board: every one
+ * is re-rasterised on each frame of a pan or pinch, which is what heats a
+ * phone. Touch screens never draw them, and everyone else loses them only
+ * while the view is moving. CSS outranks the filter attribute, and !important
+ * is needed to beat the inline blur on unfocused modules.
+ */
+.board-moving svg [filter],
+.board-moving svg [style*='blur'] {
+  filter: none !important;
+}
+
+@media (pointer: coarse) {
+  .board-grid svg [filter],
+  .board-grid svg [style*='blur'] {
+    filter: none !important;
+  }
+}
+
 /* An engraved section rule, used for panel headings in the chrome. */
 .engraved {
   font-family: var(--font-cond);

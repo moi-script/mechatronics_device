@@ -51,6 +51,19 @@ export function Board() {
   const getScale = useCallback(() => zoomRef.current?.instance.transformState.scale ?? 1, []);
 
   /**
+   * Strip the costly SVG filters while the view is moving (see globals.css).
+   * Set on the element rather than through state so a gesture never re-renders
+   * the board, and restored after a beat so wheel steps don't flicker them.
+   */
+  const settle = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const setMoving = useCallback((moving: boolean) => {
+    clearTimeout(settle.current);
+    if (moving) hostRef.current?.classList.add('board-moving');
+    else settle.current = setTimeout(() => hostRef.current?.classList.remove('board-moving'), 200);
+  }, []);
+  useEffect(() => () => clearTimeout(settle.current), []);
+
+  /**
    * Rule the bench under the board. The ruling is painted on a fixed sheet the
    * size of the viewport and simply re-offset as the board moves, so it costs
    * nothing to pan forever: there is no edge to reach in any direction.
@@ -290,10 +303,19 @@ export function Board() {
           pinch={{ step: 4 }}
           onPanningStart={() => {
             touched.current = true;
+            setMoving(true);
           }}
+          onPanningStop={() => setMoving(false)}
           onZoomStart={() => {
             touched.current = true;
+            setMoving(true);
           }}
+          onZoomStop={() => setMoving(false)}
+          onPinchingStart={() => {
+            touched.current = true;
+            setMoving(true);
+          }}
+          onPinchingStop={() => setMoving(false)}
           onTransformed={(_ref, state) => paintGrid(state.scale, state.positionX, state.positionY)}
         >
           <TransformComponent wrapperClass="!w-full !h-full" contentClass="!w-auto !h-auto">

@@ -59,7 +59,7 @@ export function SessionTimer() {
       } else {
         setRemainingMs(left);
       }
-    }, 250);
+    }, 500);
     return () => clearInterval(id);
   }, [running]);
 
