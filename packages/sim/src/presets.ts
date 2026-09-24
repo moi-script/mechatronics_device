@@ -366,6 +366,94 @@ export const PNEUMATIC_BOARD_SEQUENCE: Preset = {
 };
 
 /**
+ * A+, then A- and B+ together, then B-, on two single-acting cylinders.
+ *
+ *   PB1 -> A extends
+ *   a1  -> A retracts and B extends, in the same instant
+ *   b1  -> B retracts, and the board comes back to rest
+ *
+ * Built from the Festech panels only. A single-acting rod sits out only while
+ * its 3/2 valve is energized, and the spring brings it home the moment the
+ * coil drops, so each rod needs a relay to hold its valve for the stroke:
+ *
+ *   R1   A's memory: set by button 1, held through R2's NC contact
+ *        21-24 NO  its own hold
+ *        31-34 NO  the A valve
+ *   R2   B's memory: set by a1, held through R3's NC contact
+ *        11-12 NC  feeds button 1 and R1's hold, so a1 dropping A is the
+ *                  same event as picking B up, and button 1 is dead while
+ *                  B is out
+ *        21-24 NO  its own hold
+ *        31-34 NO  the B valve
+ *   R3   picked up by b1, not held
+ *        11-12 NC  feeds a1 and R2's hold, so b1 ends the cycle
+ *
+ * a1 and b1 are the front reed sensors on each barrel. a1 stays made while A
+ * is on its way home, which is why R3 has to break a1's feed as well as R2's
+ * hold, or R2 could be picked straight back up.
+ */
+export const SINGLE_ACTING_SEQUENCE_PRESET: Preset = {
+  id: 'single-acting-a-ab-b-sequence',
+  name: 'Single-acting A+ (A- B+) B-',
+  summary: 'Two single-acting cylinders: A out, then A home as B goes out, then B home.',
+  steps: [
+    'Close the breaker. Both rods sit home on their springs.',
+    'Press button 1 on the push-button unit: relay R1 latches and cylinder A extends (A+).',
+    "A's front sensor a1 picks up R2, which drops R1 and energizes B's valve: A retracts as B extends (A- B+).",
+    "B's front sensor b1 picks up R3, which drops R2: B retracts (B-). The cycle is over and button 1 starts it again.",
+  ],
+  build(): Circuit {
+    const h = new Harness('sact');
+
+    // --- power ---------------------------------------------------------------
+    h.add(['PSU1', 'P1'], ['RU1', 'V1']);
+    h.add(['PSU1', 'N1'], ['RU1', 'G1'], 'blue');
+    h.add(['RU1', 'V2'], ['PBU1', 'V5']);
+
+    // --- step 1: button 1 latches R1, R1 extends A --------------------------
+    h.add(['RU1', 'V3'], ['RU1', 'R2_11']); // everything of A's runs through R2 NC
+    h.add(['RU1', 'R2_12'], ['PBU1', 'B1_13']);
+    h.add(['PBU1', 'B1_14'], ['RU1', 'R1_A1']);
+    h.add(['RU1', 'R1_A2'], ['RU1', 'G2'], 'blue');
+    h.add(['RU1', 'R2_12'], ['RU1', 'R1_21'], 'yellow'); // hold, broken by R2
+    h.add(['RU1', 'R1_24'], ['RU1', 'R1_A1'], 'yellow');
+    h.add(['RU1', 'V4'], ['RU1', 'R1_31'], 'green'); // A valve
+    h.add(['RU1', 'R1_34'], ['V32N1', 'Y_P'], 'green');
+    h.add(['V32N1', 'Y_N'], ['RU1', 'G3'], 'blue');
+
+    // --- step 2: a1 latches R2, which drops A and extends B -----------------
+    h.add(['RU1', 'V5'], ['RU1', 'R3_11']); // everything of B's runs through R3 NC
+    h.add(['RU1', 'R3_12'], ['SCYL1', 'S2_P']); // a1: A extended
+    h.add(['SCYL1', 'S2_O'], ['RU1', 'R2_A1']);
+    h.add(['RU1', 'R2_A2'], ['RU1', 'G4'], 'blue');
+    h.add(['RU1', 'R3_12'], ['RU1', 'R2_21'], 'yellow'); // hold, broken by R3
+    h.add(['RU1', 'R2_24'], ['RU1', 'R2_A1'], 'yellow');
+    h.add(['PSU1', 'P2'], ['RU1', 'R2_31'], 'green'); // B valve
+    h.add(['RU1', 'R2_34'], ['V32N2', 'Y_P'], 'green');
+    h.add(['V32N2', 'Y_N'], ['RU1', 'G5'], 'blue');
+
+    // --- step 3: b1 picks up R3, which drops R2 and sends B home ------------
+    h.add(['PSU1', 'P3'], ['SCYL2', 'S2_P']); // b1: B extended
+    h.add(['SCYL2', 'S2_O'], ['RU1', 'R3_A1']);
+    h.add(['RU1', 'R3_A2'], ['PSU1', 'N2'], 'blue');
+
+    // --- air: the distributor feeds both 3/2 valves, each its own cylinder --
+    h.tube(['AIR1', 'O1'], ['V32N1', 'A1']);
+    h.tube(['V32N1', 'A2'], ['SCYL1', 'A']);
+    h.tube(['AIR1', 'O2'], ['V32N2', 'A1']);
+    h.tube(['V32N2', 'A2'], ['SCYL2', 'A']);
+
+    return {
+      modules: layout(
+        ['BREAKER', 'PSU1', 'PBU1', 'RU1', 'AIR1', 'V32N1', 'V32N2', 'SCYL1', 'SCYL2'],
+        (m) => (m.id === 'BREAKER' ? { ...m, x: 40, y: 990 } : m),
+      ),
+      wires: h.done(),
+    };
+  },
+};
+
+/**
  * Every preset the bench offers. The two pneumatic sequences are built and
  * tested here but not listed: they live in the accounts of the people who use
  * them, and a library that ships a copy of a circuit you already have saved
