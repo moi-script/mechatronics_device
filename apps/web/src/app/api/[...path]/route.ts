@@ -56,5 +56,9 @@ export const PUT = proxy;
 export const PATCH = proxy;
 export const DELETE = proxy;
 export const HEAD = proxy;
+// The Android app calls this origin cross-site, so its requests are preflighted.
+// Left to Next.js, OPTIONS gets a bare 204 with no CORS headers and the webview
+// refuses the real request ("Failed to fetch"). The API knows which origins to allow.
+export const OPTIONS = proxy;
 
 export const dynamic = 'force-dynamic';

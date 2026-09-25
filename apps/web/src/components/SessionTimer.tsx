@@ -128,22 +128,24 @@ export function SessionTimer() {
           >
             {running ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
           </button>
+          {/* Restart and off live in the menu too, so a phone's crowded top row drops them. */}
           <button
             type="button"
-            className={iconBtn}
+            className={clsx(iconBtn, 'hidden sm:block')}
             title={'Restart ' + minutes + ' min'}
             onClick={() => start(minutes)}
           >
             <RotateCcw className="h-3.5 w-3.5" />
           </button>
-          <button type="button" className={iconBtn} title="Turn the timer off" onClick={stop}>
+          <button type="button" className={clsx(iconBtn, 'hidden sm:block')} title="Turn the timer off" onClick={stop}>
             <Square className="h-3.5 w-3.5" />
           </button>
         </>
       )}
 
       {menuOpen && (
-        <div className="absolute left-0 top-full z-50 mt-1.5 w-56 rounded-sm border border-steel-400 bg-steel-50 p-3 shadow-xl">
+        // On a phone the timer sits at the right edge, so the menu hangs leftwards from it.
+        <div className="absolute right-0 top-full z-50 mt-1.5 w-56 max-w-[calc(100vw-1rem)] rounded-sm sm:left-0 sm:right-auto border border-steel-400 bg-steel-50 p-3 shadow-xl">
           <p className="engraved mb-2 text-[10px] font-bold text-carbon-600">Practice timer</p>
           <div className="grid grid-cols-4 gap-1.5">
             {PRESETS.map((m) => (
