@@ -16,6 +16,7 @@ import {
   type Circuit,
   type EndRef,
   type Inputs,
+  type LadderRung,
   type SimError,
   type SimResult,
   type SimState,
@@ -58,6 +59,8 @@ interface BoardStore extends Core {
   tick(): void;
   /** Dial a timer's set point, in seconds. */
   setTimerDelay(id: string, seconds: number): void;
+  /** Load a ladder program into a PLC. */
+  setLadder(id: string, ladder: LadderRung[]): void;
 
   /** Put a bench part down on the board, at its slot in the bench layout. */
   addModule(id: string): void;
@@ -168,6 +171,14 @@ export const useBoard = create<BoardStore>((set, get) => ({
       const circuit = {
         ...s.circuit,
         modules: s.circuit.modules.map((m) => (m.id === id ? { ...m, delaySec } : m)),
+      };
+      return { ...resolve({ ...s, circuit }), ...remember(s), dirty: true };
+    }),
+  setLadder: (id, ladder) =>
+    set((s) => {
+      const circuit = {
+        ...s.circuit,
+        modules: s.circuit.modules.map((m) => (m.id === id ? { ...m, ladder } : m)),
       };
       return { ...resolve({ ...s, circuit }), ...remember(s), dirty: true };
     }),

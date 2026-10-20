@@ -34,6 +34,28 @@ const circuitSchema = z.object({
         mount: z
           .object({ cylinderId: z.string().max(40), at: z.enum(['home', 'out']) })
           .optional(),
+        // A PLC's program. Drop it and the PLC comes back blank, and the
+        // circuit wired around it does nothing.
+        ladder: z
+          .array(
+            z.object({
+              branches: z
+                .array(
+                  z
+                    .array(
+                      z.object({
+                        addr: z.string().regex(/^(I(0\d|1[01])|Q0[0-7])$/),
+                        nc: z.boolean().optional(),
+                      }),
+                    )
+                    .max(8),
+                )
+                .max(8),
+              coil: z.object({ addr: z.string().regex(/^Q0[0-7]$/), kind: z.enum(['OUT', 'SET', 'RST']) }),
+            }),
+          )
+          .max(64)
+          .optional(),
       }),
     )
     .max(64),
