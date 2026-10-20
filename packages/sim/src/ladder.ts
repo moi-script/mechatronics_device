@@ -101,3 +101,34 @@ export function scan(rungs: unknown, bits: Record<string, boolean>, clock?: Ladd
   }
   return working;
 }
+
+const COIL_KINDS: LadderCoilKind[] = ['OUT', 'SET', 'RST', 'TON'];
+
+/**
+ * A ladder from a project file, reduced to well-formed rungs; undefined when it
+ * is not a list at all. The solver copes with junk, but the editor draws every
+ * rung and would trip on a missing branch list.
+ */
+export function cleanLadder(v: unknown): LadderRung[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out: LadderRung[] = [];
+  for (const r of v) {
+    if (!isObj(r) || !Array.isArray(r.branches) || !isObj(r.coil)) continue;
+    const { addr, kind, presetSec } = r.coil;
+    if (typeof addr !== 'string' || !COIL_KINDS.includes(kind as LadderCoilKind)) continue;
+    const branches = r.branches
+      .filter(Array.isArray)
+      .map((b: unknown[]) =>
+        b
+          .filter((ct): ct is Record<string, unknown> => isObj(ct) && typeof ct.addr === 'string')
+          .map((ct) => ({ addr: ct.addr as string, ...(ct.nc === true ? { nc: true } : {}) })),
+      );
+    const coil = {
+      addr,
+      kind: kind as LadderCoilKind,
+      ...(typeof presetSec === 'number' && Number.isFinite(presetSec) ? { presetSec } : {}),
+    };
+    out.push({ branches, coil });
+  }
+  return out;
+}

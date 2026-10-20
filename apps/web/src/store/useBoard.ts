@@ -180,7 +180,13 @@ export const useBoard = create<BoardStore>((set, get) => ({
         ...s.circuit,
         modules: s.circuit.modules.map((m) => (m.id === id ? { ...m, ladder } : m)),
       };
-      return { ...resolve({ ...s, circuit }), ...remember(s), dirty: true };
+      // Loading a program is a download: the PLC drops its outputs and timers
+      // and starts the new ladder from scratch, so a deleted rung can't leave
+      // its output latched on.
+      const mine = (k: string) => k.startsWith(`${id}.`);
+      const drop = <T,>(r: Record<string, T> = {}) => Object.fromEntries(Object.entries(r).filter(([k]) => !mine(k)));
+      const simState = { ...s.simState, plc: drop(s.simState.plc), timerStart: drop(s.simState.timerStart) };
+      return { ...resolve({ ...s, circuit, simState }), ...remember(s), dirty: true };
     }),
   addModule: (id) =>
     set((s) => {

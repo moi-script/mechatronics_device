@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import {
+  cleanLadder,
   devicesOn,
   plcBits,
   PLC_INPUTS,
@@ -36,7 +37,7 @@ export function LadderEditor({ moduleId, onClose }: { moduleId: string; onClose:
   const sim = useBoard((s) => s.sim);
   const setLadder = useBoard((s) => s.setLadder);
   const m = circuit.modules.find((x) => x.id === moduleId);
-  const [rungs, setRungs] = useState<LadderRung[]>(() => structuredClone(m?.ladder ?? []));
+  const [rungs, setRungs] = useState<LadderRung[]>(() => cleanLadder(m?.ladder) ?? []);
   // The address a new contact is given: picked from the palette.
   const [armed, setArmed] = useState('I00');
 
@@ -241,18 +242,20 @@ export function LadderEditor({ moduleId, onClose }: { moduleId: string; onClose:
                       {r.coil.kind === 'TON' && (
                         <label className="flex items-center gap-0.5 text-[11px] text-carbon-800">
                           <input
+                            key={String(r.coil.presetSec ?? 1)}
                             type="number"
                             aria-label="Timer preset in seconds"
                             min={TON_MIN_SEC}
                             max={TON_MAX_SEC}
                             step={0.1}
-                            value={r.coil.presetSec ?? 1}
-                            onChange={(e) =>
-                              edit((d) => {
-                                const v = Number(e.target.value);
-                                if (Number.isFinite(v)) d[ri].coil.presetSec = Math.min(TON_MAX_SEC, Math.max(TON_MIN_SEC, v));
-                              })
-                            }
+                            defaultValue={r.coil.presetSec ?? 1}
+                            // Clamped once the student is done typing, not on every key.
+                            onBlur={(e) => {
+                              const v = Number(e.target.value);
+                              const sec = e.target.value === '' || !Number.isFinite(v) ? 1 : Math.min(TON_MAX_SEC, Math.max(TON_MIN_SEC, v));
+                              e.target.value = String(sec);
+                              edit((d) => void (d[ri].coil.presetSec = sec));
+                            }}
                             className="w-14 rounded-sm border border-steel-400 bg-steel-50 px-1 font-mono text-carbon-900"
                           />
                           s

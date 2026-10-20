@@ -112,3 +112,24 @@ test('a PLC timer runs on the wall clock and says when it is due', () => {
   const b = step(c, inputs({ pressed, now: 3000 }), a.state);
   assert.equal(b.coils['PBU1.L3'], true);
 });
+
+test('an output that holds itself through a relay stays on after the start button is released', () => {
+  const ladder: LadderRung[] = [
+    { branches: [[{ addr: 'I00' }], [{ addr: 'I05' }]], coil: { addr: 'Q00', kind: 'OUT' } },
+  ];
+  const c: Circuit = {
+    ...circuit(ladder, [
+      ...baseWires(),
+      wire(t('PLC1', 'Q00'), t('RU1', 'R1_A1')),
+      wire(t('RU1', 'R1_A2'), t('PSU1', 'N3')),
+      wire(t('PSU1', 'P4'), t('RU1', 'R1_11')),
+      wire(t('RU1', 'R1_14'), t('PLC1', 'I05')),
+    ]),
+  };
+  c.modules.push({ id: 'RU1', type: 'FT_RELAY3', x: 0, y: 0 });
+  const on = step(c, inputs({ pressed: { 'PBU1.B1': true } }), emptyState());
+  assert.equal(on.actuated['PLC1.Q00'], true);
+  const held = step(c, inputs(), on.state);
+  assert.equal(held.actuated['PLC1.Q00'], true);
+  assert.equal(step(c, inputs(), held.state).actuated['PLC1.Q00'], true);
+});

@@ -7,7 +7,7 @@
  * already plain data — the sim owns its shape, and anything that can read JSON
  * can read one of these.
  */
-import type { Circuit } from '@mech/sim';
+import { cleanLadder, type Circuit, type ModuleInstance } from '@mech/sim';
 import { Capacitor } from '@capacitor/core';
 
 export const FILE_FORMAT = 'mechatronic-trainer-circuit';
@@ -73,7 +73,12 @@ export function parse(text: string): { name: string; circuit: Circuit } {
     name: typeof doc.name === 'string' && doc.name.trim() ? doc.name.trim() : 'Imported circuit',
     // The board comes with it: a pneumatics circuit opened on the trainer
     // bench would be missing the switches its rows are built around.
-    circuit: { modules: circuit.modules, wires: circuit.wires, board: circuit.board ?? 'trainer' },
+    circuit: {
+      // A hand-edited ladder is cut down to rungs the editor can draw.
+      modules: circuit.modules.map((m: ModuleInstance) => (m.ladder === undefined ? m : { ...m, ladder: cleanLadder(m.ladder) })),
+      wires: circuit.wires,
+      board: circuit.board ?? 'trainer',
+    },
   };
 }
 

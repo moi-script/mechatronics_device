@@ -256,9 +256,16 @@ function actuatorsFor(
       out[actKey(m.id, 'EXT')] = !!sensedRod[m.id];
       return;
     case 'FT_PLC': {
-      // The PLC reads its inputs off the nets of the last pass, so it only
-      // runs once there is a pass to read — and only powered and in RUN.
-      const net = (pin: string) => (pass ? pass.nets[pass.pinNet[pinKey(m.id, pin)]] : undefined);
+      // Before the first pass there are no nets to read: the outputs start
+      // where the last step left them, as relay contacts start from their coils.
+      // After STOP or power loss those are all off already.
+      if (!pass) {
+        for (const q of PLC_OUTPUTS) out[actKey(m.id, q)] = !!prevPlc[actKey(m.id, q)];
+        return;
+      }
+      // The PLC reads its inputs off the nets of the last pass, and only runs
+      // powered and in RUN.
+      const net = (pin: string) => pass.nets[pass.pinNet[pinKey(m.id, pin)]];
       const hot = (pin: string) => !!net(pin)?.hot;
       const running = !!inputs.toggled[m.id] && hot('V1') && !!net('G1')?.gnd;
       if (!running) {

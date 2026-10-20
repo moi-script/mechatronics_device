@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { scan } from '../src/index';
+import { cleanLadder, scan } from '../src/index';
 import type { LadderRung } from '../src/index';
 
 const c = (addr: string, nc = false) => ({ addr, ...(nc ? { nc } : {}) });
@@ -57,4 +57,13 @@ test('a TON makes its bit after the preset and drops it when unpowered', () => {
   const released = { now: 2500, start: { ...clock.start } };
   assert.equal(scan(ladder, {}, released).Q00, false);
   assert.equal(released.start.T0, undefined);
+});
+
+test('cleanLadder keeps good rungs and drops junk a file could carry', () => {
+  assert.equal(cleanLadder('x'), undefined);
+  const good = rung([[c('I00'), c('I01', true)]], 'Q00');
+  assert.deepEqual(cleanLadder([{ coil: { addr: 'Q00', kind: 'OUT' } }, good, { branches: [[{ addr: 'Q00' }, 7]], coil: { addr: 'Q01', kind: 'BAD' } }]), [good]);
+  assert.deepEqual(cleanLadder([{ branches: [[{ addr: 'I00' }, 7]], coil: { addr: 'T0', kind: 'TON', presetSec: 'x' } }]), [
+    { branches: [[{ addr: 'I00' }]], coil: { addr: 'T0', kind: 'TON' } },
+  ]);
 });
