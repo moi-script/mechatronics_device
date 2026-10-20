@@ -1,4 +1,5 @@
 import { PARTS, pinKey, endKey, moduleLabel, timerDelayMs } from './parts';
+import { PLC_INPUTS, PLC_OUTPUTS, scan } from './ladder';
 import type {
   Circuit,
   DeviceState,
@@ -224,6 +225,8 @@ function actuatorsFor(
   prevStart: Record<string, number>,
   sensedRod: Record<string, boolean>,
   out: Record<string, boolean>,
+  pass: Pass | null,
+  prevPlc: Record<string, boolean>,
 ): void {
   switch (m.type) {
     case 'FT_PBU':
@@ -251,6 +254,23 @@ function actuatorsFor(
       // where it is headed until a full stroke has gone by.
       out[actKey(m.id, 'EXT')] = !!sensedRod[m.id];
       return;
+    case 'FT_PLC': {
+      // The PLC reads its inputs off the nets of the last pass, so it only
+      // runs once there is a pass to read — and only powered and in RUN.
+      const net = (pin: string) => (pass ? pass.nets[pass.pinNet[pinKey(m.id, pin)]] : undefined);
+      const hot = (pin: string) => !!net(pin)?.hot;
+      const running = !!inputs.toggled[m.id] && hot('V1') && !!net('G1')?.gnd;
+      if (!running) {
+        for (const q of PLC_OUTPUTS) out[actKey(m.id, q)] = false;
+        return;
+      }
+      const bits: Record<string, boolean> = {};
+      for (const i of PLC_INPUTS) bits[i] = hot(i);
+      for (const q of PLC_OUTPUTS) bits[q] = !!prevPlc[actKey(m.id, q)];
+      const q = scan(m.ladder, bits);
+      for (const k of PLC_OUTPUTS) out[actKey(m.id, k)] = q[k];
+      return;
+    }
     default:
       out[m.id] = actuationFor(m, inputs, coil, prevStart);
   }
@@ -262,9 +282,11 @@ const actuationMap = (
   coil: Record<string, boolean>,
   prevStart: Record<string, number>,
   sensedRod: Record<string, boolean>,
+  pass: Pass | null,
+  prevPlc: Record<string, boolean>,
 ): Record<string, boolean> => {
   const out: Record<string, boolean> = {};
-  for (const m of circuit.modules) actuatorsFor(m, inputs, coil, prevStart, sensedRod, out);
+  for (const m of circuit.modules) actuatorsFor(m, inputs, coil, prevStart, sensedRod, out, pass, prevPlc);
   return out;
 };
 
@@ -322,6 +344,7 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
   let coil = { ...prev.coil };
   const prevRod = prev.rod ?? {};
   const prevRodAt = prev.rodAt ?? {};
+  const prevPlc = prev.plc ?? {};
 
   /**
    * Where the reed sensors think each piston is. A rod that set off less than
@@ -337,12 +360,12 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
     sensedRod[m.id] = at === undefined || inputs.now - at >= STROKE_MS ? was : !was;
   }
 
-  let actuated = actuationMap(circuit, inputs, coil, prevStart, sensedRod);
+  let actuated = actuationMap(circuit, inputs, coil, prevStart, sensedRod, null, prevPlc);
 
   let pass = evaluate(circuit, inputs.breakerClosed, actuated);
   for (let i = 0; i < MAX_PASSES; i++) {
     if (pass.shortedNets.length > 0) break;
-    const next = actuationMap(circuit, inputs, pass.coil, prevStart, sensedRod);
+    const next = actuationMap(circuit, inputs, pass.coil, prevStart, sensedRod, pass, prevPlc);
     if (sameActuation(next, actuated)) break;
     actuated = next;
     pass = evaluate(circuit, inputs.breakerClosed, actuated);
@@ -454,6 +477,15 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
     // The board changes by itself when this one times out, so say when.
     if (running) nextTickMs = nextTickMs === null ? remainingMs : Math.min(nextTickMs, remainingMs);
   }
+  // PLC outputs carry to the next step, so a self-hold or a SET stays put.
+  const plc: Record<string, boolean> = {};
+  if (!faulted) {
+    for (const m of circuit.modules) {
+      if (m.type !== 'FT_PLC') continue;
+      for (const q of PLC_OUTPUTS) plc[actKey(m.id, q)] = !!actuated[actKey(m.id, q)];
+    }
+  }
+
   if (strokeLeft !== null) nextTickMs = nextTickMs === null ? strokeLeft : Math.min(nextTickMs, strokeLeft);
 
   return {
@@ -471,6 +503,6 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
     valves,
     errors,
     faulted,
-    state: { coil: faulted ? {} : coil, timerStart: faulted ? {} : timerStart, rod, rodAt, valve },
+    state: { coil: faulted ? {} : coil, timerStart: faulted ? {} : timerStart, rod, rodAt, valve, plc },
   };
 }

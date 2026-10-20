@@ -197,6 +197,8 @@ export interface SimState {
   timerStart: Record<string, number>;
   /** 5/2 double-solenoid valve id -> spool sitting in the 14 position. It holds. */
   valve: Record<string, boolean>;
+  /** PLC output bits, keyed "PLC1.Q00", carried so a self-hold rung holds. */
+  plc?: Record<string, boolean>;
 }
 
 export interface DeviceState {
@@ -278,4 +280,4 @@ export interface SimResult {
   state: SimState;
 }
 
-export const emptyState = (): SimState => ({ coil: {}, timerStart: {}, rod: {}, rodAt: {}, valve: {} });
+export const emptyState = (): SimState => ({ coil: {}, timerStart: {}, rod: {}, rodAt: {}, valve: {}, plc: {} });

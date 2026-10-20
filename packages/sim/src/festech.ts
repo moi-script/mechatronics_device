@@ -1,4 +1,5 @@
 import type { ModuleType, PartDef, PinDef } from './types';
+import { PLC_OUTPUTS } from './ladder';
 
 /*
  * Festech trainer modules. Every panel here is laid out from the photographs
@@ -137,7 +138,10 @@ function relayUnit(): PartDef {
 export const FT_PLC_INPUT_ROWS = [132, 182];
 export const FT_PLC_OUTPUT_Y = 252;
 
-/** OMRON CP1E: inputs 00-11, outputs 00-07, and its own +24V / 0V posts. */
+/**
+ * OMRON CP1E: inputs 00-11, relay outputs 00-07, and its own +24V / 0V posts.
+ * Each output is a contact from COM to its post, thrown by the ladder.
+ */
 function plc(): PartDef {
   const v = [fp('V1', '+24V', 'PASS', 40, 62, 'red'), fp('V2', '+24V', 'PASS', 80, 62, 'red')];
   const g = [fp('G1', '0V', 'PASS', 130, 62, 'blue'), fp('G2', '0V', 'PASS', 170, 62, 'blue')];
@@ -152,10 +156,11 @@ function plc(): PartDef {
     label: 'PLC CP1E',
     width: 480,
     height: 290,
-    pins: [...v, ...g, ...inputs, ...outputs],
+    pins: [...v, ...g, ...inputs, ...outputs, fp('COM', 'COM', 'PASS', 450, FT_PLC_OUTPUT_Y, 'red')],
     contactLines: 0,
     hasCoil: false,
     buses: [idsOf(v), idsOf(g)],
+    switches: PLC_OUTPUTS.map((q) => ({ pins: ['COM', q] as [string, string], closedWhen: true, actuator: q })),
   };
 }
 
