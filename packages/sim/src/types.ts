@@ -1,3 +1,5 @@
+import type { LadderRung } from './ladder';
+
 /** Every pin carries a role the solver understands. */
 export type PinRole =
   | 'SOURCE_VCC'
@@ -109,6 +111,8 @@ export interface ModuleInstance {
   delaySec?: number;
   /** Where a limit switch is bolted. FT_LIMIT only; loose ones are hand-pressed. */
   mount?: LimitMount;
+  /** The ladder program. FT_PLC only. */
+  ladder?: LadderRung[];
 }
 
 /**
