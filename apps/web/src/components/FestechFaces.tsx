@@ -371,7 +371,7 @@ export function FestechFace({ m }: { m: ModuleInstance }) {
             OMRON CP1E
           </Text>
           <Text x={246} y={80} anchor="start" color="#9fb1c2">
-            {!powered ? 'no power' : rungs === 0 ? 'NO PROGRAM LOADED' : `${rungs} RUNGS · ${run ? 'RUN' : 'STOP'}`}
+            {!powered ? 'no power' : rungs === 0 ? 'NO PROGRAM LOADED' : `${rungs} ${rungs === 1 ? 'RUNG' : 'RUNGS'} · ${run ? 'RUN' : 'STOP'}`}
           </Text>
           {key(326, toggled[m.id] ? 'RUN' : 'STOP', !!toggled[m.id], () => flipToggle(m.id))}
           {key(370, 'PROGRAM', false, () => openLadder(m.id))}

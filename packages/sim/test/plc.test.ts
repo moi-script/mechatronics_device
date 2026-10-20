@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { step, emptyState } from '../src/index';
+import { step, emptyState, devicesOn, plcBits } from '../src/index';
 import type { Circuit, EndRef, Inputs, LadderRung, Wire } from '../src/index';
 
 const t = (moduleId: string, pinId: string): EndRef => ({ kind: 'terminal', moduleId, pinId });
@@ -81,4 +81,19 @@ test('an output fed back to an input settles', () => {
   const r = step(c, inputs({ pressed: { 'PBU1.B1': true } }), emptyState());
   assert.equal(r.actuated['PLC1.Q01'], true);
   assert.deepEqual(r.errors, []);
+});
+
+test('devicesOn names the button wired to I00', () => {
+  const c = circuit();
+  const r = step(c, inputs(), emptyState());
+  assert.ok(devicesOn(c, r, 'PLC1', 'I00').some((s) => s.includes('B1') && s.includes('14')));
+  assert.deepEqual(devicesOn(c, r, 'PLC1', 'I07'), []);
+});
+
+test('plcBits reports a pressed input and a live output', () => {
+  const c = circuit();
+  const r = step(c, inputs({ pressed: { 'PBU1.B1': true } }), emptyState());
+  const bits = plcBits(c, r, 'PLC1');
+  assert.equal(bits.I00, true);
+  assert.equal(bits.Q00, true);
 });

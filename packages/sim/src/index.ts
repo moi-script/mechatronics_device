@@ -5,3 +5,4 @@ export * from './connect';
 export * from './presets';
 export * from './festech';
 export * from './ladder';
+export * from './plc';

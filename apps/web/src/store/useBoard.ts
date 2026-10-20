@@ -418,3 +418,4 @@ export const useBoard = create<BoardStore>((set, get) => ({
 }));
 
 export const useErrors = (): SimError[] => useBoard((s) => (s.tripped ? s.latched : s.sim.errors));
+
