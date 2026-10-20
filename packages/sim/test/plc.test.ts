@@ -97,3 +97,18 @@ test('plcBits reports a pressed input and a live output', () => {
   assert.equal(bits.I00, true);
   assert.equal(bits.Q00, true);
 });
+
+test('a PLC timer runs on the wall clock and says when it is due', () => {
+  const ladder: LadderRung[] = [
+    { branches: [[{ addr: 'I00' }]], coil: { addr: 'T0', kind: 'TON', presetSec: 2 } },
+    { branches: [[{ addr: 'T0' }]], coil: { addr: 'Q00', kind: 'OUT' } },
+  ];
+  const c = circuit(ladder);
+  const pressed = { 'PBU1.B1': true };
+  const a = step(c, inputs({ pressed, now: 1000 }), emptyState());
+  assert.equal(a.state.timerStart['PLC1.T0'], 1000);
+  assert.equal(a.nextTickMs, 2000);
+  assert.equal(a.coils['PBU1.L3'], false);
+  const b = step(c, inputs({ pressed, now: 3000 }), a.state);
+  assert.equal(b.coils['PBU1.L3'], true);
+});

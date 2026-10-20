@@ -44,14 +44,18 @@ const circuitSchema = z.object({
                   z
                     .array(
                       z.object({
-                        addr: z.string().regex(/^(I(0\d|1[01])|Q0[0-7])$/),
+                        addr: z.string().regex(/^(I(0\d|1[01])|Q0[0-7]|T[0-7])$/),
                         nc: z.boolean().optional(),
                       }),
                     )
                     .max(8),
                 )
                 .max(8),
-              coil: z.object({ addr: z.string().regex(/^Q0[0-7]$/), kind: z.enum(['OUT', 'SET', 'RST']) }),
+              coil: z.object({
+                addr: z.string().regex(/^(Q0[0-7]|T[0-7])$/),
+                kind: z.enum(['OUT', 'SET', 'RST', 'TON']),
+                presetSec: z.number().min(0.1).max(3600).optional(),
+              }),
             }),
           )
           .max(64)

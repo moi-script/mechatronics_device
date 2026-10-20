@@ -1,5 +1,5 @@
 import { PARTS, pinKey, endKey, moduleLabel, timerDelayMs } from './parts';
-import { PLC_INPUTS, PLC_OUTPUTS, scan } from './ladder';
+import { PLC_INPUTS, PLC_OUTPUTS, PLC_TIMERS, scan, timerPresets } from './ladder';
 import type {
   Circuit,
   DeviceState,
@@ -227,6 +227,7 @@ function actuatorsFor(
   out: Record<string, boolean>,
   pass: Pass | null,
   prevPlc: Record<string, boolean>,
+  plcStart: Record<string, number>,
 ): void {
   switch (m.type) {
     case 'FT_PBU':
@@ -262,12 +263,22 @@ function actuatorsFor(
       const running = !!inputs.toggled[m.id] && hot('V1') && !!net('G1')?.gnd;
       if (!running) {
         for (const q of PLC_OUTPUTS) out[actKey(m.id, q)] = false;
+        for (const t of PLC_TIMERS) delete plcStart[actKey(m.id, t)];
         return;
       }
       const bits: Record<string, boolean> = {};
       for (const i of PLC_INPUTS) bits[i] = hot(i);
       for (const q of PLC_OUTPUTS) bits[q] = !!prevPlc[actKey(m.id, q)];
-      const q = scan(m.ladder, bits);
+      // Timer starts are seeded from the last step each time, so every pass
+      // of the settle loop sees the same clock; the last pass's starts stick.
+      const start: Record<string, number> = {};
+      for (const t of PLC_TIMERS) {
+        const at = prevStart[actKey(m.id, t)];
+        if (at !== undefined) start[t] = at;
+      }
+      const q = scan(m.ladder, bits, { now: inputs.now, start });
+      for (const t of PLC_TIMERS) delete plcStart[actKey(m.id, t)];
+      for (const t of Object.keys(start)) plcStart[actKey(m.id, t)] = start[t];
       for (const k of PLC_OUTPUTS) out[actKey(m.id, k)] = q[k];
       return;
     }
@@ -284,9 +295,10 @@ const actuationMap = (
   sensedRod: Record<string, boolean>,
   pass: Pass | null,
   prevPlc: Record<string, boolean>,
+  plcStart: Record<string, number>,
 ): Record<string, boolean> => {
   const out: Record<string, boolean> = {};
-  for (const m of circuit.modules) actuatorsFor(m, inputs, coil, prevStart, sensedRod, out, pass, prevPlc);
+  for (const m of circuit.modules) actuatorsFor(m, inputs, coil, prevStart, sensedRod, out, pass, prevPlc, plcStart);
   return out;
 };
 
@@ -345,6 +357,8 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
   const prevRod = prev.rod ?? {};
   const prevRodAt = prev.rodAt ?? {};
   const prevPlc = prev.plc ?? {};
+  // PLC timer starts as the settled pass left them, keyed "PLC1.T0".
+  const plcStart: Record<string, number> = {};
 
   /**
    * Where the reed sensors think each piston is. A rod that set off less than
@@ -360,12 +374,12 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
     sensedRod[m.id] = at === undefined || inputs.now - at >= STROKE_MS ? was : !was;
   }
 
-  let actuated = actuationMap(circuit, inputs, coil, prevStart, sensedRod, null, prevPlc);
+  let actuated = actuationMap(circuit, inputs, coil, prevStart, sensedRod, null, prevPlc, plcStart);
 
   let pass = evaluate(circuit, inputs.breakerClosed, actuated);
   for (let i = 0; i < MAX_PASSES; i++) {
     if (pass.shortedNets.length > 0) break;
-    const next = actuationMap(circuit, inputs, pass.coil, prevStart, sensedRod, pass, prevPlc);
+    const next = actuationMap(circuit, inputs, pass.coil, prevStart, sensedRod, pass, prevPlc, plcStart);
     if (sameActuation(next, actuated)) break;
     actuated = next;
     pass = evaluate(circuit, inputs.breakerClosed, actuated);
@@ -483,6 +497,21 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
     for (const m of circuit.modules) {
       if (m.type !== 'FT_PLC') continue;
       for (const q of PLC_OUTPUTS) plc[actKey(m.id, q)] = !!actuated[actKey(m.id, q)];
+    }
+  }
+
+  // A running PLC timer changes the board when it is due, like a timer relay.
+  if (!faulted) {
+    for (const m of circuit.modules) {
+      if (m.type !== 'FT_PLC') continue;
+      const presets = timerPresets(m.ladder);
+      for (const t of PLC_TIMERS) {
+        const at = plcStart[actKey(m.id, t)];
+        if (at === undefined || !(t in presets)) continue;
+        timerStart[actKey(m.id, t)] = at;
+        const left = presets[t] - (inputs.now - at);
+        if (left > 0) nextTickMs = nextTickMs === null ? left : Math.min(nextTickMs, left);
+      }
     }
   }
 

@@ -43,3 +43,18 @@ test('junk never throws and reads as off', () => {
   assert.deepEqual(scan([{}], {}), off);
   assert.deepEqual(scan([{ branches: [[{ addr: 'X9' }]], coil: { addr: 'I03', kind: 'OUT' } }], { X9: true }), off);
 });
+
+test('a TON makes its bit after the preset and drops it when unpowered', () => {
+  const ladder = [
+    { branches: [[c('I00')]], coil: { addr: 'T0', kind: 'TON' as const, presetSec: 2 } },
+    rung([[c('T0')]], 'Q00'),
+  ];
+  const clock = { now: 0, start: {} as Record<string, number> };
+  assert.equal(scan(ladder, { I00: true }, clock).Q00, false);
+  assert.equal(clock.start.T0, 0);
+  assert.equal(scan(ladder, { I00: true }, { ...clock, now: 1999 }).Q00, false);
+  assert.equal(scan(ladder, { I00: true }, { ...clock, now: 2000 }).Q00, true);
+  const released = { now: 2500, start: { ...clock.start } };
+  assert.equal(scan(ladder, {}, released).Q00, false);
+  assert.equal(released.start.T0, undefined);
+});

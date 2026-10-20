@@ -7,6 +7,9 @@ import {
   plcBits,
   PLC_INPUTS,
   PLC_OUTPUTS,
+  PLC_TIMERS,
+  TON_MAX_SEC,
+  TON_MIN_SEC,
   type LadderCoilKind,
   type LadderContact,
   type LadderRung,
@@ -18,7 +21,8 @@ const MAX_RUNGS = 64;
 const MAX_BRANCHES = 8;
 const MAX_CONTACTS = 8;
 
-const COIL_GLYPH: Record<LadderCoilKind, string> = { OUT: '( )', SET: '(S)', RST: '(R)' };
+const COIL_GLYPH: Record<LadderCoilKind, string> = { OUT: '( )', SET: '(S)', RST: '(R)', TON: '(T)' };
+const ADDRESSES = [...PLC_INPUTS, ...PLC_OUTPUTS, ...PLC_TIMERS];
 
 const blankRung = (addr: string): LadderRung => ({ branches: [[{ addr }]], coil: { addr: 'Q00', kind: 'OUT' } });
 
@@ -50,6 +54,8 @@ export function LadderEditor({ moduleId, onClose }: { moduleId: string; onClose:
   const device = useMemo(() => {
     const out: Record<string, string | undefined> = {};
     for (const a of [...PLC_INPUTS, ...PLC_OUTPUTS]) out[a] = devicesOn(circuit, sim, moduleId, a)[0];
+    // A timer lives inside the PLC: nothing is wired to it, and nothing need be.
+    for (const t of PLC_TIMERS) out[t] = 'on-delay timer';
     return out;
   }, [circuit, sim, moduleId]);
   const bits = plcBits(circuit, sim, moduleId);
@@ -124,7 +130,7 @@ export function LadderEditor({ moduleId, onClose }: { moduleId: string; onClose:
           <aside className="max-h-40 shrink-0 overflow-y-auto border-b border-steel-300 p-2 sm:max-h-none sm:w-60 sm:border-r sm:border-b-0">
             <p className="mb-1 text-[10px] text-carbon-600">Pick an address, then “+ contact”.</p>
             <ul className="space-y-0.5">
-              {[...PLC_INPUTS, ...PLC_OUTPUTS].map((a) => (
+              {ADDRESSES.map((a) => (
                 <li key={a}>
                   <button
                     type="button"
@@ -204,7 +210,7 @@ export function LadderEditor({ moduleId, onClose }: { moduleId: string; onClose:
                         onChange={(e) => edit((d) => void (d[ri].coil.addr = e.target.value))}
                         className="bg-transparent font-mono text-[11px] text-carbon-900"
                       >
-                        {PLC_OUTPUTS.map((q) => (
+                        {(r.coil.kind === 'TON' ? PLC_TIMERS : PLC_OUTPUTS).map((q) => (
                           <option key={q} value={q}>
                             {q}
                           </option>
@@ -213,13 +219,45 @@ export function LadderEditor({ moduleId, onClose }: { moduleId: string; onClose:
                       <select
                         aria-label="Coil kind"
                         value={r.coil.kind}
-                        onChange={(e) => edit((d) => void (d[ri].coil.kind = e.target.value as LadderCoilKind))}
+                        onChange={(e) =>
+                          edit((d) => {
+                            const kind = e.target.value as LadderCoilKind;
+                            // A TON coils a timer, every other kind an output.
+                            const pool = kind === 'TON' ? PLC_TIMERS : PLC_OUTPUTS;
+                            d[ri].coil = {
+                              kind,
+                              addr: pool.includes(d[ri].coil.addr) ? d[ri].coil.addr : pool[0],
+                              ...(kind === 'TON' ? { presetSec: d[ri].coil.presetSec ?? 1 } : {}),
+                            };
+                          })
+                        }
                         className="bg-transparent text-[11px] text-carbon-900"
                       >
                         <option value="OUT">OUT</option>
                         <option value="SET">SET</option>
                         <option value="RST">RST</option>
+                        <option value="TON">TON</option>
                       </select>
+                      {r.coil.kind === 'TON' && (
+                        <label className="flex items-center gap-0.5 text-[11px] text-carbon-800">
+                          <input
+                            type="number"
+                            aria-label="Timer preset in seconds"
+                            min={TON_MIN_SEC}
+                            max={TON_MAX_SEC}
+                            step={0.1}
+                            value={r.coil.presetSec ?? 1}
+                            onChange={(e) =>
+                              edit((d) => {
+                                const v = Number(e.target.value);
+                                if (Number.isFinite(v)) d[ri].coil.presetSec = Math.min(TON_MAX_SEC, Math.max(TON_MIN_SEC, v));
+                              })
+                            }
+                            className="w-14 rounded-sm border border-steel-400 bg-steel-50 px-1 font-mono text-carbon-900"
+                          />
+                          s
+                        </label>
+                      )}
                       {!device[r.coil.addr] && <span className="text-[9px] text-signal-amber">not wired</span>}
                     </div>
                   </div>
