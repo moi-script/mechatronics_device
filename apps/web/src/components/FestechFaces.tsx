@@ -10,6 +10,7 @@ import {
   type ModuleInstance,
 } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
+import { useLadderEditor } from '@/store/useLadderEditor';
 import { usePalette } from '@/store/useTheme';
 import { clickDown, clickUp } from '@/lib/sound';
 
@@ -150,6 +151,9 @@ export function FestechFace({ m }: { m: ModuleInstance }) {
   const tripped = useBoard((s) => s.tripped);
   const setBreaker = useBoard((s) => s.setBreaker);
   const piston = useBoard((s) => s.sim.pistons[m.id]);
+  const toggled = useBoard((s) => s.toggled);
+  const flipToggle = useBoard((s) => s.flipToggle);
+  const openLadder = useLadderEditor((s) => s.open);
   const limit = useMomentary(m.id);
   const buttons = [useMomentary(m.id + '.B1'), useMomentary(m.id + '.B2'), useMomentary(m.id + '.B3')];
 
@@ -343,6 +347,23 @@ export function FestechFace({ m }: { m: ModuleInstance }) {
 
     case 'FT_PLC': {
       const powered = hot('V1') && gnd('G1');
+      const run = powered && !!toggled[m.id];
+      const rungs = m.ladder?.length ?? 0;
+      // Both keys sit on the module, so a press must not start a drag.
+      const key = (x: number, label: string, lit: boolean, onPress: () => void) => (
+        <g
+          style={{ cursor: 'pointer' }}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            onPress();
+          }}
+        >
+          <rect x={x} y={46} width={40} height={17} rx={3} fill={lit ? p.green : '#3a4a58'} stroke="#5b6f82" />
+          <Text x={x + 20} y={57.5} size={7} bold cond color={lit ? '#0b1a12' : '#e2e8f0'}>
+            {label}
+          </Text>
+        </g>
+      );
       return (
         <>
           <rect x={232} y={38} width={232} height={56} rx={4} fill="#22303c" pointerEvents="none" />
@@ -350,13 +371,15 @@ export function FestechFace({ m }: { m: ModuleInstance }) {
             OMRON CP1E
           </Text>
           <Text x={246} y={80} anchor="start" color="#9fb1c2">
-            {powered ? 'NO PROGRAM LOADED' : 'no power'}
+            {!powered ? 'no power' : rungs === 0 ? 'NO PROGRAM LOADED' : `${rungs} RUNGS · ${run ? 'RUN' : 'STOP'}`}
           </Text>
+          {key(326, toggled[m.id] ? 'RUN' : 'STOP', !!toggled[m.id], () => flipToggle(m.id))}
+          {key(370, 'PROGRAM', false, () => openLadder(m.id))}
           <Led x={420} y={54} on={powered} r={4} />
           <Text x={440} y={57} anchor="start" size={7} color="#9fb1c2">
             PWR
           </Text>
-          <Led x={420} y={76} on={false} r={4} />
+          <Led x={420} y={76} on={run} r={4} />
           <Text x={440} y={79} anchor="start" size={7} color="#9fb1c2">
             RUN
           </Text>
@@ -379,7 +402,7 @@ export function FestechFace({ m }: { m: ModuleInstance }) {
             OUTPUT CH 100
           </Text>
           {Array.from({ length: 8 }, (_, i) => (
-            <Led key={i} x={50 + i * 52 + 18} y={FT_PLC_OUTPUT_Y - 11} on={false} r={3} />
+            <Led key={i} x={50 + i * 52 + 18} y={FT_PLC_OUTPUT_Y - 11} on={!!acts[k('Q0' + i)]} r={3} />
           ))}
         </>
       );

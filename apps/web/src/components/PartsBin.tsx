@@ -40,7 +40,7 @@ const BLURB: Record<ModuleType, string> = {
   FT_PSU: 'DC 24V / 5A: four +24V posts on top, four 0V posts below. Its rocker switches the bench on.',
   FT_PBU: 'Three lit buttons, each 13-14 and 23-24 NO, 31-32 and 41-42 NC, lamp on X1-X2. +24V and 0V strips.',
   FT_RELAY3: 'Three relays: coil A1-A2, COM 11/21/31/41, NC 12/22/32/42, NO 14/24/34/44.',
-  FT_PLC: 'OMRON CP1E: inputs 00-11 with LEDs, outputs 00-07, +24V and 0V posts. No ladder program loaded.',
+  FT_PLC: 'OMRON CP1E: inputs 00-11, relay outputs 00-07 on COM, +24V and 0V posts. Runs a ladder program.',
   FT_LIMIT: 'Roller lever switch: COM, N.O and N.C. Push the roller to throw it.',
   FT_AIR: 'Compressed-air manifold: IN plus eight outlets, all under pressure. Blue tubing only.',
   FT_V52S: 'Solenoid Y1 +/-. Air 1 in, 2 and 4 to the cylinder, 3 and 5 silenced exhaust. Springs back.',
