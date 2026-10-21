@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { step, emptyState, devicesOn, plcBits } from '../src/index';
+import { step, emptyState, devicesOn, plcBits, presetById } from '../src/index';
 import type { Circuit, EndRef, Inputs, LadderRung, Wire } from '../src/index';
 
 const t = (moduleId: string, pinId: string): EndRef => ({ kind: 'terminal', moduleId, pinId });
@@ -85,9 +85,15 @@ test('an output fed back to an input settles', () => {
 
 test('devicesOn names the button wired to I00', () => {
   const c = circuit();
-  const r = step(c, inputs(), emptyState());
-  assert.ok(devicesOn(c, r, 'PLC1', 'I00').some((s) => s.includes('B1') && s.includes('14')));
-  assert.deepEqual(devicesOn(c, r, 'PLC1', 'I07'), []);
+  assert.ok(devicesOn(c, 'PLC1', 'I00').some((s) => s.includes('B1') && s.includes('14')));
+  assert.deepEqual(devicesOn(c, 'PLC1', 'I07'), []);
+});
+
+test('devicesOn still names the lamp on Q00 once the output relay closes onto the supply', () => {
+  const c = circuit();
+  const r = step(c, inputs({ pressed: { 'PBU1.B1': true } }), emptyState());
+  assert.equal(r.actuated['PLC1.Q00'], true);
+  assert.deepEqual(devicesOn(c, 'PLC1', 'Q00'), ['Push-Button Unit 1 B3 X1']);
 });
 
 test('plcBits reports a pressed input and a live output', () => {
@@ -132,4 +138,18 @@ test('an output that holds itself through a relay stays on after the start butto
   const held = step(c, inputs(), on.state);
   assert.equal(held.actuated['PLC1.Q00'], true);
   assert.equal(step(c, inputs(), held.state).actuated['PLC1.Q00'], true);
+});
+
+test('the two-lamp PLC preset latches each lamp and stops both', () => {
+  const c = presetById('plc-two-lamp-latch')!.build();
+  const go = (pressed: Record<string, boolean>, prev = emptyState()) => step(c, inputs({ pressed }), prev);
+  const a = go({ 'PBU1.B1': true });
+  assert.deepEqual([a.coils['PBU1.L1'], a.coils['PBU1.L2']], [true, false]);
+  const b = go({}, a.state);
+  assert.equal(b.coils['PBU1.L1'], true);
+  const d = go({}, go({ 'PBU1.B2': true }, b.state).state);
+  assert.deepEqual([d.coils['PBU1.L1'], d.coils['PBU1.L2']], [true, true]);
+  const off = go({}, go({ 'PBU1.B3': true }, d.state).state);
+  assert.deepEqual([off.coils['PBU1.L1'], off.coils['PBU1.L2']], [false, false]);
+  assert.deepEqual(off.errors, []);
 });

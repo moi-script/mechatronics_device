@@ -1,5 +1,6 @@
 import { benchSlot } from './parts';
 import type { BoardType, Circuit, EndRef, ModuleInstance, Wire, WireColor } from './types';
+import type { LadderRung } from './ladder';
 
 /**
  * A worked circuit that can be dropped onto the bench whole, so a student can
@@ -454,11 +455,70 @@ export const SINGLE_ACTING_SEQUENCE_PRESET: Preset = {
 };
 
 /**
+ * Two lamps, each latched on by its own button through the PLC, both dropped
+ * by a third. The buttons and lamps are wired to the PLC and nothing else; the
+ * holding is done by the ladder, not by relay contacts.
+ */
+const PLC_TWO_LAMP_PRESET: Preset = {
+  id: 'plc-two-lamp-latch',
+  name: 'PLC: two lamps, each latched on',
+  summary: 'Button 1 and button 2 each latch their own lamp on through the ladder; button 3 turns both off.',
+  steps: [
+    'Switch the supply on and press RUN on the PLC. PROGRAM shows the ladder.',
+    'Rung 1: I00 OR Q00, AND NOT I02, drives Q00. Press button 1 and its lamp comes on through Q00.',
+    'Let go: the Q00 contact in the same rung keeps the rung powered, so the lamp stays on.',
+    'Rung 2 does the same for button 2, I01 and Q01, and its lamp.',
+    'Button 3 is wired to I02, read as normally closed in both rungs: pressing it breaks both holds and both lamps go out.',
+  ],
+  build() {
+    const h = new Harness('plc2');
+
+    // --- PLC power, and +24V / 0V onto the push-button unit's strips -------
+    h.add(['PSU1', 'P1'], ['PLC1', 'V1']);
+    h.add(['PSU1', 'N1'], ['PLC1', 'G1'], 'blue');
+    h.add(['PSU1', 'P2'], ['PBU1', 'V1']);
+    h.add(['PSU1', 'N2'], ['PBU1', 'G1'], 'blue');
+
+    // --- inputs: each button's NO 13-14 from +24V to its PLC input ---------
+    h.add(['PBU1', 'V2'], ['PBU1', 'B1_13']);
+    h.add(['PBU1', 'B1_14'], ['PLC1', 'I00'], 'yellow'); // start lamp 1
+    h.add(['PBU1', 'V3'], ['PBU1', 'B2_13']);
+    h.add(['PBU1', 'B2_14'], ['PLC1', 'I01'], 'yellow'); // start lamp 2
+    h.add(['PBU1', 'V4'], ['PBU1', 'B3_13']);
+    h.add(['PBU1', 'B3_14'], ['PLC1', 'I02'], 'yellow'); // stop both
+
+    // --- outputs: COM fed from +24V, Q00 / Q01 to the lamps in B1 / B2 ------
+    h.add(['PBU1', 'V5'], ['PLC1', 'COM']);
+    h.add(['PLC1', 'Q00'], ['PBU1', 'B1_X1'], 'green');
+    h.add(['PBU1', 'B1_X2'], ['PBU1', 'G2'], 'blue');
+    h.add(['PLC1', 'Q01'], ['PBU1', 'B2_X1'], 'green');
+    h.add(['PBU1', 'B2_X2'], ['PBU1', 'G3'], 'blue');
+
+    const hold = (start: string, out: string): LadderRung => ({
+      branches: [
+        [{ addr: start }, { addr: 'I02', nc: true }],
+        [{ addr: out }, { addr: 'I02', nc: true }],
+      ],
+      coil: { addr: out, kind: 'OUT' },
+    });
+
+    return {
+      modules: layout(['BREAKER', 'PSU1', 'PBU1', 'PLC1'], (m) => {
+        if (m.id === 'BREAKER') return { ...m, x: 40, y: 990 };
+        if (m.id === 'PLC1') return { ...m, x: 820, ladder: [hold('I00', 'Q00'), hold('I01', 'Q01')] };
+        return m;
+      }),
+      wires: h.done(),
+    };
+  },
+};
+
+/**
  * Every preset the bench offers. The two pneumatic sequences are built and
  * tested here but not listed: they live in the accounts of the people who use
  * them, and a library that ships a copy of a circuit you already have saved
  * only invites you to load the wrong one.
  */
-export const PRESETS: readonly Preset[] = [SEQUENCE_PRESET];
+export const PRESETS: readonly Preset[] = [SEQUENCE_PRESET, PLC_TWO_LAMP_PRESET];
 
 export const presetById = (id: string): Preset | undefined => PRESETS.find((p) => p.id === id);
