@@ -39,6 +39,7 @@ import { SessionTimer } from './SessionTimer';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ShareDialog } from './ShareDialog';
 import { PromptDialog } from './PromptDialog';
+import { SubmitDialog } from './SubmitDialog';
 import { BOARDS, boardOf } from '@/lib/boards';
 import type { BoardType } from '@mech/sim';
 
@@ -159,17 +160,7 @@ export function Toolbar({
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   /** Set when Share triggered the save, so the link follows automatically. */
   const [shareAfterSave, setShareAfterSave] = useState(false);
-  /** Handing the board in: first the class code, then what to call it. */
-  const [submitCode, setSubmitCode] = useState<string | null>(null);
-  const [askingCode, setAskingCode] = useState(false);
-
-  const lastCode = () => {
-    try {
-      return localStorage.getItem('mech-class-code') ?? '';
-    } catch {
-      return '';
-    }
-  };
+  const [submitting, setSubmitting] = useState(false);
 
   const startSubmit = async () => {
     const u = await ensureSession();
@@ -178,26 +169,14 @@ export function Toolbar({
       onOpenLibrary();
       return;
     }
-    setAskingCode(true);
+    setSubmitting(true);
   };
 
-  const submit = async (name: string) => {
-    if (!submitCode) return;
-    setBusy(true);
-    try {
-      const out = await api.submit({ code: submitCode, name: named(name), circuit: useBoard.getState().circuit });
-      try {
-        localStorage.setItem('mech-class-code', submitCode);
-      } catch {
-        // Only a convenience for next time.
-      }
-      setSubmitCode(null);
-      setHint(`${out.replaced ? 'Resubmitted' : 'Submitted'} "${out.name}" to ${out.to}.`);
-    } catch (err) {
-      setHint((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
+  /** Errors are left to throw, so the dialog stays open and shows them. */
+  const submit = async (d: { code: string; name: string; info: Record<string, string> }) => {
+    const out = await api.submit({ ...d, name: named(d.name), circuit: useBoard.getState().circuit });
+    setSubmitting(false);
+    setHint(`${out.replaced ? 'Resubmitted' : 'Submitted'} "${out.name}" to ${out.to}.`);
   };
 
   const linkFor = async (id: string) => {
@@ -575,36 +554,7 @@ export function Toolbar({
         />
       )}
 
-      {askingCode && (
-        <PromptDialog
-          title="Submit to your instructor"
-          message="Type the class code your instructor gave you. The board goes straight to their library, under your name."
-          label="Class code"
-          defaultValue={lastCode()}
-          placeholder="ABC234"
-          maxLength={6}
-          confirmLabel="Next"
-          onSubmit={(code) => {
-            setAskingCode(false);
-            setSubmitCode(code.toUpperCase());
-          }}
-          onCancel={() => setAskingCode(false)}
-        />
-      )}
-
-      {submitCode && (
-        <PromptDialog
-          title="Name your submission"
-          message="Your name is added for you. Submitting the same name again replaces the earlier copy."
-          label="Activity or circuit name"
-          defaultValue={defaultName}
-          placeholder="Lab 3 — start/stop latch"
-          confirmLabel="Submit"
-          busy={busy}
-          onSubmit={submit}
-          onCancel={() => setSubmitCode(null)}
-        />
-      )}
+      {submitting && <SubmitDialog defaultName={defaultName} onSubmit={submit} onCancel={() => setSubmitting(false)} />}
 
       {confirmingNew && (
         <ConfirmDialog

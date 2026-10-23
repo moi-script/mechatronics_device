@@ -9,6 +9,8 @@ export interface UserDoc {
   reset?: { codeHash: string; expires: Date; tries: number };
   /** What students type to submit circuits straight into this account. */
   classCode?: string;
+  /** What else a student fills in when submitting, such as "Section". The first one sorts the submissions. */
+  classFields?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,6 +26,8 @@ export interface CircuitDoc {
   shareId?: string;
   /** The student who handed this in through a class code, so a resubmission replaces it. */
   submittedBy?: Types.ObjectId;
+  /** The answers to the class's fields, keyed by field. */
+  info?: Record<string, string>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,6 +42,7 @@ const userSchema = new Schema<UserDoc>(
       required: false,
     },
     classCode: { type: String, unique: true, sparse: true },
+    classFields: { type: [String], default: undefined },
   },
   { timestamps: true },
 );
@@ -55,6 +60,7 @@ const circuitSchema = new Schema<CircuitDoc>(
     board: { type: String, enum: ['trainer', 'pneumatics', 'simple'] },
     shareId: { type: String, index: true, sparse: true },
     submittedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    info: { type: Schema.Types.Mixed },
   },
   { timestamps: true },
 );

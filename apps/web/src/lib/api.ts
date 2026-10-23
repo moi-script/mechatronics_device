@@ -16,6 +16,9 @@ export interface CircuitSummary {
   parts?: number;
   leads?: number;
   rungs?: number;
+  /** Handed in by a student through the class code, with their answers to its fields. */
+  submitted?: boolean;
+  info?: Record<string, string>;
 }
 
 /**
@@ -114,7 +117,7 @@ const cloud = {
     return { ok: true } as const;
   },
 
-  listCircuits: () => req<{ circuits: CircuitSummary[] }>('/circuits'),
+  listCircuits: () => req<{ circuits: CircuitSummary[]; classFields?: string[] }>('/circuits'),
   getCircuit: (id: string) => req<{ circuit: Circuit; name: string; id: string }>('/circuits/' + id),
   createCircuit: (d: { name: string; circuit: Circuit }) => req<{ id: string }>('/circuits', post(d)),
   updateCircuit: (id: string, d: { name?: string; circuit?: Circuit }) =>
@@ -122,8 +125,9 @@ const cloud = {
   deleteCircuit: (id: string) => req<{ ok: true }>('/circuits/' + id, { method: 'DELETE' }),
   share: (id: string) => req<{ shareId: string }>('/circuits/' + id + '/share', { method: 'POST' }),
   shared: (shareId: string) => req<{ circuit: Circuit; name: string }>('/share/' + shareId),
-  classCode: () => req<{ code: string }>('/class-code', { method: 'POST' }),
-  submit: (d: { code: string; name: string; circuit: Circuit }) =>
+  classCode: (d: { fields?: string[] } = {}) => req<{ code: string; fields: string[] }>('/class-code', post(d)),
+  classInfo: (code: string) => req<{ to: string; fields: string[] }>('/class/' + encodeURIComponent(code)),
+  submit: (d: { code: string; name: string; circuit: Circuit; info: Record<string, string> }) =>
     req<{ to: string; name: string; replaced: boolean }>('/submit', post(d)),
 };
 
@@ -204,6 +208,7 @@ const device: typeof cloud = {
   share: noNetwork,
   shared: noNetwork,
   classCode: noNetwork,
+  classInfo: noNetwork,
   submit: noNetwork,
 };
 
@@ -238,7 +243,8 @@ const route: typeof cloud = {
   deleteCircuit: (id) => (hasCloudSession() ? cloud.deleteCircuit(id) : device.deleteCircuit(id)),
   share: (id) => (hasCloudSession() ? cloud.share(id) : device.share(id)),
   shared: (shareId) => (hasCloudSession() ? cloud.shared(shareId) : device.shared(shareId)),
-  classCode: () => (hasCloudSession() ? cloud.classCode() : device.classCode()),
+  classCode: (d) => (hasCloudSession() ? cloud.classCode(d) : device.classCode(d)),
+  classInfo: (code) => (hasCloudSession() ? cloud.classInfo(code) : device.classInfo(code)),
   submit: (d) => (hasCloudSession() ? cloud.submit(d) : device.submit(d)),
 };
 

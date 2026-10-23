@@ -98,7 +98,17 @@ const MAX_PER_USER = 300;
 
 /** Short enough to write on a board; no 0/O or 1/I to misread. */
 const newClassCode = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 6);
-const submitSchema = z.object({ code: z.string().trim().toUpperCase().length(6), name, circuit: circuitSchema });
+const code = z.string().trim().toUpperCase().length(6);
+// Field names become keys in the stored answers, where Mongo will not take . or $.
+const fieldsSchema = z.object({
+  fields: z.array(z.string().trim().min(1).max(30).regex(/^[^.$]+$/)).max(5).optional(),
+});
+const submitSchema = z.object({
+  code,
+  name,
+  circuit: circuitSchema,
+  info: z.record(z.string().max(30), z.string().trim().max(60)).optional(),
+});
 
 const toCircuit = (doc: { modules: unknown; wires: unknown; board?: string }) => ({
   modules: doc.modules,
@@ -122,8 +132,11 @@ circuitsRouter.get('/circuits', requireUser, async (req: AuthedRequest, res) => 
       shareId: d.shareId ?? undefined,
       updatedAt: d.updatedAt,
       board: d.board ?? 'trainer',
+      submitted: !!d.submittedBy,
+      info: d.info ?? undefined,
       ...circuitStats(d as unknown as SimCircuit),
     })),
+    classFields: (await User.findById(req.userId).lean())?.classFields ?? [],
   });
 });
 
@@ -210,12 +223,21 @@ circuitsRouter.delete('/circuits/:id/share', requireUser, async (req: AuthedRequ
   res.json({ ok: true });
 });
 
-/** The account's class code, made on first ask. */
+/** The account's class code, made on first ask; `fields`, when sent, replaces what students fill in. */
 circuitsRouter.post('/class-code', requireUser, async (req: AuthedRequest, res) => {
+  const parsed = fieldsSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Up to 5 fields, each up to 30 characters, without . or $.' });
+    return;
+  }
   const user = await User.findById(req.userId);
   if (!user) {
     res.status(401).json({ error: 'Sign in to do that.' });
     return;
+  }
+  if (parsed.data.fields) {
+    user.classFields = [...new Set(parsed.data.fields)];
+    await user.save();
   }
   // A clash with another account's code fails the unique index; a fresh draw settles it.
   for (let i = 0; !user.classCode && i < 5; i++) {
@@ -230,7 +252,18 @@ circuitsRouter.post('/class-code', requireUser, async (req: AuthedRequest, res) 
     res.status(500).json({ error: 'Could not make a class code. Try again.' });
     return;
   }
-  res.json({ code: user.classCode });
+  res.json({ code: user.classCode, fields: user.classFields ?? [] });
+});
+
+/** What a student sees after typing a code: whose class it is and what to fill in. */
+circuitsRouter.get('/class/:code', requireUser, async (req: AuthedRequest, res) => {
+  const parsed = code.safeParse(req.params.code);
+  const teacher = parsed.success ? await User.findOne({ classCode: parsed.data }).lean() : null;
+  if (!teacher) {
+    res.status(404).json({ error: 'No class has that code. Check it with your instructor.' });
+    return;
+  }
+  res.json({ to: teacher.name, fields: teacher.classFields ?? [] });
 });
 
 /**
@@ -257,11 +290,23 @@ circuitsRouter.post('/submit', requireUser, async (req: AuthedRequest, res) => {
     return;
   }
 
+  // Only the class's own fields are kept, and each one has to be answered.
+  const info: Record<string, string> = {};
+  for (const f of teacher.classFields ?? []) {
+    const answer = parsed.data.info?.[f]?.trim();
+    if (!answer) {
+      res.status(400).json({ error: `Fill in ${f}.` });
+      return;
+    }
+    info[f] = answer;
+  }
+
   const label = parsed.data.name === student.name ? student.name : student.name + ' · ' + parsed.data.name;
   const fields = {
     modules: parsed.data.circuit.modules,
     wires: parsed.data.circuit.wires,
     board: parsed.data.circuit.board ?? 'trainer',
+    info,
   };
   const filter = { ownerId: teacher._id, submittedBy: student._id, name: label.slice(0, 120) };
   const replaced = await Circuit.findOneAndUpdate(filter, fields);

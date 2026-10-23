@@ -484,6 +484,116 @@ function OpenFile({ onOpened, canSave, onSaved }: { onOpened: () => void; canSav
   );
 }
 
+/**
+ * The instructor's class: the code students type, and what else they fill in
+ * when they submit. The first field sorts the submissions, so a section goes first.
+ */
+function ClassDialog({ onClose, onSaved }: { onClose: () => void; onSaved: (fields: string[]) => void }) {
+  const [code, setCode] = useState<string | null>(null);
+  const [fields, setFields] = useState('');
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api
+      .classCode()
+      .then((out) => {
+        setCode(out.code);
+        setFields(out.fields.join(', '));
+      })
+      .catch((err: Error) => setNote({ ok: false, text: err.message }));
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const out = await api.classCode({ fields: fields.split(',').map((f) => f.trim()).filter(Boolean) });
+      setFields(out.fields.join(', '));
+      onSaved(out.fields);
+      setNote({ ok: true, text: out.fields.length ? 'Students will fill in: ' + out.fields.join(', ') + '.' : 'Students only give a name.' });
+    } catch (err) {
+      setNote({ ok: false, text: (err as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div role="presentation" className="fixed inset-0 z-[60] flex items-center justify-center bg-[#06090d]/60 p-4" onClick={onClose}>
+      <form
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="class-title"
+        className="flex w-full max-w-md flex-col gap-4 rounded-2xl border border-steel-400 bg-steel-50 p-6 shadow-[0_30px_80px_rgba(0,0,0,0.5)]"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={save}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 id="class-title" className="text-lg font-bold text-carbon-900">
+              Your class code
+            </h2>
+            <p className="mt-1.5 text-sm leading-relaxed text-carbon-600">
+              Students choose More → Submit to instructor and type this. Their circuits land in your library under their names.
+            </p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="rounded-md p-1 text-carbon-600 hover:bg-steel-200 hover:text-carbon-900">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <p className="rounded-xl border border-steel-300 bg-steel-100 py-4 text-center font-mono text-3xl font-bold tracking-[0.3em] text-carbon-900 select-all">
+          {code ?? '······'}
+        </p>
+
+        <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-carbon-800">
+          What students fill in, besides their name
+          <input
+            value={fields}
+            onChange={(e) => setFields(e.target.value)}
+            placeholder="Section, Student no."
+            className="h-[46px] rounded-[10px] border border-steel-400 bg-steel-100 px-3.5 text-[15px] font-normal text-carbon-900 outline-none focus:border-signal-amber"
+          />
+          <span className="text-xs font-normal text-carbon-600">
+            Separate with commas, up to 5. Submissions are grouped by the first one.
+          </span>
+        </label>
+
+        {note && <p className={'text-[13px] ' + (note.ok ? 'text-green-ink' : 'text-red-ink')}>{note.text}</p>}
+
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-9 rounded-[9px] border border-steel-400 bg-steel-100 px-4 text-sm font-semibold text-carbon-900 hover:bg-steel-200"
+          >
+            Done
+          </button>
+          <button
+            type="submit"
+            disabled={busy || !code}
+            className="h-9 rounded-[9px] bg-signal-amber px-4 text-sm font-bold text-[#1a1204] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {busy ? 'Saving…' : 'Save fields'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 /** A small, schematic picture of a bench for a card: panels across the top, the work below. */
 function Mini({ board, lit }: { board: BoardType; lit: boolean }) {
   const panel = 'absolute rounded-md border border-steel-400 bg-steel-200';
@@ -557,7 +667,16 @@ function CircuitCard({
               </span>
             )}
           </div>
-          <span className="text-xs text-carbon-600">Edited {ago(c.updatedAt)}</span>
+          {c.info && Object.keys(c.info).length > 0 && (
+            <span className="truncate text-xs text-carbon-800">
+              {Object.entries(c.info)
+                .map(([k, v]) => k + ': ' + v)
+                .join(' · ')}
+            </span>
+          )}
+          <span className="text-xs text-carbon-600">
+            {c.submitted ? 'Submitted' : 'Edited'} {ago(c.updatedAt)}
+          </span>
         </div>
       </button>
       {current && (
@@ -727,13 +846,16 @@ export function Library({ onClose }: { onClose: () => void }) {
   const [onDevice, setOnDevice] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
-  const [classCode, setClassCode] = useState<string | null>(null);
+  const [classOpen, setClassOpen] = useState(false);
+  /** What this account asks students for; the first one sorts their submissions. */
+  const [classFields, setClassFields] = useState<string[]>([]);
 
   const refresh = useCallback(async () => {
     setOnDevice(savingToDevice());
     try {
-      const { circuits } = await api.listCircuits();
+      const { circuits, classFields } = await api.listCircuits();
       setCircuits(circuits);
+      setClassFields(classFields ?? []);
     } catch {
       setCircuits([]);
     }
@@ -774,7 +896,29 @@ export function Library({ onClose }: { onClose: () => void }) {
   };
 
   const q = query.trim().toLowerCase();
-  const recent = circuits.filter((c) => !q || c.name.toLowerCase().includes(q));
+  const matches = circuits.filter(
+    (c) => !q || (c.name + ' ' + Object.values(c.info ?? {}).join(' ')).toLowerCase().includes(q),
+  );
+  const recent = matches.filter((c) => !c.submitted);
+  // Submissions sit in groups by the class's first field (a section, say), names A to Z inside each.
+  const groupBy = classFields[0];
+  const groups = new Map<string, CircuitSummary[]>();
+  for (const c of [...matches.filter((c) => c.submitted)].sort((a, b) => a.name.localeCompare(b.name))) {
+    const key = (groupBy && c.info?.[groupBy]?.toUpperCase()) || '';
+    groups.set(key, [...(groups.get(key) ?? []), c]);
+  }
+  const sections = [...groups].sort(([a], [b]) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b, undefined, { numeric: true })));
+  const card = (c: CircuitSummary) => (
+    <CircuitCard
+      key={c.id}
+      c={c}
+      current={c.id === savedId}
+      onOpen={() => void open(c.id)}
+      onSend={() => void send(c)}
+      sending={sending === c.id}
+      onDelete={() => setDeleting(c)}
+    />
+  );
   const showAuth = !error && status === 'ready' && (!user || signingIn);
 
   const tabClass = (active: boolean) =>
@@ -912,20 +1056,26 @@ export function Library({ onClose }: { onClose: () => void }) {
                       {q ? 'No saved circuit matches that.' : 'Nothing saved yet. Wire something up and hit Save.'}
                     </p>
                   ) : (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5">
-                      {recent.map((c) => (
-                        <CircuitCard
-                          key={c.id}
-                          c={c}
-                          current={c.id === savedId}
-                          onOpen={() => void open(c.id)}
-                          onSend={() => void send(c)}
-                          sending={sending === c.id}
-                          onDelete={() => setDeleting(c)}
-                        />
-                      ))}
-                    </div>
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5">{recent.map(card)}</div>
                   )}
+                </section>
+              )}
+
+              {user && sections.length > 0 && (
+                <section className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className={sectionHead}>Student submissions</h3>
+                    <span className="text-xs text-carbon-600">{groupBy ? 'By ' + groupBy + ', then name' : 'By name'}</span>
+                  </div>
+                  {sections.map(([key, list]) => (
+                    <div key={key} className="flex flex-col gap-2">
+                      <h4 className="font-mono text-xs font-bold text-carbon-800">
+                        {groupBy ? (key ? groupBy + ' ' + key : 'No ' + groupBy) : 'All'}{' '}
+                        <span className="font-normal text-carbon-600">· {list.length}</span>
+                      </h4>
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5">{list.map(card)}</div>
+                    </div>
+                  ))}
                 </section>
               )}
 
@@ -949,23 +1099,11 @@ export function Library({ onClose }: { onClose: () => void }) {
             <button
               type="button"
               title="Students type this under More → Submit to instructor, and their circuits land here"
-              onClick={async () => {
-                try {
-                  setClassCode((await api.classCode()).code);
-                } catch (err) {
-                  setClassCode((err as Error).message);
-                }
-              }}
+              onClick={() => setClassOpen(true)}
               className="inline-flex items-center gap-1.5 hover:text-carbon-900"
             >
               <Users className="h-3.5 w-3.5" />
-              {classCode ? (
-                <>
-                  Class code <b className="font-mono text-sm tracking-[0.15em] text-carbon-900 select-all">{classCode}</b>
-                </>
-              ) : (
-                'Show class code'
-              )}
+              Class code
             </button>
           )}
           {user && !onDevice && (
@@ -984,6 +1122,13 @@ export function Library({ onClose }: { onClose: () => void }) {
           )}
           <span className="hidden sm:inline">Esc to close</span>
         </footer>
+
+        {classOpen && (
+          <ClassDialog
+            onClose={() => setClassOpen(false)}
+            onSaved={(fields) => setClassFields(fields)}
+          />
+        )}
 
         {deleting && (
           <ConfirmDialog
