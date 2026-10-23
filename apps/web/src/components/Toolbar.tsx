@@ -17,6 +17,7 @@ import {
   Redo2,
   RotateCcw,
   Save,
+  Send,
   Share2,
   Sun,
   Trash2,
@@ -135,6 +136,10 @@ export function Toolbar({
   const setHint = useBoard((s) => s.setHint);
   const newProject = useBoard((s) => s.newProject);
   const ensureSession = useSession((s) => s.ensure);
+  const user = useSession((s) => s.user);
+  /** What a circuit is called when nobody names it: whoever made it, so an instructor knows whose it is. */
+  const defaultName = user && user.id !== 'device' ? user.name : 'Untitled circuit';
+  const named = (name: string) => (name === 'Untitled circuit' ? defaultName : name);
   const choice = useTheme((s) => s.choice);
   const setChoice = useTheme((s) => s.setChoice);
   const soundOn = useSound((s) => s.enabled);
@@ -154,6 +159,46 @@ export function Toolbar({
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   /** Set when Share triggered the save, so the link follows automatically. */
   const [shareAfterSave, setShareAfterSave] = useState(false);
+  /** Handing the board in: first the class code, then what to call it. */
+  const [submitCode, setSubmitCode] = useState<string | null>(null);
+  const [askingCode, setAskingCode] = useState(false);
+
+  const lastCode = () => {
+    try {
+      return localStorage.getItem('mech-class-code') ?? '';
+    } catch {
+      return '';
+    }
+  };
+
+  const startSubmit = async () => {
+    const u = await ensureSession();
+    if (!u || u.id === 'device') {
+      setHint('Submitting goes through your account, so your instructor knows it is yours. Sign in first.');
+      onOpenLibrary();
+      return;
+    }
+    setAskingCode(true);
+  };
+
+  const submit = async (name: string) => {
+    if (!submitCode) return;
+    setBusy(true);
+    try {
+      const out = await api.submit({ code: submitCode, name: named(name), circuit: useBoard.getState().circuit });
+      try {
+        localStorage.setItem('mech-class-code', submitCode);
+      } catch {
+        // Only a convenience for next time.
+      }
+      setSubmitCode(null);
+      setHint(`${out.replaced ? 'Resubmitted' : 'Submitted'} "${out.name}" to ${out.to}.`);
+    } catch (err) {
+      setHint((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const linkFor = async (id: string) => {
     const { shareId } = await api.share(id);
@@ -167,7 +212,7 @@ export function Toolbar({
   const saveToFile = async (name: string) => {
     setBusy(true);
     try {
-      const how = await exportCircuit(name, useBoard.getState().circuit);
+      const how = await exportCircuit(named(name), useBoard.getState().circuit);
       setNamingFile(false);
       setHint(
         how === 'shared'
@@ -208,7 +253,8 @@ export function Toolbar({
     }
   };
 
-  const saveAs = async (name: string) => {
+  const saveAs = async (typed: string) => {
+    const name = named(typed);
     setBusy(true);
     try {
       const { id } = await api.createCircuit({ name, circuit: useBoard.getState().circuit });
@@ -393,6 +439,17 @@ export function Toolbar({
                       Share link
                     </MenuItem>
                   )}
+                  {(!OFFLINE || hasCloudSession()) && (
+                    <MenuItem
+                      icon={<Send className="h-3.5 w-3.5" />}
+                      onClick={() => {
+                        close();
+                        void startSubmit();
+                      }}
+                    >
+                      Submit to instructor
+                    </MenuItem>
+                  )}
                   <MenuItem
                     icon={<FileDown className="h-3.5 w-3.5" />}
                     onClick={() => {
@@ -492,7 +549,7 @@ export function Toolbar({
                 : 'It goes to your account, so you can pick it up on another machine.'
           }
           label="Circuit name"
-          defaultValue="Untitled circuit"
+          defaultValue={defaultName}
           placeholder="Start/stop latch"
           confirmLabel={shareAfterSave ? 'Save and get link' : 'Save circuit'}
           busy={busy}
@@ -509,12 +566,43 @@ export function Toolbar({
           title="Save this circuit as a file"
           message="The file holds the whole board. Send it to a classmate, or open it on another device — no account needed at either end."
           label="Circuit name"
-          defaultValue="Untitled circuit"
+          defaultValue={defaultName}
           placeholder="Start/stop latch"
           confirmLabel={OFFLINE ? 'Send the file' : 'Save the file'}
           busy={busy}
           onSubmit={saveToFile}
           onCancel={() => setNamingFile(false)}
+        />
+      )}
+
+      {askingCode && (
+        <PromptDialog
+          title="Submit to your instructor"
+          message="Type the class code your instructor gave you. The board goes straight to their library, under your name."
+          label="Class code"
+          defaultValue={lastCode()}
+          placeholder="ABC234"
+          maxLength={6}
+          confirmLabel="Next"
+          onSubmit={(code) => {
+            setAskingCode(false);
+            setSubmitCode(code.toUpperCase());
+          }}
+          onCancel={() => setAskingCode(false)}
+        />
+      )}
+
+      {submitCode && (
+        <PromptDialog
+          title="Name your submission"
+          message="Your name is added for you. Submitting the same name again replaces the earlier copy."
+          label="Activity or circuit name"
+          defaultValue={defaultName}
+          placeholder="Lab 3 — start/stop latch"
+          confirmLabel="Submit"
+          busy={busy}
+          onSubmit={submit}
+          onCancel={() => setSubmitCode(null)}
         />
       )}
 

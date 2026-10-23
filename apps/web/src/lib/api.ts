@@ -122,6 +122,9 @@ const cloud = {
   deleteCircuit: (id: string) => req<{ ok: true }>('/circuits/' + id, { method: 'DELETE' }),
   share: (id: string) => req<{ shareId: string }>('/circuits/' + id + '/share', { method: 'POST' }),
   shared: (shareId: string) => req<{ circuit: Circuit; name: string }>('/share/' + shareId),
+  classCode: () => req<{ code: string }>('/class-code', { method: 'POST' }),
+  submit: (d: { code: string; name: string; circuit: Circuit }) =>
+    req<{ to: string; name: string; replaced: boolean }>('/submit', post(d)),
 };
 
 // ---- On-device storage, for an app with nobody signed in ----
@@ -200,6 +203,8 @@ const device: typeof cloud = {
   },
   share: noNetwork,
   shared: noNetwork,
+  classCode: noNetwork,
+  submit: noNetwork,
 };
 
 /**
@@ -233,6 +238,8 @@ const route: typeof cloud = {
   deleteCircuit: (id) => (hasCloudSession() ? cloud.deleteCircuit(id) : device.deleteCircuit(id)),
   share: (id) => (hasCloudSession() ? cloud.share(id) : device.share(id)),
   shared: (shareId) => (hasCloudSession() ? cloud.shared(shareId) : device.shared(shareId)),
+  classCode: () => (hasCloudSession() ? cloud.classCode() : device.classCode()),
+  submit: (d) => (hasCloudSession() ? cloud.submit(d) : device.submit(d)),
 };
 
 export const api = OFFLINE ? route : cloud;

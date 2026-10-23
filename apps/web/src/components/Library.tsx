@@ -15,12 +15,13 @@ import {
   Search,
   Smartphone,
   Trash2,
+  Users,
   X,
 } from 'lucide-react';
 import { PRESETS, circuitStats, type BoardType, type Preset } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
 import { api, CLOUD_AVAILABLE, hasCloudSession, OFFLINE, savingToDevice, type CircuitSummary, type User } from '@/lib/api';
-import { exportCircuit, importCircuit } from '@/lib/projectFile';
+import { exportCircuit, fileNameFor, importCircuit } from '@/lib/projectFile';
 import { useSession } from '@/store/useSession';
 import { BOARDS, boardOf } from '@/lib/boards';
 import { BrandMark } from './BrandMark';
@@ -405,14 +406,46 @@ function NewProject({ onStarted }: { onStarted: () => void }) {
  * your own storage, from the laptop you built it on. The picker is the
  * device's own, so wherever the file landed is where it can be found.
  */
-function OpenFile({ onOpened }: { onOpened: () => void }) {
+function OpenFile({ onOpened, canSave, onSaved }: { onOpened: () => void; canSave: boolean; onSaved: () => void }) {
   const loadCircuit = useBoard((s) => s.loadCircuit);
   const setHint = useBoard((s) => s.setHint);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  const take = async (file: File | undefined) => {
-    if (!file) return;
+  /**
+   * Several files at once is an instructor collecting a class's work: each goes
+   * into the library to be opened in turn, rather than onto the board.
+   */
+  const saveAll = async (files: File[]) => {
+    if (!canSave) {
+      setError('Sign in to add several files to your library at once.');
+      return;
+    }
+    setNotice('Adding ' + files.length + ' files…');
+    const failed: string[] = [];
+    for (const file of files) {
+      try {
+        const { name, circuit } = await importCircuit(file);
+        // A renamed file (often the student's name) says more than a circuit name everyone left the same.
+        const label = file.name === fileNameFor(name) ? name : name + ' · ' + file.name.replace(/(\.mech)?\.json$/i, '');
+        await api.createCircuit({ name: label, circuit });
+      } catch {
+        failed.push(file.name);
+      }
+    }
+    const added = files.length - failed.length;
+    setNotice(added + ' of ' + files.length + ' added to My circuits.');
+    if (failed.length) setError('Not circuits: ' + failed.join(', '));
+    onSaved();
+  };
+
+  const take = async (list: FileList | null) => {
+    const files = Array.from(list ?? []);
     setError(null);
+    setNotice(null);
+    if (files.length > 1) return saveAll(files);
+    const file = files[0];
+    if (!file) return;
     try {
       const { name, circuit } = await importCircuit(file);
       // No id: it belongs to whoever opened it, and Save makes it theirs.
@@ -432,16 +465,18 @@ function OpenFile({ onOpened }: { onOpened: () => void }) {
       <span className="min-w-0">
         <span className="block text-[15px] font-semibold text-carbon-900">Open a circuit file</span>
         <span className="mt-0.5 block text-[13px] text-carbon-600">
-          A .mech.json file someone sent you, or one you saved yourself.
+          A .mech.json file someone sent you, or one you saved yourself. Pick several to add them all to your library.
         </span>
+        {notice && <span className="mt-1 block text-xs text-green-ink">{notice}</span>}
         {error && <span className="mt-1 block text-xs text-red-ink">{error}</span>}
       </span>
       <input
         type="file"
         accept=".json,application/json"
+        multiple
         className="sr-only"
         onChange={(e) => {
-          void take(e.target.files?.[0]);
+          void take(e.target.files);
           e.target.value = '';
         }}
       />
@@ -692,6 +727,7 @@ export function Library({ onClose }: { onClose: () => void }) {
   const [onDevice, setOnDevice] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
+  const [classCode, setClassCode] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setOnDevice(savingToDevice());
@@ -817,7 +853,7 @@ export function Library({ onClose }: { onClose: () => void }) {
               {/* Start something */}
               <div className="grid gap-3 md:grid-cols-2">
                 <NewProject onStarted={onClose} />
-                <OpenFile onOpened={onClose} />
+                <OpenFile onOpened={onClose} canSave={!!user} onSaved={() => void refresh()} />
               </div>
 
               {error && <p className="text-sm text-red-ink">{error}</p>}
@@ -909,6 +945,29 @@ export function Library({ onClose }: { onClose: () => void }) {
         <footer className="flex flex-wrap items-center gap-3 border-t border-steel-300 bg-steel-100 px-4 py-3 text-[13px] text-carbon-600 sm:px-5">
           <span>Opening a circuit replaces the bench. Save first if you want to keep what is on it.</span>
           <div className="flex-1" />
+          {user && !onDevice && (
+            <button
+              type="button"
+              title="Students type this under More → Submit to instructor, and their circuits land here"
+              onClick={async () => {
+                try {
+                  setClassCode((await api.classCode()).code);
+                } catch (err) {
+                  setClassCode((err as Error).message);
+                }
+              }}
+              className="inline-flex items-center gap-1.5 hover:text-carbon-900"
+            >
+              <Users className="h-3.5 w-3.5" />
+              {classCode ? (
+                <>
+                  Class code <b className="font-mono text-sm tracking-[0.15em] text-carbon-900 select-all">{classCode}</b>
+                </>
+              ) : (
+                'Show class code'
+              )}
+            </button>
+          )}
           {user && !onDevice && (
             <button
               type="button"

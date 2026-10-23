@@ -7,6 +7,8 @@ export interface UserDoc {
   name: string;
   /** A pending password reset: the code's hash, when it lapses, and wrong guesses so far. */
   reset?: { codeHash: string; expires: Date; tries: number };
+  /** What students type to submit circuits straight into this account. */
+  classCode?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,6 +22,8 @@ export interface CircuitDoc {
   /** Which bench it was built on. Absent means the trainer, as it always was. */
   board?: string;
   shareId?: string;
+  /** The student who handed this in through a class code, so a resubmission replaces it. */
+  submittedBy?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +37,7 @@ const userSchema = new Schema<UserDoc>(
       type: new Schema({ codeHash: String, expires: Date, tries: Number }, { _id: false }),
       required: false,
     },
+    classCode: { type: String, unique: true, sparse: true },
   },
   { timestamps: true },
 );
@@ -49,6 +54,7 @@ const circuitSchema = new Schema<CircuitDoc>(
     wires: { type: Schema.Types.Mixed, required: true },
     board: { type: String, enum: ['trainer', 'pneumatics', 'simple'] },
     shareId: { type: String, index: true, sparse: true },
+    submittedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true },
 );
