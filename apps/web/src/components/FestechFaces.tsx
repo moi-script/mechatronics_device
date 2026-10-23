@@ -3,13 +3,15 @@
 import {
   FT_PBU_BLOCK_Y,
   FT_PLC_INPUT_ROWS,
-  FT_PLC_OUTPUT_Y,
+  FT_PLC_OUTPUT_ROWS,
   FT_RELAY_BLOCK_Y,
+  LIMIT_ROLLER,
+  ROD_CAP,
   moduleLabel,
   PARTS,
   type ModuleInstance,
 } from '@mech/sim';
-import { useBoard } from '@/store/useBoard';
+import { useBoard, usePhotoreal } from '@/store/useBoard';
 import { useLadderEditor } from '@/store/useLadderEditor';
 import { usePalette } from '@/store/useTheme';
 import { clickDown, clickUp } from '@/lib/sound';
@@ -157,9 +159,12 @@ export function FestechFace({ m }: { m: ModuleInstance }) {
   const limit = useMomentary(m.id);
   const buttons = [useMomentary(m.id + '.B1'), useMomentary(m.id + '.B2'), useMomentary(m.id + '.B3')];
 
+  const photo = usePhotoreal();
   const k = (id: string) => m.id + '.' + id;
   const hot = (pin: string) => !!nets[pinNet[k(pin)]]?.hot;
   const gnd = (pin: string) => !!nets[pinNet[k(pin)]]?.gnd;
+
+  if (photo && PHOTO_PNEUMATIC.has(m.type)) return <PhotoPneumatic m={m} />;
 
   switch (m.type) {
     case 'FT_PSU': {
@@ -239,9 +244,19 @@ export function FestechFace({ m }: { m: ModuleInstance }) {
                 )}
                 <g {...buttons[b]}>
                   {lit && <circle cx={42} cy={cy} r={30} fill={caps[b]} opacity={0.55} filter="url(#glow)" />}
-                  <circle cx={42} cy={cy} r={22} fill="url(#chrome)" stroke={p.screwStroke} />
-                  <circle cx={42} cy={cy + (down ? 1 : -1)} r={16} fill={caps[b]} opacity={lit ? 1 : 0.78} />
-                  <circle cx={42} cy={cy + (down ? 1 : -1)} r={16} fill="url(#capGloss)" />
+                  {/* Same 22 mm operator as the trainer's: knurled bezel, bore, concave cap. */}
+                  <g transform={`translate(42 ${cy}) scale(22)`}>
+                    <circle r={1.06} cy={0.09} fill="#000000" opacity={0.45} />
+                    <circle r={1} fill="url(#bzl)" />
+                    <circle r={0.93} fill="none" stroke="#28313c" strokeWidth={0.06} strokeDasharray="0.035 0.055" opacity={0.65} />
+                    <circle r={0.85} fill="url(#bzlIn)" />
+                    <circle r={0.78} fill="#07090c" />
+                    <g transform={down ? 'translate(0 0.05) scale(0.95)' : undefined}>
+                      <circle r={0.72} fill={caps[b]} opacity={lit ? 1 : 0.85} />
+                      <circle r={0.72} fill="url(#dish)" />
+                      {!down && <ellipse cx={-0.16} cy={-0.34} rx={0.42} ry={0.18} fill="#ffffff" opacity={0.38} />}
+                    </g>
+                  </g>
                 </g>
                 {/* Contact blades: NO pairs stand open, NC pairs closed, until the button is pushed. */}
                 {[true, true, false, false].map((no, i) => {
@@ -358,7 +373,7 @@ export function FestechFace({ m }: { m: ModuleInstance }) {
             onPress();
           }}
         >
-          <rect x={x} y={46} width={40} height={17} rx={3} fill={lit ? p.green : '#3a4a58'} stroke="#5b6f82" />
+          <rect x={x} y={46} width={40} height={17} rx={3} fill={lit ? '#22b14c' : '#2b2e33'} stroke="#55595f" />
           <Text x={x + 20} y={57.5} size={7} bold cond color={lit ? '#0b1a12' : '#e2e8f0'}>
             {label}
           </Text>
@@ -366,11 +381,19 @@ export function FestechFace({ m }: { m: ModuleInstance }) {
       );
       return (
         <>
-          <rect x={232} y={38} width={232} height={56} rx={4} fill="#22303c" pointerEvents="none" />
-          <Text x={246} y={58} anchor="start" size={12} bold cond color="#e2e8f0">
-            OMRON CP1E
+          {/* The CP1E CPU itself: a black moulded housing with its marks and a smoked window. */}
+          <g pointerEvents="none">
+            <rect x={230} y={36} width={236} height={62} rx={4} fill="url(#plcBody)" stroke="#050607" />
+            <rect x={230} y={36} width={236} height={1.5} fill="#ffffff" opacity={0.1} />
+            <rect x={230} y={36} width={84} height={62} rx={4} fill="#1f2226" />
+          </g>
+          <Text x={240} y={52} anchor="start" size={10} bold color="#e6e8ea">
+            omron
           </Text>
-          <Text x={246} y={80} anchor="start" color="#9fb1c2">
+          <Text x={240} y={65} anchor="start" size={9} bold cond color="#e6e8ea">
+            SYSMAC CP1E
+          </Text>
+          <Text x={240} y={88} anchor="start" size={7} color="#b8bcc1">
             {!powered ? 'no power' : rungs === 0 ? 'NO PROGRAM LOADED' : `${rungs} ${rungs === 1 ? 'RUNG' : 'RUNGS'} · ${run ? 'RUN' : 'STOP'}`}
           </Text>
           {key(326, toggled[m.id] ? 'RUN' : 'STOP', !!toggled[m.id], () => flipToggle(m.id))}
@@ -386,23 +409,33 @@ export function FestechFace({ m }: { m: ModuleInstance }) {
           <Text x={20} y={107} anchor="start" bold>
             INPUT CH 0
           </Text>
-          {Array.from({ length: 12 }, (_, i) => {
+          <Text x={20} y={FT_PLC_INPUT_ROWS[2] - 26} anchor="start" bold>
+            INPUT CH 1
+          </Text>
+          {Array.from({ length: 18 }, (_, i) => {
             const id = 'I' + String(i).padStart(2, '0');
             return (
               <Led
                 key={id}
                 x={50 + (i % 6) * 62 + 20}
                 y={FT_PLC_INPUT_ROWS[Math.floor(i / 6)] - 11}
-                on={powered && hot(id)}
+                on={powered && hot(id)} color="#ffae2a"
                 r={3}
               />
             );
           })}
-          <Text x={20} y={FT_PLC_OUTPUT_Y - 24} anchor="start" bold>
+          <Text x={20} y={FT_PLC_OUTPUT_ROWS[0] - 24} anchor="start" bold>
             OUTPUT CH 100
           </Text>
-          {Array.from({ length: 8 }, (_, i) => (
-            <Led key={i} x={50 + i * 52 + 18} y={FT_PLC_OUTPUT_Y - 11} on={!!acts[k('Q0' + i)]} r={3} />
+          {Array.from({ length: 12 }, (_, i) => (
+            <Led
+              key={i}
+              x={50 + (i % 6) * 62 + 20}
+              y={FT_PLC_OUTPUT_ROWS[Math.floor(i / 6)] - 11}
+              on={!!acts[k('Q' + String(i).padStart(2, '0'))]}
+              r={3}
+              color="#ffae2a"
+            />
           ))}
         </>
       );
@@ -634,7 +667,7 @@ export function FestechFace({ m }: { m: ModuleInstance }) {
           )}
           {/* Reed sensors clamped under the barrel, each with its own LED. */}
           {([1, 2] as const).map((idx) => {
-            const cx = idx === 1 ? 89 : 239;
+            const cx = idx === 1 ? 39 : 109;
             return (
               <g key={idx} pointerEvents="none">
                 <rect x={cx - 26} y={112} width={52} height={14} rx={2} fill={COIL_BLOCK} />
@@ -670,6 +703,351 @@ export function FestechFace({ m }: { m: ModuleInstance }) {
   }
 }
 
+/** The pneumatic hardware, drawn as hardware rather than as panels on the PLC Trainer Board. */
+export const PHOTO_PNEUMATIC: ReadonlySet<string> = new Set([
+  'FT_AIR',
+  'FT_V52S',
+  'FT_V52D',
+  'FT_V32',
+  'FT_CYL',
+  'FT_SCYL',
+  'FT_LIMIT',
+]);
+
+const INK = '#1c1e21';
+const PRINT = '#2a2d31';
+
+/** Printed lettering on the hardware: condensed, dark, small. */
+const Print = ({
+  x,
+  y,
+  children,
+  size = 8.5,
+  anchor = 'start',
+  color = PRINT,
+  weight = 400,
+  italic,
+}: {
+  x: number;
+  y: number;
+  children: React.ReactNode;
+  size?: number;
+  anchor?: 'start' | 'middle' | 'end';
+  color?: string;
+  weight?: number;
+  italic?: boolean;
+}) => (
+  <text
+    className="t-cond"
+    x={x}
+    y={y}
+    textAnchor={anchor}
+    fontSize={size}
+    fontWeight={weight}
+    fontStyle={italic ? 'italic' : undefined}
+    fill={color}
+    style={{ pointerEvents: 'none', userSelect: 'none' }}
+  >
+    {children}
+  </text>
+);
+
+const Mark = ({ x, y, size = 11, anchor = 'end' as const }: { x: number; y: number; size?: number; anchor?: 'start' | 'end' }) => (
+  <Print x={x} y={y} size={size} anchor={anchor} weight={800} italic color="#d12a24">
+    FESTECH
+  </Print>
+);
+
+/** The black T-slot clamp a part is bolted down with. */
+const Clamp = ({ x, y, w = 60 }: { x: number; y: number; w?: number }) => (
+  <rect x={x} y={y} width={w} height={14} rx={3} fill="url(#blackGrad)" pointerEvents="none" />
+);
+
+/** A sintered bronze silencer in an exhaust port. */
+const Sinter = ({ x, y, label }: { x: number; y: number; label: string }) => (
+  <g pointerEvents="none">
+    <rect x={x - 10} y={y - 14} width={20} height={28} rx={5} fill="url(#sinter)" />
+    <rect x={x - 10} y={y - 14} width={20} height={28} rx={5} fill="none" stroke="#6b5228" strokeOpacity={0.6} />
+    <Print x={x} y={y - 18} anchor="middle" size={10}>
+      {label}
+    </Print>
+  </g>
+);
+
+/**
+ * A solenoid head: the black moulded coil with its connector holes and LED,
+ * and the + / - sockets set into its foot.
+ */
+const SolenoidHead = ({ x, name, on }: { x: number; name: string; on: boolean }) => (
+  <g pointerEvents="none">
+    <rect x={x} y={30} width={88} height={110} rx={6} fill="url(#blackGrad)" />
+    <rect x={x + 4} y={34} width={80} height={3} rx={1.5} fill="#ffffff" opacity={0.12} />
+    {[
+      [x + 30, 54],
+      [x + 58, 54],
+      [x + 44, 76],
+    ].map(([cx, cy]) => (
+      <circle key={cx + '-' + cy} cx={cx} cy={cy} r={6} fill="#0a0b0d" />
+    ))}
+    <circle cx={x + 76} cy={44} r={3} fill={on ? '#ff3b3b' : '#5a1a1c'} />
+    {on && <circle cx={x + 76} cy={44} r={8} fill="#ff3b3b" opacity={0.5} filter="url(#glow)" />}
+    <Print x={x + 10} y={98} size={12} weight={700} color="#e6e8ea">
+      {name}
+    </Print>
+    <Print x={x + 82} y={98} size={8} anchor="end" weight={700} italic color="#c9cdd2">
+      FESTECH
+    </Print>
+  </g>
+);
+
+/** The valve's aluminium body, with its printed name and ISO symbol. */
+const PhotoValveBody = ({ x, w, lines, shifted }: { x: number; w: number; lines: [string, string]; shifted: boolean }) => (
+  <g pointerEvents="none">
+    <rect x={x} y={26} width={w} height={118} rx={5} fill="url(#aluBlock)" />
+    <rect x={x} y={26} width={w} height={118} rx={5} fill="none" stroke="#8a9096" />
+    <path d={`M${x + 2} 28H${x + w - 2}`} stroke="#ffffff" strokeWidth={1.4} opacity={0.8} />
+    <Print x={x + 8} y={150} size={8}>
+      {lines[0]}
+    </Print>
+    <Print x={x + 8} y={159} size={8}>
+      {lines[1]}
+    </Print>
+    {/* Two squares of the ISO symbol; the live one is the one the spool sits in. */}
+    <g transform={`translate(${x + w - 46} 30)`} stroke={INK} strokeWidth={1} fill="none">
+      <rect width={18} height={14} fill={shifted ? 'none' : '#22b14c'} fillOpacity={0.25} />
+      <rect x={18} width={18} height={14} fill={shifted ? '#22b14c' : 'none'} fillOpacity={0.25} />
+      <path d="M4 11l10 -8M22 3v8M32 3v8" />
+    </g>
+  </g>
+);
+
+export function PhotoPneumatic({ m }: { m: ModuleInstance }) {
+  const coils = useBoard((s) => s.sim.coils);
+  const acts = useBoard((s) => s.sim.actuated);
+  const valves = useBoard((s) => s.sim.valves);
+  const nets = useBoard((s) => s.sim.nets);
+  const pinNet = useBoard((s) => s.sim.pinNet);
+  const piston = useBoard((s) => s.sim.pistons[m.id]);
+  const limit = useMomentary(m.id);
+  const w = PARTS[m.type].width;
+  const k = (id: string) => m.id + '.' + id;
+  const hot = (pin: string) => !!nets[pinNet[k(pin)]]?.hot;
+
+  switch (m.type) {
+    case 'FT_AIR':
+      return (
+        <g pointerEvents="none">
+          {/* The green supply line from the service unit into IN. */}
+          <path d="M-26 66 C -14 62, -2 84, 22 84" fill="none" stroke="#0e5a35" strokeWidth={13} strokeLinecap="round" />
+          <path d="M-26 66 C -14 62, -2 84, 22 84" fill="none" stroke="#1f8a52" strokeWidth={9} strokeLinecap="round" />
+          <path d="M-26 65 C -14 61, -2 83, 22 83" fill="none" stroke="#ffffff" strokeWidth={1.6} opacity={0.4} />
+          <Clamp x={150} y={136} />
+          <rect x={72} y={22} width={222} height={116} rx={5} fill="url(#aluBlock)" filter="url(#lift)" />
+          <rect x={72} y={22} width={222} height={116} rx={5} fill="none" stroke="#8a9096" />
+          <path d="M74 24H292" stroke="#ffffff" strokeWidth={1.4} opacity={0.8} />
+          <rect x={6} y={70} width={60} height={28} rx={6} fill="url(#blackGrad)" />
+          <path d="M92 84H284M135 40V128M185 40V128M235 40V128" stroke={INK} strokeWidth={1.2} opacity={0.55} />
+          <Print x={80} y={37} size={13} color={INK}>
+            -⟐
+          </Print>
+          <Print x={100} y={36} size={8}>
+            AIR DISTRIBUTOR · PN. 12201
+          </Print>
+          <Mark x={288} y={37} />
+        </g>
+      );
+
+    case 'FT_V52S':
+    case 'FT_V32':
+    case 'FT_V52D': {
+      const shifted = !!valves[m.id];
+      const double = m.type === 'FT_V52D';
+      const is52 = m.type !== 'FT_V32';
+      const bodyX = 96;
+      const bodyW = (double ? 222 : w - 8) - bodyX;
+      return (
+        <>
+          <Clamp x={bodyX + bodyW - 52} y={146} w={44} />
+          <PhotoValveBody
+            x={bodyX}
+            w={bodyW}
+            shifted={shifted}
+            lines={
+              m.type === 'FT_V32'
+                ? ['3/2-WAY NC', 'PN. 13010']
+                : double
+                  ? ['5/2-WAY', 'PN. 13013']
+                  : ['5/2-WAY', 'PN. 13011']
+            }
+          />
+          {double ? (
+            <>
+              <SolenoidHead x={6} name="Y14" on={!!coils[k('Y14')]} />
+              <SolenoidHead x={224} name="Y12" on={!!coils[k('Y12')]} />
+              <Sinter x={118} y={118} label="5" />
+              <Sinter x={202} y={118} label="3" />
+            </>
+          ) : (
+            <>
+              <SolenoidHead x={6} name="Y1" on={!!coils[k('Y')]} />
+              {is52 ? (
+                <>
+                  <Sinter x={120} y={118} label="5" />
+                  <Sinter x={222} y={118} label="3" />
+                </>
+              ) : (
+                <Sinter x={130} y={118} label="3" />
+              )}
+            </>
+          )}
+          {!double && <Mark x={w - 12} y={22} size={10} />}
+        </>
+      );
+    }
+
+    case 'FT_CYL':
+    case 'FT_SCYL': {
+      const single = m.type === 'FT_SCYL';
+      const st = piston ?? { extended: false, extendCoil: false, retractCoil: false, stalled: false };
+      const out = !!acts[k('EXT')];
+      const travel = ROD_CAP.outX - ROD_CAP.homeX;
+      const capX = ROD_CAP.homeX - 28;
+      const lit = (idx: 1 | 2) => (idx === 1 ? !out : out) && hot(`S${idx}_P`);
+      // Reed clamps on the tube, each wired down to its own socket block under the barrel.
+      const reeds = [
+        { idx: 1 as const, clamp: 118, block: 39 },
+        { idx: 2 as const, clamp: 186, block: 109 },
+      ];
+      return (
+        <g pointerEvents="none">
+          <Clamp x={22} y={100} />
+          <Clamp x={222} y={100} />
+          {/* Rod and its turned end cap, run out by the piston. */}
+          <g
+            style={{
+              transform: `translateX(${st.extended ? travel : 0}px)`,
+              transition: `transform ${STROKE_MS}ms cubic-bezier(0.4, 0.1, 0.25, 1)`,
+            }}
+          >
+            {/* Long enough to stay inside the cylinder at full stroke; the tube hides the rest. */}
+            <rect x={capX - travel - 60} y={53} width={travel + 70} height={18} rx={4} fill="url(#rodGrad)" />
+            <rect x={capX} y={34} width={56} height={ROD_CAP.bottom - 34} rx={22} fill="url(#turnedGrad)" filter="url(#lift)" />
+          </g>
+          <rect x={86} y={36} width={136} height={52} fill="url(#tubeGrad)" filter="url(#lift)" />
+          <rect x={14} y={26} width={76} height={72} rx={6} fill="url(#aluBlock)" filter="url(#lift)" />
+          <rect x={14} y={26} width={76} height={72} rx={6} fill="none" stroke="#8a9096" />
+          <rect x={214} y={26} width={76} height={72} rx={6} fill="url(#aluBlock)" filter="url(#lift)" />
+          <rect x={214} y={26} width={76} height={72} rx={6} fill="none" stroke="#8a9096" />
+          {single && <circle cx={270} cy={44} r={6} fill="url(#sinter)" />}
+          <Print x={150} y={50} size={7} anchor="middle">
+            {single ? 'SINGLE ACTING' : 'DOUBLE ACTING'}
+          </Print>
+          <Mark x={150} y={80} size={9} anchor="end" />
+          {single && (
+            <g transform="translate(156 72)" stroke={INK} strokeWidth={0.9} fill="none">
+              <rect width={36} height={12} />
+              <path d="M6 0v12M10 2l3 8l3 -8l3 8l3 -8l3 8" />
+            </g>
+          )}
+          {reeds.map(({ idx, clamp, block }) => (
+            <g key={idx}>
+              <rect x={clamp - 22} y={84} width={44} height={12} rx={3} fill="url(#blackGrad)" />
+              <circle cx={clamp + 14} cy={90} r={2.6} fill={lit(idx) ? '#ff3b3b' : '#5a1a1c'} />
+              {lit(idx) && <circle cx={clamp + 14} cy={90} r={7} fill="#ff3b3b" opacity={0.5} filter="url(#glow)" />}
+              <path
+                d={`M${clamp - 22} 92 C ${clamp - 40} 110, ${block} 108, ${block} 130`}
+                fill="none"
+                stroke="#141518"
+                strokeWidth={3}
+              />
+              <rect x={block - 32} y={130} width={64} height={28} rx={5} fill="url(#blackGrad)" />
+            </g>
+          ))}
+          <Print x={capX + 64} y={30} size={8} color={st.stalled ? '#c22520' : st.extended ? '#13803a' : PRINT}>
+            {st.stalled ? 'BOTH PORTS FED' : st.extended ? 'EXTENDED' : 'RETRACTED'}
+          </Print>
+        </g>
+      );
+    }
+
+    case 'FT_LIMIT': {
+      const down = !!acts[m.id];
+      const mount = m.mount;
+      const tag = mount ? moduleLabel(m).replace('Limit switch ', '') : m.id;
+      // The roller stands where the rod-end cap passes; a loose switch keeps it mid-top.
+      const rx = mount ? LIMIT_ROLLER[mount.at] : 94;
+      // The lever leans from its microswitch toward the roller, from whichever side has room.
+      const side = rx > 120 ? -1 : 1;
+      const pivot = rx + 26 * side;
+      const swX = side === 1 ? pivot - 10 : pivot - 60;
+      return (
+        <>
+          <g pointerEvents="none">
+            <Clamp x={70} y={148} w={74} />
+            {/* The black body, its side showing behind the face. */}
+            <rect x={4} y={22} width={50} height={128} rx={4} fill="url(#blackGrad)" />
+            <rect x={8} y={26} width={8} height={120} rx={2} fill="#4a4f56" opacity={0.6} />
+            {/* The microswitch on the top edge. */}
+            <rect x={swX} y={6} width={70} height={20} rx={2} fill="url(#blackGrad)" />
+            <rect x={pivot - 5} y={10} width={10} height={6} rx={1} fill="#2a2d31" />
+            {/* The face plate. */}
+            <rect x={24} y={22} width={160} height={128} rx={3} fill="#e2e3e3" filter="url(#lift)" />
+            <rect x={24} y={22} width={160} height={128} rx={3} fill="none" stroke="#b7babd" />
+            <path d="M26 24H182M26 24V148" stroke="#ffffff" strokeWidth={1.4} opacity={0.8} />
+            <Print x={34} y={46} size={14} weight={700} color="#c8343a">
+              FESTECH
+            </Print>
+            <g stroke={INK} strokeWidth={1} fill="none">
+              <path d={`M128 44h7l9 ${down ? 0 : -7}M144 37h4M140 44v6h8`} />
+            </g>
+            <Print x={150} y={39} size={7}>
+              N.C
+            </Print>
+            <Print x={150} y={53} size={7}>
+              N.O
+            </Print>
+            {[72, 136].map((x) => (
+              <g key={x} transform={`translate(${x} 78)`}>
+                <circle r={10} fill="url(#brassCapGrad)" />
+                <circle r={8.6} fill="none" stroke="#6b5014" strokeWidth={1.6} strokeDasharray="1 1.4" opacity={0.7} />
+                <path d="M-4 0h8M0 -4v8" stroke="#3a2c08" strokeWidth={1.6} />
+              </g>
+            ))}
+            <rect x={24} y={150} width={52} height={18} rx={4} fill="#0a0f15" />
+            <text className="t-mono" x={50} y={163} textAnchor="middle" fontSize={11} fontWeight={700} fill={down ? '#fcd34d' : '#e6edf5'}>
+              {tag}
+              {down ? ' ●' : ''}
+            </text>
+          </g>
+          {/* Stainless lever and roller. Bolted to a stroke, only the rod-end cap
+              riding over it pushes it down; a loose one is pressed by hand. */}
+          <g {...(mount ? { pointerEvents: 'none' as const } : limit)}>
+            <g
+              style={{
+                transform: `rotate(${down ? -16 * side : 0}deg)`,
+                transformOrigin: `${pivot}px 12px`,
+                transition: `transform ${mount ? 180 : 120}ms`,
+              }}
+            >
+              <path
+                d={`M${pivot} 12 L ${rx + 2 * side} ${LIMIT_ROLLER.y + 2}`}
+                stroke="url(#rodGrad)"
+                strokeWidth={5}
+                strokeLinecap="round"
+              />
+              <circle cx={rx} cy={LIMIT_ROLLER.y} r={10} fill="url(#nickGrad)" stroke="#5c636a" />
+              <circle cx={rx} cy={LIMIT_ROLLER.y} r={2.8} fill="#3e4349" />
+            </g>
+          </g>
+        </>
+      );
+    }
+
+    default:
+      return null;
+  }
+}
+
 /** A push-in pneumatic fitting: dark body, blue release collet, glowing when under pressure. */
 export function AirFitting({
   x,
@@ -685,6 +1063,30 @@ export function AirFitting({
   emphasis: 'on' | 'off' | null;
 }) {
   const p = usePalette();
+  const photo = usePhotoreal();
+  if (photo)
+    return (
+      <>
+        {live && <circle cx={x} cy={y} r={16} fill={TUBE_BLUE} opacity={0.4} filter="url(#glow)" />}
+        <circle cx={x} cy={y + 1.5} r={13} fill="#000000" opacity={0.3} />
+        <circle cx={x} cy={y} r={12} fill="url(#blackGrad)" />
+        <circle cx={x} cy={y} r={8.4} fill={live ? '#2aa0ee' : '#1a86cf'} stroke="#0a4f80" />
+        <circle cx={x} cy={y} r={5.4} fill="#0a0c0e" />
+        <ellipse cx={x - 4} cy={y - 6} rx={3.4} ry={1.4} fill="#ffffff" opacity={0.35} transform={`rotate(-25 ${x - 4} ${y - 6})`} />
+        <text
+          className="t-cond"
+          x={x}
+          y={y + 24}
+          textAnchor="middle"
+          fontSize={emphasis === 'on' ? 11 : 10}
+          fontWeight={700}
+          fill="#1c1e21"
+          style={{ pointerEvents: 'none', userSelect: 'none' }}
+        >
+          {label}
+        </text>
+      </>
+    );
   return (
     <>
       {live && <circle cx={x} cy={y} r={14} fill={TUBE_BLUE} opacity={0.35} filter="url(#glow)" />}

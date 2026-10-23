@@ -44,9 +44,9 @@ function Plug({ x, y, color }: { x: number; y: number; color: string }) {
   const p = usePalette();
   return (
     <g pointerEvents="none">
-      <rect x={x - 6} y={y - 3} width={12} height={15} rx={3} fill={color} />
-      <rect x={x - 6} y={y - 3} width={4} height={15} rx={2} fill="#ffffff" opacity={0.28} />
-      <circle cx={x} cy={y} r={4.5} fill="url(#brass)" stroke={p.plugPin} strokeWidth={0.6} />
+      <rect x={x - 6} y={y - 3} width={12} height={13} rx={3} fill={color} />
+      <rect x={x - 6} y={y - 3} width={4} height={13} rx={2} fill="#ffffff" opacity={0.28} />
+      <circle cx={x} cy={y} r={4} fill="url(#brass)" stroke={p.plugPin} strokeWidth={0.6} />
     </g>
   );
 }
@@ -146,6 +146,31 @@ export function Wires() {
   );
 
   /**
+   * Posts carrying two or more plugs, with the top of the tower, so the count
+   * can be read without hovering.
+   */
+  const stacks = useMemo(() => {
+    const posts = new Map<string, { n: number; x: number; y: number }>();
+    for (const { wire, a, b } of ends) {
+      for (const [ref, at] of [
+        [wire.a, a],
+        [wire.b, b],
+      ] as const) {
+        const t = endTerminal(circuit.wires, ref);
+        if (!t) continue;
+        const key = t.moduleId + '.' + t.pinId;
+        const post = posts.get(key);
+        if (!post) posts.set(key, { n: 1, x: at.x, y: at.y });
+        else {
+          post.n++;
+          post.y = Math.min(post.y, at.y);
+        }
+      }
+    }
+    return [...posts].filter(([, p]) => p.n > 1);
+  }, [ends, circuit.wires]);
+
+  /**
    * What the picked lead joins, in the words printed on the panel: the module's
    * legend and the terminal's own marking, at each end.
    */
@@ -191,7 +216,7 @@ export function Wires() {
                 d={d}
                 fill="none"
                 stroke={WIRE_HEX[wire.color]}
-                strokeWidth={8}
+                strokeWidth={6}
                 strokeLinecap="round"
                 filter="url(#cableGlow)"
                 pointerEvents="none"
@@ -204,7 +229,7 @@ export function Wires() {
                   d={d}
                   fill="none"
                   stroke={WIRE_HEX[wire.color]}
-                  strokeWidth={selected ? 7 : 5.5}
+                  strokeWidth={selected ? 5 : 3.6}
                   strokeLinecap="round"
                   filter={selected ? undefined : 'url(#cable)'}
                   pointerEvents="none"
@@ -213,10 +238,10 @@ export function Wires() {
                   d={d}
                   fill="none"
                   stroke={WIRE_HI[wire.color]}
-                  strokeWidth={selected ? 2.4 : 1.6}
+                  strokeWidth={selected ? 1.6 : 1.1}
                   strokeLinecap="round"
                   opacity={selected ? 0.95 : 0.75}
-                  transform="translate(0,-1.2)"
+                  transform="translate(0,-0.8)"
                   pointerEvents="none"
                 />
               </>
@@ -236,6 +261,16 @@ export function Wires() {
           </g>
         ))}
 
+      {stacks.map(([key, { n, x, y }]) => (
+        <g key={key} transform={`translate(${x} ${y - STACK_DY - 16})`} pointerEvents="none">
+          <rect x={-14} y={-9} width={28} height={18} rx={9} fill="var(--color-signal-amber)" />
+          <path d="M-3.5 9 L0 14 L3.5 9 Z" fill="var(--color-signal-amber)" />
+          <text y={4} textAnchor="middle" className="t-mono" fontSize={11} fontWeight={700} fill="#1a1204">
+            ×{n}
+          </text>
+        </g>
+      ))}
+
       {/* Both ends of the picked lead say, in words, what it joins. */}
       {tags.map((tag) => (
         <EndTag key={tag.key} x={tag.x} y={tag.y} text={tag.text} color={tag.color} />
@@ -253,7 +288,7 @@ export function Wires() {
             d={wirePath(endPos(circuit, pending), cursor)}
             fill="none"
             stroke={WIRE_HEX[wireColor]}
-            strokeWidth={5}
+            strokeWidth={3.6}
             strokeLinecap="round"
             opacity={0.8}
             strokeDasharray="12 7"

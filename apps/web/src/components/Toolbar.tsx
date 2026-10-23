@@ -38,6 +38,8 @@ import { SessionTimer } from './SessionTimer';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ShareDialog } from './ShareDialog';
 import { PromptDialog } from './PromptDialog';
+import { BOARDS, boardOf } from '@/lib/boards';
+import type { BoardType } from '@mech/sim';
 
 function Btn({
   onClick,
@@ -59,11 +61,12 @@ function Btn({
       disabled={disabled}
       onClick={onClick}
       className={clsx(
-        'inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1.5 text-xs font-semibold transition',
+        'inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-medium transition',
         'disabled:cursor-not-allowed disabled:opacity-40',
         tone === 'danger' && 'border-safety-red/40 bg-safety-red/10 text-safety-red hover:bg-safety-red/20',
-        tone === 'go' && 'border-run-green/40 bg-run-green/10 text-run-green hover:bg-run-green/20',
-        tone === 'plain' && 'border-steel-400 bg-steel-50 text-carbon-800 hover:bg-steel-200',
+        // Save is the one action the bench is built around, so it is the one solid button.
+        tone === 'go' && 'border-transparent bg-signal-amber font-bold text-[#1a1204] hover:brightness-110',
+        tone === 'plain' && 'border-steel-400 bg-steel-100 text-carbon-900 hover:bg-steel-200',
       )}
     >
       {children}
@@ -93,7 +96,7 @@ function MenuItem({
       onClick={onClick}
       disabled={disabled}
       className={clsx(
-        'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs font-semibold transition',
+        'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold transition',
         'disabled:cursor-not-allowed disabled:opacity-40',
         danger ? 'text-safety-red hover:bg-safety-red/10' : 'text-carbon-800 hover:bg-steel-200',
       )}
@@ -138,10 +141,13 @@ export function Toolbar({
   const setSoundEnabled = useSound((s) => s.setEnabled);
 
   const savedId = useBoard((s) => s.savedCircuitId);
+  const dirty = useBoard((s) => s.dirty);
   const setSavedId = useBoard((s) => s.setSavedCircuitId);
   const [busy, setBusy] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
-  const [confirmingNew, setConfirmingNew] = useState(false);
+  /** The bench a new project is waiting on, while its confirm is open. */
+  const [confirmingNew, setConfirmingNew] = useState<BoardType | null>(null);
+  const board = useBoard((s) => s.circuit.board ?? 'trainer');
   const [namingCircuit, setNamingCircuit] = useState(false);
   const [namingFile, setNamingFile] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -221,11 +227,13 @@ export function Toolbar({
     }
   };
 
-  const startNewProject = () => {
-    newProject();
-    setConfirmingNew(false);
-    setHint('New project started. Save it to keep it under its own name.');
+  const startNewProject = (type: BoardType = board) => {
+    newProject(type);
+    setConfirmingNew(null);
+    setHint(boardOf(type).name + ' started. Save it to keep it under its own name.');
   };
+
+  const askNewProject = (type: BoardType) => (wireCount > 0 ? setConfirmingNew(type) : startNewProject(type));
 
   const share = async () => {
     setBusy(true);
@@ -255,7 +263,7 @@ export function Toolbar({
   };
 
   return (
-    <header className="border-b-2 border-carbon-900 bg-steel-50 px-2 py-1.5 sm:px-4 sm:py-2">
+    <header className="border-b border-steel-300 bg-steel-50 px-2 py-1.5 sm:px-4 sm:py-2">
       {/*
         Two tidy rows on a phone and one on a desktop: the panel's power on the
         first, everything to do with wiring on the second. Each row is a full
@@ -263,39 +271,69 @@ export function Toolbar({
       */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <div className="flex w-full items-center gap-2 sm:w-auto">
-          <BrandMark className="h-6 w-6 shrink-0" />
-          <span className="engraved hidden text-[13px] font-bold text-carbon-900 sm:inline">Mechatronic</span>
-          <div className="hidden h-5 w-px bg-steel-400 sm:block" />
+          <BrandMark className="h-7 w-7 shrink-0" />
+          <div className="hidden flex-col leading-tight sm:flex">
+            <span className="text-[14px] font-bold tracking-[0.02em] text-carbon-900">Mechatronic Trainer</span>
+            <span className="text-[11px] text-carbon-600">
+              {boardOf(board).name} · {savedId ? (dirty ? 'unsaved changes' : 'saved') : 'unsaved'}
+            </span>
+          </div>
+          <div className="hidden h-7 w-px bg-steel-300 sm:block" />
 
-          <button
-            type="button"
-            onClick={() => setBreaker(!breakerOn)}
-            className={clsx(
-              'engraved inline-flex items-center gap-2 rounded-sm border px-2.5 py-1.5 text-xs font-bold transition',
-              breakerOn && !tripped
-                ? 'border-run-green bg-run-green/15 text-run-green'
-                : 'border-steel-400 bg-steel-50 text-carbon-600 hover:bg-steel-200',
+          <div role="group" aria-label="Power" className="flex items-center gap-1 rounded-[10px] border border-steel-300 bg-steel-100 p-1">
+            <button
+              type="button"
+              onClick={() => setBreaker(!breakerOn)}
+              className={clsx(
+                'inline-flex h-8 items-center gap-2 rounded-[7px] px-3 font-cond text-xs font-bold tracking-[0.1em] transition',
+                breakerOn && !tripped ? 'bg-run-green/15 text-run-green' : 'text-carbon-800 hover:bg-steel-200',
+              )}
+            >
+              <span
+                className={clsx('h-2 w-2 rounded-full', breakerOn && !tripped ? 'bg-run-green shadow-[0_0_8px_var(--color-run-green)]' : 'bg-steel-500')}
+              />
+              <Power className="h-3.5 w-3.5 sm:hidden" />
+              BREAKER {breakerOn ? 'ON' : 'OFF'}
+            </button>
+
+            {tripped && (
+              <Btn onClick={resetBreaker} tone="danger" title="Clear the fault and re-close the breaker">
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reset
+              </Btn>
             )}
-          >
-            <Power className="h-3.5 w-3.5" />
-            BREAKER {breakerOn ? 'ON' : 'OFF'}
-          </button>
 
-          {tripped && (
-            <Btn onClick={resetBreaker} tone="danger" title="Clear the fault and re-close the breaker">
-              <RotateCcw className="h-3.5 w-3.5" />
-              Reset
-            </Btn>
-          )}
-
-          <div className="ml-auto sm:ml-0">
             <SessionTimer />
           </div>
         </div>
 
         <div className="hidden h-5 w-px bg-steel-400 sm:block" />
 
+        {/* Which bench is on the screen. Switching starts a fresh project on it. */}
+        <div role="radiogroup" aria-label="Board" className="flex w-full rounded-[10px] border border-steel-300 bg-steel-100 p-1 sm:w-auto">
+          {BOARDS.map((b) => (
+            <button
+              key={b.id}
+              type="button"
+              role="radio"
+              aria-checked={board === b.id}
+              title={b.name + ' — ' + b.blurb}
+              onClick={() => board !== b.id && askNewProject(b.id)}
+              className={clsx(
+                'h-8 flex-1 whitespace-nowrap rounded-[7px] px-3 text-xs font-semibold transition sm:flex-none',
+                board === b.id ? 'bg-steel-50 text-carbon-900 shadow-sm ring-1 ring-signal-amber/60' : 'text-carbon-600 hover:text-carbon-900',
+              )}
+            >
+              <span className="xl:hidden">{b.short}</span>
+              <span className="hidden xl:inline">{b.name}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="hidden h-5 w-px bg-steel-400 sm:block" />
+
         <div className="flex w-full items-center gap-2 sm:w-auto sm:flex-1">
+          <div role="group" aria-label="Wiring" className="flex items-center gap-1 rounded-[10px] border border-steel-300 bg-steel-100 p-1">
           <WirePicker />
 
           <Btn
@@ -316,6 +354,7 @@ export function Toolbar({
               <Redo2 className="h-3.5 w-3.5" />
             </Btn>
           </div>
+          </div>
 
           <div className="ml-auto flex items-center gap-1.5">
             <span className="hidden font-mono text-[11px] text-carbon-600 lg:inline">
@@ -324,7 +363,7 @@ export function Toolbar({
             <Btn onClick={onOpenParts} title="Add or remove bench components">
               <PackagePlus className="h-3.5 w-3.5" />
               <span className="hidden lg:inline">Components</span>
-              <span className="font-mono text-[10px] text-carbon-600">{moduleCount}</span>
+              <span className="rounded-md bg-steel-200 px-1.5 font-mono text-[10px] text-carbon-800">{moduleCount}</span>
             </Btn>
             <Btn onClick={onOpenLibrary} title="Saved circuits">
               <FolderOpen className="h-3.5 w-3.5" />
@@ -367,8 +406,7 @@ export function Toolbar({
                     icon={<FilePlus2 className="h-3.5 w-3.5" />}
                     onClick={() => {
                       close();
-                      if (wireCount > 0) setConfirmingNew(true);
-                      else startNewProject();
+                      askNewProject(board);
                     }}
                   >
                     New project
@@ -431,7 +469,7 @@ export function Toolbar({
               onClick={onTogglePanel}
               title="Status and exercises"
               aria-label="Status and exercises"
-              className="inline-flex items-center rounded-sm border border-steel-400 bg-steel-50 p-1.5 text-carbon-800 hover:bg-steel-200 xl:hidden"
+              className="inline-flex items-center rounded-md border border-steel-400 bg-steel-50 p-1.5 text-carbon-800 hover:bg-steel-200 xl:hidden"
             >
               <PanelRight className="h-4 w-4" />
             </button>
@@ -482,14 +520,14 @@ export function Toolbar({
 
       {confirmingNew && (
         <ConfirmDialog
-          title="Start a new project?"
+          title={confirmingNew === board ? 'Start a new project?' : 'Switch to the ' + boardOf(confirmingNew).name + '?'}
           message={`This clears ${
             wireCount === 1 ? 'the lead you have run' : 'all ' + wireCount + ' leads you have run'
           } and puts the standard bench parts back. The circuit you have saved stays in the library.`}
           detail="Save the board first if you want to keep this wiring."
           confirmLabel="Start new project"
-          onConfirm={startNewProject}
-          onCancel={() => setConfirmingNew(false)}
+          onConfirm={() => startNewProject(confirmingNew)}
+          onCancel={() => setConfirmingNew(null)}
         />
       )}
 

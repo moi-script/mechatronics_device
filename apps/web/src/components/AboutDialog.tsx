@@ -73,7 +73,7 @@ const PROJECTS = [
 ];
 
 function Heading({ children }: { children: React.ReactNode }) {
-  return <h3 className="engraved mb-2 text-[10px] font-bold tracking-wider text-carbon-600">{children}</h3>;
+  return <h3 className="mb-2 font-cond text-xs font-bold tracking-[0.12em] text-carbon-600 uppercase">{children}</h3>;
 }
 
 export function AboutDialog({ onClose }: { onClose: () => void }) {
@@ -89,25 +89,25 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   const linkClass =
-    'inline-flex items-center gap-1.5 rounded-sm border border-steel-400 bg-steel-100 px-2.5 py-1.5 text-[11px] font-semibold text-carbon-800 hover:bg-steel-200';
+    'inline-flex items-center gap-1.5 rounded-md border border-steel-400 bg-steel-100 px-2.5 py-1.5 text-[11px] font-semibold text-carbon-800 hover:bg-steel-200';
 
   return (
     <div
       role="presentation"
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-carbon-900/45 p-3 sm:p-6"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-[#06090d]/60 p-3 sm:p-6"
       onClick={onClose}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="about-title"
-        className="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-steel-400 bg-steel-50 shadow-2xl"
+        className="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-steel-400 bg-steel-50 shadow-[0_30px_80px_rgba(0,0,0,0.5)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between border-b border-steel-300 bg-steel-100 px-4 py-3">
+        <header className="flex items-center justify-between border-b border-steel-300 px-5 py-4">
           <div className="flex items-center gap-2">
             <BrandMark className="h-6 w-6" />
-            <h2 id="about-title" className="engraved text-xs font-bold text-carbon-900">
+            <h2 id="about-title" className="font-cond text-base font-bold tracking-[0.12em] text-carbon-900 uppercase">
               About Mechatronic
             </h2>
           </div>
@@ -191,7 +191,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
                       {p.tags.map((t) => (
                         <span
                           key={t}
-                          className="rounded-sm bg-steel-200 px-1.5 py-0.5 font-mono text-[9px] text-carbon-800"
+                          className="rounded-md bg-steel-200 px-1.5 py-0.5 font-mono text-[9px] text-carbon-800"
                         >
                           {t}
                         </span>

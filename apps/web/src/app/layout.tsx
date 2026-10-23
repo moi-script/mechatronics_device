@@ -1,16 +1,12 @@
 import type { Metadata, Viewport } from 'next';
-import { IBM_Plex_Mono, IBM_Plex_Sans, IBM_Plex_Sans_Condensed } from 'next/font/google';
+import { Archivo, Archivo_Narrow, JetBrains_Mono } from 'next/font/google';
 import { PrefsSync } from '@/components/PrefsSync';
 import './globals.css';
 
-// Plex was drawn for an engineering identity, which is the register this panel wants.
-const sans = IBM_Plex_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-sans' });
-const cond = IBM_Plex_Sans_Condensed({
-  subsets: ['latin'],
-  weight: ['500', '600', '700'],
-  variable: '--font-cond',
-});
-const mono = IBM_Plex_Mono({ subsets: ['latin'], weight: ['400', '500', '600'], variable: '--font-mono' });
+// Archivo for the panel's voice, its Narrow cut for engraved labels, a code mono for addresses.
+const sans = Archivo({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'], variable: '--font-sans' });
+const cond = Archivo_Narrow({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-cond' });
+const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['400', '500', '700'], variable: '--font-mono' });
 
 export const metadata: Metadata = {
   title: 'Mechatronic',
@@ -23,12 +19,12 @@ export const viewport: Viewport = {
   maximumScale: 1,
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#dde3ea' },
-    { media: '(prefers-color-scheme: dark)', color: '#0f1622' },
+    { media: '(prefers-color-scheme: dark)', color: '#0c1117' },
   ],
 };
 
 // Runs before first paint so the panel never flashes the wrong theme.
-const THEME_BOOT = `(function(){try{var c=localStorage.getItem('mech-theme')||'system';var d=c==='dark'||(c==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';}catch(e){document.documentElement.dataset.theme='light';}})();`;
+const THEME_BOOT = `(function(){try{var c=localStorage.getItem('mech-theme')||'dark';var d=c==='dark'||(c==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';}catch(e){document.documentElement.dataset.theme='dark';}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

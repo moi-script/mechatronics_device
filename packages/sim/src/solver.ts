@@ -1,5 +1,5 @@
 import { PARTS, pinKey, endKey, moduleLabel, timerDelayMs } from './parts';
-import { PLC_INPUTS, PLC_OUTPUTS, PLC_TIMERS, scan, timerPresets } from './ladder';
+import { PLC_COILS, PLC_INPUTS, PLC_TIMERS, scan, timerPresets } from './ladder';
 import type {
   Circuit,
   DeviceState,
@@ -16,6 +16,8 @@ import type {
 } from './types';
 
 const MAX_PASSES = 50;
+/** One PLC scan cycle: how soon the board re-solves while the program's bits are still changing. */
+const PLC_SCAN_MS = 10;
 
 class DisjointSet {
   private parent = new Map<string, string>();
@@ -260,7 +262,7 @@ function actuatorsFor(
       // where the last step left them, as relay contacts start from their coils.
       // After STOP or power loss those are all off already.
       if (!pass) {
-        for (const q of PLC_OUTPUTS) out[actKey(m.id, q)] = !!prevPlc[actKey(m.id, q)];
+        for (const q of PLC_COILS) out[actKey(m.id, q)] = !!prevPlc[actKey(m.id, q)];
         return;
       }
       // The PLC reads its inputs off the nets of the last pass, and only runs
@@ -269,13 +271,13 @@ function actuatorsFor(
       const hot = (pin: string) => !!net(pin)?.hot;
       const running = !!inputs.toggled[m.id] && hot('V1') && !!net('G1')?.gnd;
       if (!running) {
-        for (const q of PLC_OUTPUTS) out[actKey(m.id, q)] = false;
+        for (const q of [...PLC_COILS, ...PLC_TIMERS]) out[actKey(m.id, q)] = false;
         for (const t of PLC_TIMERS) delete plcStart[actKey(m.id, t)];
         return;
       }
       const bits: Record<string, boolean> = {};
       for (const i of PLC_INPUTS) bits[i] = hot(i);
-      for (const q of PLC_OUTPUTS) bits[q] = !!prevPlc[actKey(m.id, q)];
+      for (const q of PLC_COILS) bits[q] = !!prevPlc[actKey(m.id, q)];
       // Timer starts are seeded from the last step each time, so every pass
       // of the settle loop sees the same clock; the last pass's starts stick.
       const start: Record<string, number> = {};
@@ -286,7 +288,12 @@ function actuatorsFor(
       const q = scan(m.ladder, bits, { now: inputs.now, start });
       for (const t of PLC_TIMERS) delete plcStart[actKey(m.id, t)];
       for (const t of Object.keys(start)) plcStart[actKey(m.id, t)] = start[t];
-      for (const k of PLC_OUTPUTS) out[actKey(m.id, k)] = q[k];
+      for (const k of PLC_COILS) out[actKey(m.id, k)] = q[k];
+      // Each timer's done bit, so the live ladder can show its contacts as the scan saw them.
+      const presets = timerPresets(m.ladder);
+      for (const t of PLC_TIMERS) {
+        out[actKey(m.id, t)] = start[t] !== undefined && t in presets && inputs.now - start[t] >= presets[t];
+      }
       return;
     }
     default:
@@ -498,12 +505,12 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
     // The board changes by itself when this one times out, so say when.
     if (running) nextTickMs = nextTickMs === null ? remainingMs : Math.min(nextTickMs, remainingMs);
   }
-  // PLC outputs carry to the next step, so a self-hold or a SET stays put.
+  // PLC outputs and internal relays carry to the next step, so a self-hold or a SET stays put.
   const plc: Record<string, boolean> = {};
   if (!faulted) {
     for (const m of circuit.modules) {
       if (m.type !== 'FT_PLC') continue;
-      for (const q of PLC_OUTPUTS) plc[actKey(m.id, q)] = !!actuated[actKey(m.id, q)];
+      for (const q of PLC_COILS) plc[actKey(m.id, q)] = !!actuated[actKey(m.id, q)];
     }
   }
 
@@ -523,6 +530,12 @@ export function step(circuit: Circuit, inputs: Inputs, prev: SimState): SimResul
   }
 
   if (strokeLeft !== null) nextTickMs = nextTickMs === null ? strokeLeft : Math.min(nextTickMs, strokeLeft);
+
+  // A real PLC scans over and over. A rung that changed a bit (a SET, a RST, an
+  // output) is only seen by the rungs above it on the next scan, so while the
+  // bits are still moving, ask for that next scan instead of waiting for an input.
+  const plcMoved = Object.keys({ ...plc, ...prevPlc }).some((k) => !!plc[k] !== !!prevPlc[k]);
+  if (plcMoved) nextTickMs = nextTickMs === null ? PLC_SCAN_MS : Math.min(nextTickMs, PLC_SCAN_MS);
 
   return {
     nets: pass.nets,

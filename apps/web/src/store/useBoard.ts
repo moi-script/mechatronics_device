@@ -9,6 +9,7 @@ import {
   isMaleOccupied,
   kindFrom,
   benchSlot,
+  seatLimits,
   step,
   TIMER_MAX_DELAY_SEC,
   TIMER_MIN_DELAY_SEC,
@@ -61,11 +62,15 @@ interface BoardStore extends Core {
   setTimerDelay(id: string, seconds: number): void;
   /** Load a ladder program into a PLC. */
   setLadder(id: string, ladder: LadderRung[]): void;
+  /** Change a PLC's address plan; unlike the ladder, the running program is left alone. */
+  setIo(id: string, io: Record<string, string>): void;
 
   /** Put a bench part down on the board, at its slot in the bench layout. */
   addModule(id: string): void;
   /** Send a part back to the bin, taking every lead plugged into it with it. */
   removeModule(id: string): void;
+  /** Swaps a part on the board for a spare from the bin, in the same spot, as one undo step. */
+  replaceModule(id: string, withId: string): void;
   /** Send several parts back at once, as one undo step. */
   removeModules(ids: string[]): void;
   moveModule(id: string, x: number, y: number): void;
@@ -174,6 +179,11 @@ export const useBoard = create<BoardStore>((set, get) => ({
       };
       return { ...resolve({ ...s, circuit }), ...remember(s), dirty: true };
     }),
+  setIo: (id, io) =>
+    set((s) => {
+      const circuit = { ...s.circuit, modules: s.circuit.modules.map((m) => (m.id === id ? { ...m, io } : m)) };
+      return { ...resolve({ ...s, circuit }), ...remember(s), dirty: true };
+    }),
   setLadder: (id, ladder) =>
     set((s) => {
       const circuit = {
@@ -202,6 +212,23 @@ export const useBoard = create<BoardStore>((set, get) => ({
     }),
 
   removeModule: (id) => get().removeModules([id]),
+
+  replaceModule: (id, withId) => {
+    const s0 = get();
+    const old = s0.circuit.modules.find((m) => m.id === id);
+    const slot = benchSlot(withId, s0.circuit.board ?? 'trainer');
+    if (!old || !slot || s0.circuit.modules.some((m) => m.id === withId)) return;
+    // Removing takes the undo snapshot; putting the spare down joins that same step.
+    s0.removeModules([id]);
+    set((s) => ({
+      ...resolve({
+        ...s,
+        circuit: { ...s.circuit, modules: seatLimits([...s.circuit.modules, { ...slot, x: old.x, y: old.y }]) },
+      }),
+      selectedModuleIds: [withId],
+      dirty: true,
+    }));
+  },
 
   removeModules: (ids) =>
     set((s) => {
@@ -243,7 +270,8 @@ export const useBoard = create<BoardStore>((set, get) => ({
     set((s) => ({
       circuit: {
         ...s.circuit,
-        modules: s.circuit.modules.map((m) => (positions[m.id] ? { ...m, ...positions[m.id] } : m)),
+        // A switch bolted to a stroke goes where its cylinder goes, and nowhere else.
+        modules: seatLimits(s.circuit.modules.map((m) => (positions[m.id] ? { ...m, ...positions[m.id] } : m))),
       },
       dirty: true,
     })),
@@ -387,7 +415,8 @@ export const useBoard = create<BoardStore>((set, get) => ({
 
   loadCircuit: (c, id = null) =>
     set((s) => ({
-      ...resolve({ ...s, circuit: c, simState: emptyState(), tripped: false, latched: [] }),
+      // Circuits saved before the switches had fixed seats are put back on them.
+      ...resolve({ ...s, circuit: { ...c, modules: seatLimits(c.modules) }, simState: emptyState(), tripped: false, latched: [] }),
       past: [],
       future: [],
       selectedWireId: null,
@@ -422,5 +451,8 @@ export const useBoard = create<BoardStore>((set, get) => ({
 
   setHint: (h) => set({ hint: h }),
 }));
+
+/** The PLC Trainer Board is drawn photoreal, as the Festech bench looks in the lab. */
+export const usePhotoreal = (): boolean => useBoard((s) => s.circuit.board === 'pneumatics');
 
 export const useErrors = (): SimError[] => useBoard((s) => (s.tripped ? s.latched : s.sim.errors));

@@ -18,6 +18,11 @@
   --color-signal-blue: #0b7fc7;
   --color-safety-red: #c62828;
   --color-run-green: #1b9c5a;
+  /* Text on a tinted chip of that signal, and the deepest well a panel sinks into. */
+  --color-amber-ink: #8a4b06;
+  --color-green-ink: #12703f;
+  --color-red-ink: #a61b1b;
+  --color-well: #e7ecf2;
 
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono), ui-monospace, monospace;
@@ -26,13 +31,10 @@
 
 /* Light is the default; the dark block below overrides it by attribute. */
 :root {
+  --page: var(--color-steel-300);
   --bench-base: #d3dae2;
-  --bench-a: #dfe5ec;
-  --bench-b: #cdd5de;
-  --bench-c: #d8dee6;
-  --bench-line: rgba(255, 255, 255, 0.26);
-  --grid-minor: rgba(22, 32, 43, 0.07);
-  --grid-major: rgba(22, 32, 43, 0.14);
+  --bench-light: rgba(255, 255, 255, 0.55);
+  --bench-warm: rgba(232, 131, 12, 0.05);
 }
 
 /*
@@ -41,27 +43,29 @@
  * surface, carbon-900 is still the strongest text.
  */
 [data-theme='dark'] {
-  --color-steel-50: #131a24;
-  --color-steel-100: #1b2431;
-  --color-steel-200: #242f3e;
-  --color-steel-300: #2c3849;
-  --color-steel-400: #3d4b5e;
-  --color-steel-500: #64748b;
-  --color-carbon-600: #94a5b8;
-  --color-carbon-800: #cbd5e1;
-  --color-carbon-900: #e8eef5;
-  --color-signal-amber: #f59e0b;
-  --color-signal-blue: #38bdf8;
-  --color-safety-red: #f05252;
-  --color-run-green: #22c55e;
+  /* The Refined Workbench: graphite panels under an overhead lamp, amber for action. */
+  --color-steel-50: #10161e;
+  --color-steel-100: #161e28;
+  --color-steel-200: #243040;
+  --color-steel-300: #222c38;
+  --color-steel-400: #2a3544;
+  --color-steel-500: #5d6b7d;
+  --color-carbon-600: #93a3b6;
+  --color-carbon-800: #c3cfdc;
+  --color-carbon-900: #e6edf5;
+  --color-signal-amber: #f5a524;
+  --color-signal-blue: #3b82f6;
+  --color-safety-red: #e5484d;
+  --color-run-green: #34d399;
+  --color-amber-ink: #fde7b0;
+  --color-green-ink: #6ee7b7;
+  --color-red-ink: #fca5a5;
+  --color-well: #0c1117;
 
-  --bench-base: #0f1622;
-  --bench-a: #1b2431;
-  --bench-b: #121926;
-  --bench-c: #182131;
-  --bench-line: rgba(148, 163, 184, 0.09);
-  --grid-minor: rgba(148, 163, 184, 0.07);
-  --grid-major: rgba(148, 163, 184, 0.13);
+  --page: #0c1117;
+  --bench-base: #0f151d;
+  --bench-light: rgba(56, 72, 94, 0.38);
+  --bench-warm: rgba(245, 165, 36, 0.05);
 }
 
 html,
@@ -69,8 +73,40 @@ body {
   height: 100%;
 }
 
+/* Native controls (scrollbars, date pickers) follow the theme instead of staying white. */
+:root {
+  color-scheme: light;
+}
+[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+/* Thin scrollbars in the panel's own steel, on every scrolling surface. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-steel-400) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-steel-400);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-steel-500);
+}
+
 body {
-  background: var(--color-steel-300);
+  background: var(--page);
+  font-feature-settings: 'tnum' 1;
   color: var(--color-carbon-900);
   font-family: var(--font-sans);
   overscroll-behavior: none;
@@ -86,46 +122,17 @@ body {
   letter-spacing: 0.06em;
 }
 
-/* The bench the panel is mounted on: brushed steel, not a blank page. */
+/* The bench the panel is mounted on: lit from above, no ruling to read past. */
 .board-grid {
   background-color: var(--bench-base);
   background-image:
-    repeating-linear-gradient(90deg, var(--bench-line) 0 1px, transparent 1px 7px),
-    linear-gradient(160deg, var(--bench-a) 0%, var(--bench-b) 55%, var(--bench-c) 100%);
-}
-
-/*
- * The workspace the bench floats in: a fixed sheet the size of the viewport
- * whose ruling is re-offset as the board is panned. Nothing about it ends, so
- * the canvas can be scrolled as far as anyone likes. The board sets the tile
- * size and offset from the live transform; the sizes here are only a first
- * paint. Dropping the fine ruling once it packs too tightly is what the
- * coarse variant is for.
- */
-.canvas-grid {
-  background-image:
-    linear-gradient(var(--grid-major) 2px, transparent 2px),
-    linear-gradient(90deg, var(--grid-major) 2px, transparent 2px),
-    linear-gradient(var(--grid-minor) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
-  background-size:
-    250px 250px,
-    250px 250px,
-    50px 50px,
-    50px 50px;
-}
-
-.canvas-grid.grid-coarse {
-  background-image:
-    linear-gradient(var(--grid-major) 2px, transparent 2px),
-    linear-gradient(90deg, var(--grid-major) 2px, transparent 2px);
+    radial-gradient(ellipse 80% 60% at 50% 0%, var(--bench-light), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 100% 100%, var(--bench-warm), transparent 70%);
 }
 
 /* Keep the wiring canvas from hijacking a touch scroll on small screens. */
 .board-grid,
-.board-grid *,
-.canvas-grid,
-.canvas-grid * {
+.board-grid * {
   touch-action: none;
 }
 
@@ -197,4 +204,14 @@ body {
   to {
     stroke-dashoffset: 0;
   }
+}
+
+/* Browser autofill paints fields white; keep them on the panel's own surface. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--color-carbon-900);
+  caret-color: var(--color-carbon-900);
+  box-shadow: 0 0 0 1000px var(--color-steel-100) inset;
+  transition: background-color 9999s;
 }

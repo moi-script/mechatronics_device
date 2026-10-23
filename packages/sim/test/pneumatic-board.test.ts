@@ -5,7 +5,9 @@ import {
   STROKE_MS,
   benchInventory,
   emptyState,
+  limitSlot,
   moduleLabel,
+  seatLimits,
   step,
 } from '../src/index';
 import type { Circuit, Inputs, SimResult } from '../src/index';
@@ -27,7 +29,7 @@ const inputs = (over: Partial<Inputs> = {}): Inputs => ({
 const rods = (r: SimResult): [boolean, boolean] => [r.pistons.CYL_A.extended, r.pistons.CYL_B.extended];
 const circuit = (): Circuit => PNEUMATIC_BOARD_SEQUENCE.build();
 
-test('every cylinder on the pneumatics board has a switch at each end of its stroke', () => {
+test('every cylinder on the pneumatics board has one switch, at the end of its stroke', () => {
   const bench = benchInventory('pneumatics');
   const cylinders = bench.filter((m) => m.type === 'FT_CYL' || m.type === 'FT_SCYL');
   assert.ok(cylinders.length >= 4, 'the board is rows of cylinders');
@@ -36,22 +38,29 @@ test('every cylinder on the pneumatics board has a switch at each end of its str
     const mounted = bench.filter((m) => m.mount?.cylinderId === cyl.id);
     assert.deepEqual(
       mounted.map((m) => m.mount?.at).sort(),
-      ['home', 'out'],
-      `${cyl.id} should have a switch at each end`,
+      ['out'],
+      `${cyl.id} should have its switch at the far end`,
     );
-    // The row reads left to right: home switch, cylinder, far switch.
-    const home = mounted.find((m) => m.mount?.at === 'home')!;
-    const out = mounted.find((m) => m.mount?.at === 'out')!;
-    assert.ok(home.x < cyl.x && cyl.x < out.x, `${cyl.id}'s switches should sit at the ends of its row`);
-    assert.equal(home.y, cyl.y);
-    assert.equal(out.y, cyl.y);
+    // It sits on its fixed seat under the rod path.
+    const out = mounted[0];
+    assert.deepEqual({ x: out.x, y: out.y }, limitSlot(cyl, 'out'));
+    assert.ok(out.y > cyl.y, `${cyl.id}'s switch should sit under its rod`);
   }
+});
+
+test('a mounted switch follows its cylinder', () => {
+  const bench = benchInventory('pneumatics');
+  const moved = seatLimits(bench.map((m) => (m.id === 'CYL_A' ? { ...m, x: m.x + 100, y: m.y + 40 } : m)));
+  const cyl = moved.find((m) => m.id === 'CYL_A')!;
+  assert.deepEqual(
+    (({ x, y }) => ({ x, y }))(moved.find((m) => m.id === 'LS_A1')!),
+    limitSlot(cyl, 'out'),
+  );
 });
 
 test('the switches are named the way the sequence sheet names them', () => {
   const bench = benchInventory('pneumatics');
   const label = (id: string) => moduleLabel(bench.find((m) => m.id === id)!);
-  assert.equal(label('LS_A0'), 'Limit switch a0');
   assert.equal(label('LS_A1'), 'Limit switch a1');
   assert.equal(label('CYL_A'), 'Pneumatic Cylinder A');
 });
@@ -61,11 +70,9 @@ test('a mounted limit switch is thrown by the rod, not by a finger', () => {
   let now = 500_000;
   let r = step(c, inputs({ now }), emptyState());
 
-  // At rest both rods are home, so both a0 switches are made and the far ones
-  // are not. Nothing is pressed: the board says so on its own.
-  assert.equal(r.actuated.LS_A0, true, 'a0 should be made while A is home');
+  // At rest both rods are home, so neither far switch is made. Nothing is
+  // pressed: the board says so on its own.
   assert.equal(r.actuated.LS_A1, false);
-  assert.equal(r.actuated.LS_B0, true);
   assert.equal(r.actuated.LS_B1, false);
   assert.deepEqual(r.errors, []);
 

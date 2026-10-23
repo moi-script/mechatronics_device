@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Fragment } from 'react';
 import Link from 'next/link';
 import { Download, Github, MoveRight } from 'lucide-react';
 import { BrandMark } from '@/components/BrandMark';
@@ -83,48 +84,67 @@ const INSTALL = [
   'Tap Install. The trainer then runs with no account and no network.',
 ];
 
+/** The small amber label over each section, engraved like a panel legend. */
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return <span className="font-cond text-[13px] font-bold tracking-[0.12em] text-signal-amber uppercase">{children}</span>;
+}
+
+const H2 = 'mt-2.5 text-3xl font-extrabold tracking-[-0.01em] text-carbon-900 sm:text-4xl';
+const WRAP = 'mx-auto max-w-[1180px] px-5 sm:px-6';
+
 export default function Page() {
   return (
-    <div className="min-h-dvh bg-steel-200">
-      <header className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-5 py-5">
-        <span className="flex items-center gap-2.5">
-          <BrandMark className="h-7 w-7" />
-          <span className="font-cond text-[15px] font-bold whitespace-nowrap text-carbon-900 sm:text-base">Mechatronic Trainer</span>
-        </span>
-        <nav className="flex items-center gap-5 text-sm">
-          <a href="#bench" className="hidden text-carbon-600 hover:text-carbon-900 sm:inline">
-            The bench
-          </a>
-          <a href="#android" className="hidden text-carbon-600 hover:text-carbon-900 sm:inline">
-            Android
-          </a>
+    <div className="min-h-dvh bg-[var(--page)]">
+      <header className="border-b border-steel-300">
+        <div className={WRAP + ' flex flex-wrap items-center gap-x-6 gap-y-3 py-3.5'}>
+          <Link href="/" className="flex items-center gap-2.5">
+            <BrandMark className="h-8 w-8" />
+            <span className="text-base font-bold whitespace-nowrap text-carbon-900">Mechatronic Trainer</span>
+          </Link>
+          <nav aria-label="Main" className="hidden gap-5 text-sm md:flex">
+            <a href="#bench" className="text-carbon-800 hover:text-carbon-900">
+              The bench
+            </a>
+            <a href="#behaves" className="text-carbon-800 hover:text-carbon-900">
+              How it behaves
+            </a>
+            <a href="#android" className="text-carbon-800 hover:text-carbon-900">
+              Android app
+            </a>
+          </nav>
+          <div className="flex-1" />
           <a
             href={REPO}
             target="_blank"
             rel="noreferrer"
             aria-label="Source on GitHub"
-            className="text-carbon-600 hover:text-carbon-900"
+            className="text-carbon-800 hover:text-carbon-900"
           >
             <Github className="h-[18px] w-[18px]" />
           </a>
           <Link
             href="/board"
-            className="hidden rounded-sm border border-steel-400 bg-steel-100 px-3 py-1.5 text-sm font-semibold whitespace-nowrap text-carbon-900 hover:bg-steel-50 sm:block"
+            className="inline-flex h-10 items-center rounded-[9px] bg-signal-amber px-4 text-sm font-bold whitespace-nowrap text-[#1a1204] hover:brightness-110"
           >
             Open the board
           </Link>
-        </nav>
+        </div>
       </header>
 
       <main>
-        <section className="mx-auto grid max-w-5xl items-center gap-10 px-5 pt-8 pb-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14 lg:pt-16">
-          <div>
-            <h1 className="font-cond text-[2.75rem] leading-[1.02] font-bold tracking-tight text-carbon-900 sm:text-6xl">
+        {/* Hero */}
+        <section className={WRAP + ' flex flex-wrap items-center gap-14 pt-14 pb-16 lg:pt-[72px]'}>
+          <div className="min-w-0 flex-[1_1_440px]">
+            <span className="inline-flex h-7 items-center gap-2 rounded-full border border-steel-400 px-3 font-cond text-xs font-semibold tracking-[0.1em] text-carbon-800">
+              <span className="h-2 w-2 rounded-full bg-run-green shadow-[0_0_8px_var(--color-run-green)]" />
+              NCST ENGINEERING LABORATORY
+            </span>
+            <h1 className="mt-5 text-[2.6rem] leading-[1.02] font-extrabold tracking-[-0.02em] text-carbon-900 sm:text-[56px]">
               The trainer board,
               <br />
-              without booking the lab.
+              <span className="text-signal-amber">without booking the lab.</span>
             </h1>
-            <p className="mt-6 max-w-[54ch] text-[17px] leading-relaxed text-carbon-800">
+            <p className="mt-6 max-w-[54ch] text-lg leading-relaxed text-carbon-800">
               This is the mechatronics bench you already know: the same fixed inventory, the same terminals, the same
               leads. Run a lead from the supply, through a button, to a lamp. Close the breaker and find out whether you
               wired it right.
@@ -136,157 +156,166 @@ export default function Page() {
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
                 href="/board"
-                className="inline-flex items-center gap-2 rounded-sm bg-signal-amber px-5 py-3 text-[15px] font-bold text-carbon-900 shadow-sm hover:brightness-105"
+                className="inline-flex h-[50px] items-center gap-2.5 rounded-[11px] bg-signal-amber px-[22px] text-base font-bold text-[#1a1204] hover:brightness-110"
               >
                 Open the board
                 <MoveRight className="h-4 w-4" />
               </Link>
-              {/*
-                The button and its tally travel together, so the count stays
-                beside the thing it counts however the row wraps. The build and
-                size used to sit inside the button; they are on the panel below
-                twice over, and carrying them here left no width for anything
-                to stand beside.
-              */}
+              {/* The button and its tally travel together, so the count stays beside the thing it counts. */}
               <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-2">
                 <ApkDownloadLink
                   href={APK.href}
-                  className="inline-flex items-center gap-2 rounded-sm border border-steel-400 bg-steel-100 px-5 py-3 text-[15px] font-semibold text-carbon-900 hover:bg-steel-50"
+                  className="inline-flex h-[50px] items-center gap-2.5 rounded-[11px] border border-steel-400 px-5 text-base font-semibold text-carbon-900 hover:bg-steel-200"
                 >
                   <Download className="h-4 w-4" />
                   Download for Android
                 </ApkDownloadLink>
-                <DownloadCount className="text-sm text-carbon-600" />
+                <DownloadCount className="text-[13px] text-carbon-600" />
               </span>
             </div>
           </div>
-          <HeroCircuit className="w-full" />
+          <HeroCircuit className="min-w-0 flex-[1_1_460px]" />
         </section>
 
-        <section className="border-t border-steel-400 bg-steel-50">
-          <div className="mx-auto max-w-5xl px-5 py-9">
-            <h2 className="font-cond text-xl font-bold text-carbon-900">
-              NCST, the National College of Science and Technology
-            </h2>
-            <p className="mt-1.5 max-w-[62ch] text-sm leading-relaxed text-carbon-600">
-              The panel here is the one in the engineering laboratory, part for part, so the wiring you practice at home
-              is the wiring you are marked on in the lab. It follows the course for all four programs.
-            </p>
-            <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-steel-300 pt-5 sm:grid-cols-4">
-              {PROGRAMS.map((p) => (
-                <div key={p.code}>
-                  <dt className="font-mono text-sm font-semibold text-carbon-900">{p.code}</dt>
-                  <dd className="mt-0.5 text-xs leading-snug text-carbon-600">{p.name}</dd>
-                </div>
-              ))}
-            </dl>
+        {/* NCST band */}
+        <section className="border-y border-steel-300 bg-steel-50">
+          <div className={WRAP + ' flex flex-wrap items-start gap-6 py-8'}>
+            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-[14px] border border-steel-400 font-cond text-sm font-bold text-signal-amber">
+              NCST
+            </div>
+            <div className="min-w-0 flex-[1_1_420px]">
+              <h2 className="text-xl font-bold text-carbon-900">NCST, the National College of Science and Technology</h2>
+              <p className="mt-1.5 max-w-[70ch] text-[15px] leading-relaxed text-carbon-600">
+                The panel here is the one in the engineering laboratory, part for part, so the wiring you practice at
+                home is the wiring you are marked on in the lab. It follows the course for all four programs.
+              </p>
+              <dl className="mt-5 flex flex-wrap gap-2">
+                {PROGRAMS.map((p) => (
+                  <div key={p.code} className="rounded-[10px] border border-steel-300 bg-steel-100 px-3 py-2">
+                    <dt className="font-mono text-[13px] font-bold text-carbon-900">{p.code}</dt>
+                    <dd className="text-xs text-carbon-600">{p.name}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
           </div>
         </section>
 
-        <section id="bench" className="border-y border-steel-400 bg-steel-100">
-          <div className="mx-auto max-w-5xl px-5 py-16">
-            <h2 className="font-cond text-3xl font-bold text-carbon-900">What comes on the bench</h2>
-            <p className="mt-3 max-w-[60ch] text-[15px] leading-relaxed text-carbon-600">
-              The inventory is fixed, like the real trainer. Parts wait in the bin and go back to their own slot on the
-              panel — nothing is ever conjured up beyond this list.
-            </p>
-            <dl className="mt-8 divide-y divide-steel-300 border-t border-steel-300">
-              {BENCH.map((b) => (
-                <div key={b.part} className="grid grid-cols-[2.5rem_1fr] gap-x-4 py-3 sm:grid-cols-[2.5rem_11rem_1fr]">
-                  <dt className="font-mono text-sm tabular-nums text-signal-amber">{b.count}×</dt>
-                  <dd className="text-sm font-semibold text-carbon-900">{b.part}</dd>
-                  <dd className="col-span-2 text-sm leading-relaxed text-carbon-600 sm:col-span-1">{b.note}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
+        {/* What comes on the bench */}
+        <section id="bench" className={WRAP + ' pt-[72px] pb-6'}>
+          <Eyebrow>The inventory</Eyebrow>
+          <h2 className={H2}>What comes on the bench</h2>
+          <p className="mt-3 max-w-[62ch] text-base leading-relaxed text-carbon-600">
+            The inventory is fixed, like the real trainer. Parts wait in the bin and go back to their own slot on the
+            panel — nothing is ever conjured up beyond this list.
+          </p>
+          <dl className="mt-8 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
+            {BENCH.map((b) => (
+              <div key={b.part} className="rounded-[14px] border border-steel-300 bg-steel-50 p-[18px]">
+                <dd className="font-mono text-3xl font-bold text-signal-amber tabular-nums">{b.count}</dd>
+                <dt className="mt-1 font-semibold text-carbon-900">{b.part}</dt>
+                <dd className="mt-0.5 text-[13px] leading-snug text-carbon-600">{b.note}</dd>
+              </div>
+            ))}
+          </dl>
         </section>
 
-        <section className="mx-auto max-w-5xl px-5 py-16">
-          <h2 className="font-cond text-3xl font-bold text-carbon-900">How it behaves</h2>
-          <div className="mt-8 grid gap-x-12 gap-y-9 sm:grid-cols-2">
-            {BEHAVIOUR.map((b) => (
-              <article key={b.title}>
-                <h3 className="text-[15px] font-bold text-carbon-900">{b.title}</h3>
-                <p className="mt-2 max-w-[52ch] text-sm leading-relaxed text-carbon-600">{b.body}</p>
+        {/* How it behaves */}
+        <section id="behaves" className={WRAP + ' py-14'}>
+          <Eyebrow>The simulation</Eyebrow>
+          <h2 className={H2}>How it behaves</h2>
+          <div className="mt-8 grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-x-12 gap-y-9">
+            {BEHAVIOUR.map((b, i) => (
+              <article key={b.title} className="flex gap-4">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-steel-200 font-mono font-bold text-signal-amber">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-carbon-900">{b.title}</h3>
+                  <p className="mt-1.5 max-w-[52ch] text-sm leading-relaxed text-carbon-600">{b.body}</p>
+                </div>
               </article>
             ))}
           </div>
         </section>
 
-        <section id="android" className="border-t border-steel-400 bg-steel-100">
-          <div className="mx-auto grid max-w-5xl gap-10 px-5 py-16 lg:grid-cols-[minmax(0,1fr)_20rem]">
-            <div>
-              <h2 className="font-cond text-3xl font-bold text-carbon-900">Take it on the phone</h2>
+        {/* Android */}
+        <section id="android" className="border-t border-steel-300 bg-steel-50">
+          <div className={WRAP + ' flex flex-wrap items-start gap-14 py-[72px]'}>
+            <div className="min-w-0 flex-[1_1_480px]">
+              <Eyebrow>Android · works offline</Eyebrow>
+              <h2 className={H2}>Take it on the phone</h2>
               <p className="mt-2 font-mono text-xs text-carbon-600">
                 Latest build {APK.version} · released {APK.released}
               </p>
-              <p className="mt-3 max-w-[58ch] text-[15px] leading-relaxed text-carbon-800">
+              <p className="mt-[18px] max-w-[58ch] text-base leading-relaxed text-carbon-800">
                 The Android build carries the whole trainer inside the app, so it works with the data off. Circuits are
                 kept on the phone until you sign in; after that they go to your account, and any device you sign in on
                 opens them. Either way a circuit can be sent as a file, which is how you hand one to a classmate who
                 has no account.
               </p>
-              <ol className="mt-7 space-y-4 pl-8">
+              <ol className="mt-7 flex max-w-[60ch] flex-col gap-4">
                 {INSTALL.map((step, i) => (
-                  <li key={step} className="relative text-sm leading-relaxed text-carbon-800">
-                    <span className="absolute -left-8 flex h-5 w-5 items-center justify-center rounded-full bg-signal-amber font-mono text-[11px] font-bold text-carbon-900">
+                  <li key={step} className="flex items-start gap-3.5 text-[15px] leading-normal text-carbon-900">
+                    <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lg bg-signal-amber font-mono text-[13px] font-bold text-[#1a1204]">
                       {i + 1}
                     </span>
                     {step}
                   </li>
                 ))}
               </ol>
-              <p className="mt-6 max-w-[58ch] text-sm leading-relaxed text-carbon-600">
+              <p className="mt-7 max-w-[62ch] text-sm leading-relaxed text-carbon-600">
                 Android asks before installing anything that did not come from the Play Store, which is why it warns
                 you. Once installed, the app checks this page on startup and offers you the newer build when there is
                 one. Coming from a build older than 1.44 means uninstalling that one first — it was signed with a
                 temporary key, and Android will not update across a change of key. To build your own instead,{' '}
-                <a href={REPO} target="_blank" rel="noreferrer" className="font-semibold text-carbon-900 underline">
+                <a href={REPO} target="_blank" rel="noreferrer" className="font-semibold text-signal-amber hover:brightness-110">
                   the source is on GitHub
                 </a>{' '}
                 and <code className="font-mono text-[13px]">npm run apk</code> makes this same file.
               </p>
             </div>
 
-            <div className="h-fit rounded-lg border border-steel-400 bg-steel-50 p-5 shadow-sm">
-              <BrandMark className="h-10 w-10" />
-              <p className="mt-3 font-cond text-lg font-bold text-carbon-900">Mechatronic</p>
-              <p className="text-sm text-carbon-600">Offline Android app</p>
+            <aside
+              aria-label="Android app"
+              className="min-w-[280px] flex-[0_1_340px] rounded-2xl border border-steel-400 bg-steel-100 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.35)]"
+            >
+              <BrandMark className="h-12 w-12" />
+              <h3 className="mt-4 text-xl font-bold text-carbon-900">Mechatronic</h3>
+              <p className="mt-1 text-sm text-carbon-600">Offline Android app</p>
               <ApkDownloadLink
                 href={APK.href}
-                className="mt-5 flex items-center justify-center gap-2 rounded-sm bg-signal-amber px-4 py-3 text-[15px] font-bold text-carbon-900 hover:brightness-105"
+                className="mt-5 flex h-[50px] items-center justify-center gap-2.5 rounded-[11px] bg-signal-amber text-[15px] font-bold text-[#1a1204] hover:brightness-110"
               >
                 <Download className="h-4 w-4" />
                 Download the APK
               </ApkDownloadLink>
-              <dl className="mt-5 space-y-2 border-t border-steel-300 pt-4 font-mono text-xs text-carbon-600">
+              <dl className="mt-[22px] grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 border-t border-steel-300 pt-[18px] font-mono text-[13px]">
                 {[
                   ['Version', APK.version],
                   ['Size', APK.size],
                   ['Released', APK.released],
                   ['Requires', APK.android],
-                  ['Network', 'None'],
                 ].map(([k, v]) => (
-                  <div key={k} className="flex justify-between gap-4">
-                    <dt>{k}</dt>
-                    <dd className="text-carbon-900">{v}</dd>
-                  </div>
+                  <Fragment key={k}>
+                    <dt className="text-carbon-600">{k}</dt>
+                    <dd className="text-right text-carbon-900">{v}</dd>
+                  </Fragment>
                 ))}
-                <div className="flex items-center justify-between gap-4">
-                  <dt>Downloads</dt>
-                  <dd className="text-carbon-900">
-                    <DownloadCount labelled={false} />
-                  </dd>
-                </div>
+                <dt className="text-carbon-600">Network</dt>
+                <dd className="text-right text-green-ink">None needed</dd>
+                <dt className="text-carbon-600">Downloads</dt>
+                <dd className="text-right text-carbon-900">
+                  <DownloadCount labelled={false} />
+                </dd>
               </dl>
-            </div>
+            </aside>
           </div>
         </section>
       </main>
 
       <footer className="border-t border-steel-400">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-5 py-8 text-sm text-carbon-600">
+        <div className={WRAP + ' flex flex-wrap items-center justify-between gap-4 py-8 text-sm text-carbon-600'}>
           <p>
             Built by{' '}
             <a
@@ -296,8 +325,8 @@ export default function Page() {
               className="font-semibold text-carbon-900"
             >
               John Moises
-            </a>
-            {' '}for the NCST engineering laboratory. Not affiliated with NCST or Festech.
+            </a>{' '}
+            for the NCST engineering laboratory. Not affiliated with NCST or Festech.
           </p>
           <Link href="/board" className="font-semibold text-carbon-900">
             Open the board

@@ -1,4 +1,4 @@
-import type { BoardType, ModuleType, PartDef, PinDef, ModuleInstance, Circuit } from './types';
+import type { BoardType, ModuleType, PartDef, PinDef, ModuleInstance, Circuit, LimitMount } from './types';
 import { FESTECH_INVENTORY, FESTECH_PARTS } from './festech';
 
 const pin = (id: string, label: string, role: PinDef['role'], x: number, y: number, line?: number): PinDef => ({
@@ -244,7 +244,35 @@ export const endKey = (wireId: string, end: 'A' | 'B'): string => `~${wireId}.${
 /** The panel rail along the top, then a rail per cylinder below it. */
 const PANEL_Y = 40;
 const AIR_Y = 500;
-const CYL_ROW_Y = (row: number) => 700 + row * 250;
+const CYL_ROW_Y = (row: number) => 700 + row * 300;
+
+/**
+ * Where the rod-end cap runs, in the cylinder's own coordinates: its centre at
+ * rest and at full stroke, and its lower edge. The face draws the cap there.
+ */
+export const ROD_CAP = { homeX: 328, outX: 478, bottom: 90 } as const;
+/** Where each mounted switch carries its roller, in its own coordinates. */
+export const LIMIT_ROLLER = { home: 170, out: 20, y: -16 } as const;
+
+/**
+ * The fixed seat of a mounted limit switch: under the rod path, its roller
+ * standing just into the cap's way at that end of the stroke, so the cap rides
+ * over it and pushes it down.
+ */
+export const limitSlot = (cyl: { x: number; y: number }, at: LimitMount['at']): { x: number; y: number } => ({
+  x: cyl.x + (at === 'home' ? ROD_CAP.homeX - LIMIT_ROLLER.home : ROD_CAP.outX - LIMIT_ROLLER.out),
+  y: cyl.y + ROD_CAP.bottom + 4 - LIMIT_ROLLER.y,
+});
+
+/** Puts every mounted switch back on its cylinder's seat; a switch goes where its cylinder goes. */
+export function seatLimits(modules: ModuleInstance[]): ModuleInstance[] {
+  return modules.map((m) => {
+    const cyl = m.mount && modules.find((c) => c.id === m.mount!.cylinderId);
+    if (!cyl) return m;
+    const at = limitSlot(cyl, m.mount!.at);
+    return at.x === m.x && at.y === m.y ? m : { ...m, ...at };
+  });
+}
 
 export function pneumaticInventory(): ModuleInstance[] {
   // The rail across the top, in the order it is bolted up on the bench:
@@ -275,9 +303,10 @@ export function pneumaticInventory(): ModuleInstance[] {
     const y = CYL_ROW_Y(i);
     const cylinderId = `CYL_${letter}`;
     modules.push({ id: `V_${letter}`, type: valve, x: 40, y: y + 10 });
-    modules.push({ id: `LS_${letter}0`, type: 'FT_LIMIT', x: 400, y, mount: { cylinderId, at: 'home' } });
-    modules.push({ id: cylinderId, type: cyl, x: 620, y });
-    modules.push({ id: `LS_${letter}1`, type: 'FT_LIMIT', x: 1120, y, mount: { cylinderId, at: 'out' } });
+    const at = { x: 620, y };
+    modules.push({ id: cylinderId, type: cyl, ...at });
+    // One switch per cylinder, at the end of the stroke; the rear reed sensor reports home.
+    modules.push({ id: `LS_${letter}1`, type: 'FT_LIMIT', ...limitSlot(at, 'out'), mount: { cylinderId, at: 'out' } });
   });
 
   // The stock that is not committed to a row: the spare valves and the two
@@ -298,7 +327,7 @@ export function pneumaticInventory(): ModuleInstance[] {
  * trainer owns, at the spot it lives on the bench. Nothing is ever created
  * beyond this list — the parts bin just hands out what is not already down.
  */
-export function trainerInventory(): ModuleInstance[] {
+export function simpleInventory(): ModuleInstance[] {
   const modules: ModuleInstance[] = [
     { id: 'BREAKER', type: 'BREAKER', x: 40, y: 40 },
     { id: 'SUPPLY', type: 'SUPPLY', x: 210, y: 40 },
@@ -313,13 +342,15 @@ export function trainerInventory(): ModuleInstance[] {
     modules.push({ id: `TMR${i + 1}`, type: 'TIMER', x: 1600 + i * 186, y: 580, delaySec: TIMER_DEFAULT_DELAY_SEC });
   modules.push({ id: 'SOL1', type: 'SOLENOID', x: 40, y: 920 });
   for (let i = 0; i < 3; i++) modules.push({ id: `CYL${i + 1}`, type: 'CYLINDER', x: 400 + i * 300, y: 920 });
-  modules.push(...FESTECH_INVENTORY);
   return modules;
 }
 
+/** Every board's parts at once: the simple trainer plus the Festech units. */
+export const trainerInventory = (): ModuleInstance[] => [...simpleInventory(), ...FESTECH_INVENTORY];
+
 /** Every part a given bench owns, at its own slot. */
 export const benchInventory = (board: BoardType = 'trainer'): ModuleInstance[] =>
-  board === 'pneumatics' ? pneumaticInventory() : trainerInventory();
+  board === 'pneumatics' ? pneumaticInventory() : board === 'simple' ? simpleInventory() : trainerInventory();
 
 /**
  * What is already on the board when a bench is opened. The rest waits in the
@@ -351,6 +382,13 @@ export function spareModules(circuit: Circuit): ModuleInstance[] {
 /** The bench slot for one id, so the bin can put a part back where it belongs. */
 export const benchSlot = (id: string, board: BoardType = 'trainer'): ModuleInstance | undefined =>
   benchInventory(board).find((m) => m.id === id);
+
+/** What a saved circuit holds, for a library card: parts down, leads run, ladder rungs. */
+export const circuitStats = (c: Pick<Circuit, 'modules' | 'wires'>) => ({
+  parts: c.modules.length,
+  leads: c.wires.length,
+  rungs: c.modules.reduce((n, m) => n + (m.ladder?.length ?? 0), 0),
+});
 
 export const emptyCircuit = (board: BoardType = 'trainer'): Circuit => ({
   modules: defaultModules(board),

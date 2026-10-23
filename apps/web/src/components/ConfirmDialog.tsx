@@ -40,7 +40,7 @@ export function ConfirmDialog({
   return (
     <div
       role="presentation"
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-carbon-900/45 p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-[#06090d]/60 p-4"
       onClick={onCancel}
     >
       <div
@@ -48,18 +48,18 @@ export function ConfirmDialog({
         aria-modal="true"
         aria-labelledby="confirm-title"
         aria-describedby="confirm-message"
-        className="w-full max-w-sm rounded-lg border border-steel-400 bg-steel-50 p-5 shadow-2xl"
+        className="w-full max-w-sm rounded-2xl border border-steel-400 bg-steel-50 p-6 shadow-[0_30px_80px_rgba(0,0,0,0.5)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-start gap-3">
-          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-safety-red/15 text-safety-red">
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-safety-red/15 text-safety-red">
             <AlertTriangle className="h-4 w-4" />
           </span>
           <div>
-            <h2 id="confirm-title" className="engraved text-sm font-bold text-carbon-900">
+            <h2 id="confirm-title" className="text-lg font-bold text-carbon-900">
               {title}
             </h2>
-            <p id="confirm-message" className="mt-1.5 text-xs leading-relaxed text-carbon-600">
+            <p id="confirm-message" className="mt-1.5 text-sm leading-relaxed text-carbon-600">
               {message}
             </p>
             {detail && <p className="mt-1.5 text-[11px] leading-relaxed text-carbon-600">{detail}</p>}
@@ -72,8 +72,8 @@ export function ConfirmDialog({
             type="button"
             onClick={onCancel}
             className={clsx(
-              'rounded-sm border border-steel-400 bg-steel-100 px-3 py-1.5 text-xs font-semibold',
-              'text-carbon-800 hover:bg-steel-200',
+              'h-9 rounded-[9px] border border-steel-400 bg-steel-100 px-4 text-sm font-semibold',
+              'text-carbon-900 hover:bg-steel-200',
             )}
           >
             Cancel
@@ -81,7 +81,7 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded-sm border border-safety-red/50 bg-safety-red/15 px-3 py-1.5 text-xs font-bold text-safety-red hover:bg-safety-red/25"
+            className="h-9 rounded-[9px] bg-safety-red px-4 text-sm font-bold text-white hover:brightness-110"
           >
             {confirmLabel}
           </button>

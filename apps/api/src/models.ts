@@ -47,7 +47,7 @@ const circuitSchema = new Schema<CircuitDoc>(
     name: { type: String, required: true },
     modules: { type: Schema.Types.Mixed, required: true },
     wires: { type: Schema.Types.Mixed, required: true },
-    board: { type: String, enum: ['trainer', 'pneumatics'] },
+    board: { type: String, enum: ['trainer', 'pneumatics', 'simple'] },
     shareId: { type: String, index: true, sparse: true },
   },
   { timestamps: true },

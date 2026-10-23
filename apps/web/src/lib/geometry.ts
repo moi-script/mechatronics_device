@@ -8,10 +8,6 @@ export interface Point {
 export const BOARD_W = 2010;
 export const BOARD_H = 2420;
 
-/** Spacing of the bench ruling, in board units. */
-export const GRID_MINOR = 50;
-export const GRID_MAJOR = 250;
-
 /**
  * How much bench answers to a click on empty space around the plate. It is not
  * a boundary: the canvas draws past it and panning is unlimited, so this only

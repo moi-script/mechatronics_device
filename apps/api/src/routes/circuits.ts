@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { isValidObjectId } from 'mongoose';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
-import { WIRE_COLORS } from '@mech/sim';
+import { WIRE_COLORS, circuitStats, type Circuit as SimCircuit } from '@mech/sim';
 import { Circuit } from '../models';
 import { readUser, requireUser, type AuthedRequest } from '../auth-middleware';
 
@@ -18,6 +18,20 @@ const endRef = z.union([
   z.object({ kind: z.literal('stack'), wireId: z.string().max(40), end: z.enum(['A', 'B']) }),
   z.object({ kind: z.literal('loose'), x: z.number().finite(), y: z.number().finite() }),
 ]);
+
+/** One parallel group of a ladder rung: up to 8 branches of up to 8 contacts. */
+const parallel = z
+  .array(
+    z
+      .array(
+        z.object({
+          addr: z.string().regex(/^(I(0\d|1[0-7])|Q(0\d|1[01])|M(0\d|1[0-5])|T[0-7])$/),
+          nc: z.boolean().optional(),
+        }),
+      )
+      .max(8),
+  )
+  .max(8);
 
 const circuitSchema = z.object({
   modules: z
@@ -39,20 +53,12 @@ const circuitSchema = z.object({
         ladder: z
           .array(
             z.object({
-              branches: z
-                .array(
-                  z
-                    .array(
-                      z.object({
-                        addr: z.string().regex(/^(I(0\d|1[01])|Q0[0-7]|T[0-7])$/),
-                        nc: z.boolean().optional(),
-                      }),
-                    )
-                    .max(8),
-                )
-                .max(8),
+              // Blocks in series, each parallel branches of series contacts; rungs
+              // saved before blocks carry one parallel group as `branches`.
+              blocks: z.array(parallel).max(8).optional(),
+              branches: parallel.optional(),
               coil: z.object({
-                addr: z.string().regex(/^(Q0[0-7]|T[0-7])$/),
+                addr: z.string().regex(/^(Q(0\d|1[01])|M(0\d|1[0-5])|T[0-7])$/),
                 kind: z.enum(['OUT', 'SET', 'RST', 'TON']),
                 presetSec: z.number().min(0.1).max(3600).optional(),
               }),
@@ -60,6 +66,8 @@ const circuitSchema = z.object({
           )
           .max(64)
           .optional(),
+        // A PLC's address plan: which part each I / Q address is meant for.
+        io: z.record(z.string().regex(/^(I(0\d|1[0-7])|Q(0\d|1[01]))$/), z.string().max(40)).optional(),
       }),
     )
     .max(64),
@@ -78,7 +86,7 @@ const circuitSchema = z.object({
     )
     .max(400),
   /** Which bench it was built on. Absent means the trainer, as it always was. */
-  board: z.enum(['trainer', 'pneumatics']).optional(),
+  board: z.enum(['trainer', 'pneumatics', 'simple']).optional(),
 });
 
 const name = z.string().trim().min(1).max(120);
@@ -109,6 +117,8 @@ circuitsRouter.get('/circuits', requireUser, async (req: AuthedRequest, res) => 
       name: d.name,
       shareId: d.shareId ?? undefined,
       updatedAt: d.updatedAt,
+      board: d.board ?? 'trainer',
+      ...circuitStats(d as unknown as SimCircuit),
     })),
   });
 });

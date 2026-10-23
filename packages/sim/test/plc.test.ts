@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { step, emptyState, devicesOn, plcBits, presetById } from '../src/index';
+import { step, emptyState, devicesOn, partsOn, plcBits, presetById } from '../src/index';
 import type { Circuit, EndRef, Inputs, LadderRung, Wire } from '../src/index';
 
 const t = (moduleId: string, pinId: string): EndRef => ({ kind: 'terminal', moduleId, pinId });
@@ -10,10 +10,7 @@ const wire = (a: EndRef, b: EndRef): Wire => ({ id: `w${++n}`, color: 'red', a, 
 
 const selfHold: LadderRung[] = [
   {
-    branches: [
-      [{ addr: 'I00' }, { addr: 'I01', nc: true }],
-      [{ addr: 'Q00' }, { addr: 'I01', nc: true }],
-    ],
+    blocks: [[[{ addr: 'I00' }], [{ addr: 'Q00' }]], [[{ addr: 'I01', nc: true }]]],
     coil: { addr: 'Q00', kind: 'OUT' },
   },
 ];
@@ -76,7 +73,7 @@ test('a short clears the latched output', () => {
 });
 
 test('an output fed back to an input settles', () => {
-  const ladder: LadderRung[] = [...selfHold, { branches: [[{ addr: 'I05' }]], coil: { addr: 'Q01', kind: 'OUT' } }];
+  const ladder: LadderRung[] = [...selfHold, { blocks: [[[{ addr: 'I05' }]]], coil: { addr: 'Q01', kind: 'OUT' } }];
   const c = circuit(ladder, [...baseWires(), wire(t('PLC1', 'Q00'), t('PLC1', 'I05'))]);
   const r = step(c, inputs({ pressed: { 'PBU1.B1': true } }), emptyState());
   assert.equal(r.actuated['PLC1.Q01'], true);
@@ -87,6 +84,24 @@ test('devicesOn names the button wired to I00', () => {
   const c = circuit();
   assert.ok(devicesOn(c, 'PLC1', 'I00').some((s) => s.includes('B1') && s.includes('14')));
   assert.deepEqual(devicesOn(c, 'PLC1', 'I07'), []);
+});
+
+test('partsOn says how each device is wired: NO or NC contact in, and what a relay switches out', () => {
+  const c = circuit(selfHold, [
+    ...baseWires(),
+    wire(t('PBU1', 'B3_31'), t('PLC1', 'I02')),
+    wire(t('PLC1', 'Q01'), t('RLY1', 'VCC')),
+    wire(t('RLY1', 'NC1'), t('LAMP1', 'VCC')),
+  ]);
+  c.modules.push({ id: 'RLY1', type: 'RELAY', x: 0, y: 0 }, { id: 'LAMP1', type: 'LAMP', x: 0, y: 0 });
+  assert.equal(partsOn(c, 'PLC1', 'I00')[0].contact, 'NO');
+  assert.equal(partsOn(c, 'PLC1', 'I02')[0].contact, 'NC');
+  assert.deepEqual(partsOn(c, 'PLC1', 'Q01')[0], {
+    label: 'Relay 1 VCC',
+    moduleId: 'RLY1',
+    type: 'RELAY',
+    switches: [{ kind: 'NC', loads: ['Lamp 1'] }],
+  });
 });
 
 test('devicesOn still names the lamp on Q00 once the output relay closes onto the supply', () => {
@@ -106,8 +121,8 @@ test('plcBits reports a pressed input and a live output', () => {
 
 test('a PLC timer runs on the wall clock and says when it is due', () => {
   const ladder: LadderRung[] = [
-    { branches: [[{ addr: 'I00' }]], coil: { addr: 'T0', kind: 'TON', presetSec: 2 } },
-    { branches: [[{ addr: 'T0' }]], coil: { addr: 'Q00', kind: 'OUT' } },
+    { blocks: [[[{ addr: 'I00' }]]], coil: { addr: 'T0', kind: 'TON', presetSec: 2 } },
+    { blocks: [[[{ addr: 'T0' }]]], coil: { addr: 'Q00', kind: 'OUT' } },
   ];
   const c = circuit(ladder);
   const pressed = { 'PBU1.B1': true };
@@ -115,13 +130,16 @@ test('a PLC timer runs on the wall clock and says when it is due', () => {
   assert.equal(a.state.timerStart['PLC1.T0'], 1000);
   assert.equal(a.nextTickMs, 2000);
   assert.equal(a.coils['PBU1.L3'], false);
+  // The live ladder reads the timer's done bit: off while counting, on once due.
+  assert.equal(plcBits(c, a, 'PLC1').T0, false);
   const b = step(c, inputs({ pressed, now: 3000 }), a.state);
   assert.equal(b.coils['PBU1.L3'], true);
+  assert.equal(plcBits(c, b, 'PLC1').T0, true);
 });
 
 test('an output that holds itself through a relay stays on after the start button is released', () => {
   const ladder: LadderRung[] = [
-    { branches: [[{ addr: 'I00' }], [{ addr: 'I05' }]], coil: { addr: 'Q00', kind: 'OUT' } },
+    { blocks: [[[{ addr: 'I00' }], [{ addr: 'I05' }]]], coil: { addr: 'Q00', kind: 'OUT' } },
   ];
   const c: Circuit = {
     ...circuit(ladder, [

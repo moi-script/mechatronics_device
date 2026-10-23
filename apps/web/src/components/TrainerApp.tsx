@@ -25,16 +25,18 @@ export function TrainerApp() {
         onTogglePanel={() => setPanelOpen((v) => !v)}
       />
       <div className="flex min-h-0 flex-1">
-        <main className="relative min-w-0 flex-1 overflow-hidden">
-          <Board />
-        </main>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <main className="relative min-h-0 flex-1 overflow-hidden">
+            <Board />
+          </main>
+          {ladderFor && <LadderEditor moduleId={ladderFor} onClose={() => openLadder(null)} />}
+        </div>
         <SidePanel open={panelOpen} onClose={() => setPanelOpen(false)} />
       </div>
       {/* Only the installed app can be behind; on the site this renders nothing. */}
       <UpdateNotice />
       {binOpen && <PartsBin onClose={() => setBinOpen(false)} />}
       {libraryOpen && <Library onClose={() => setLibraryOpen(false)} />}
-      {ladderFor && <LadderEditor moduleId={ladderFor} onClose={() => openLadder(null)} />}
     </div>
   );
 }

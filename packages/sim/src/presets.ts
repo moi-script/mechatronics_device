@@ -306,10 +306,10 @@ export const PNEUMATIC_BOARD_SEQUENCE: Preset = {
   summary: 'The pneumatics board: one press of button 1, and the rods trip the switches that run the rest.',
   board: 'pneumatics',
   steps: [
-    'Close the breaker. Both rods are home, each sitting on its own a0 switch.',
+    "Close the breaker. Both rods are home, as each cylinder's rear reed sensor reports.",
     'Press button 1 on the push-button unit: cylinder A extends (A+).',
     'A runs into a1, which picks up relay R1 and sends A back home (A-).',
-    'A settles back onto a0, and with R1 still held that sends cylinder B out (B+).',
+    'A arrives home, its rear reed sensor closes, and with R1 still held that sends cylinder B out (B+).',
     'B runs into b1, which drops R1 and sends B home (B-). The cycle is over and button 1 starts it again.',
   ],
   build(): Circuit {
@@ -336,9 +336,9 @@ export const PNEUMATIC_BOARD_SEQUENCE: Preset = {
     h.add(['LS_B1', 'NC'], ['RU1', 'R1_24'], 'yellow'); // hold feed, broken when B arrives
     h.add(['RU1', 'R1_21'], ['RU1', 'R1_A1'], 'yellow');
 
-    // --- step 3: a0 with R1 still held sends B out ---------------------------
-    h.add(['RU1', 'V5'], ['LS_A0', 'COM']);
-    h.add(['LS_A0', 'NO'], ['RU1', 'R1_31'], 'green');
+    // --- step 3: A home (its rear reed sensor) with R1 still held sends B out --
+    h.add(['RU1', 'V5'], ['CYL_A', 'S1_P']);
+    h.add(['CYL_A', 'S1_O'], ['RU1', 'R1_31'], 'green');
     h.add(['RU1', 'R1_34'], ['V_B', 'Y14_P'], 'green');
     h.add(['V_B', 'Y14_N'], ['RU1', 'G5'], 'blue');
 
@@ -357,7 +357,7 @@ export const PNEUMATIC_BOARD_SEQUENCE: Preset = {
     return {
       board: 'pneumatics',
       modules: layout(
-        ['BREAKER', 'PSU1', 'AIR1', 'PBU1', 'RU1', 'V_A', 'LS_A0', 'CYL_A', 'LS_A1', 'V_B', 'LS_B0', 'CYL_B', 'LS_B1'],
+        ['BREAKER', 'PSU1', 'AIR1', 'PBU1', 'RU1', 'V_A', 'CYL_A', 'LS_A1', 'V_B', 'CYL_B', 'LS_B1'],
         (m) => m,
         'pneumatics',
       ),
@@ -494,11 +494,9 @@ const PLC_TWO_LAMP_PRESET: Preset = {
     h.add(['PLC1', 'Q01'], ['PBU1', 'B2_X1'], 'green');
     h.add(['PBU1', 'B2_X2'], ['PBU1', 'G3'], 'blue');
 
+    // Start and its seal-in in parallel, then the shared stop in series.
     const hold = (start: string, out: string): LadderRung => ({
-      branches: [
-        [{ addr: start }, { addr: 'I02', nc: true }],
-        [{ addr: out }, { addr: 'I02', nc: true }],
-      ],
+      blocks: [[[{ addr: start }], [{ addr: out }]], [[{ addr: 'I02', nc: true }]]],
       coil: { addr: out, kind: 'OUT' },
     });
 

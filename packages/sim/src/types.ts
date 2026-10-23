@@ -85,11 +85,12 @@ export interface PartDef {
 }
 
 /**
- * Which bench a circuit is built on. The trainer is the full panel; the
+ * Which bench a circuit is built on. 'simple' is the relay trainer alone,
+ * 'trainer' is every board at once (All boards), and the
  * pneumatics board is the same parts laid out for air work, one cylinder per
  * row with a limit switch bolted at each end of its stroke.
  */
-export type BoardType = 'trainer' | 'pneumatics';
+export type BoardType = 'trainer' | 'pneumatics' | 'simple';
 
 /**
  * A limit switch bolted to a cylinder's stroke. `home` is the switch the rod
@@ -113,6 +114,11 @@ export interface ModuleInstance {
   mount?: LimitMount;
   /** The ladder program. FT_PLC only. */
   ladder?: LadderRung[];
+  /**
+   * The PLC's address plan, e.g. { I03: 'PB1' }: which part each I / Q address
+   * is meant for, so a program can be written before the leads are run. FT_PLC only.
+   */
+  io?: Record<string, string>;
 }
 
 /**

@@ -2,13 +2,13 @@
 
 import { useCallback, useContext, useRef } from 'react';
 import { PARTS, moduleLabel, type ModuleInstance, type PinDef, type PinRole } from '@mech/sim';
-import { useBoard } from '@/store/useBoard';
+import { useBoard, usePhotoreal } from '@/store/useBoard';
 import { ScaleContext } from './ScaleContext';
 import type { WireFocus } from '@/lib/geometry';
 import { usePalette } from '@/store/useTheme';
 import { clickDown, clickUp } from '@/lib/sound';
 import type { Palette } from '@/lib/palette';
-import { AirFitting, FestechFace } from './FestechFaces';
+import { AirFitting, FestechFace, PHOTO_PNEUMATIC } from './FestechFaces';
 
 const GRID = 8;
 /** How long a cylinder takes to run its full stroke, on screen. */
@@ -101,11 +101,14 @@ function Terminal({ moduleId, pin, emphasis }: { moduleId: string; pin: PinDef; 
         <>
       {/* A live terminal glows in its rail colour; the collar always states its function. */}
       {energised && <circle cx={pin.x} cy={pin.y} r={13} fill={energised} opacity={p.glowOpacity} filter="url(#glow)" />}
-      {/* A tinted insulator washer states the function without shouting it. */}
-      <circle cx={pin.x} cy={pin.y} r={9.5} fill={collar} fillOpacity={0.2} />
-      <circle cx={pin.x} cy={pin.y} r={8.6} fill="none" stroke={collar} strokeWidth={1.6} strokeOpacity={0.85} />
-      <circle cx={pin.x} cy={pin.y} r={6} fill="url(#brass)" />
-      <circle cx={pin.x} cy={pin.y} r={2.4} fill={p.plugPin} opacity={0.75} />
+      {/* A 4 mm banana socket: shroud moulded in its function colour, brass ring, the hole. */}
+      <circle cx={pin.x} cy={pin.y + 1.6} r={10.4} fill="#000000" opacity={0.45} />
+      <circle cx={pin.x} cy={pin.y} r={10} fill={collar} />
+      <circle cx={pin.x} cy={pin.y} r={10} fill="url(#shroud)" stroke="#000000" strokeOpacity={0.4} strokeWidth={0.8} />
+      <circle cx={pin.x} cy={pin.y} r={7.4} fill="none" stroke="#ffffff" strokeOpacity={0.16} strokeWidth={0.9} />
+      <circle cx={pin.x} cy={pin.y} r={5} fill="url(#brass)" stroke="#3a2c08" strokeWidth={0.6} />
+      <circle cx={pin.x} cy={pin.y} r={2.5} fill="#0b0805" />
+      <ellipse cx={pin.x - 4.2} cy={pin.y - 5.6} rx={2.6} ry={1.3} fill="#ffffff" opacity={0.35} transform={`rotate(-30 ${pin.x - 4.2} ${pin.y - 5.6})`} />
       <text
         className="t-mono"
         x={pin.x}
@@ -165,6 +168,64 @@ const LegendPlate = ({ w, name, tag }: { w: number; name: string; tag?: string }
     </g>
   );
 };
+
+/** What is printed across the top of each Festech panel, as on the real ones. */
+const PANEL_TITLE: Partial<Record<string, [string, string]>> = {
+  FT_PSU: ['POWER SUPPLY', 'PN 13030'],
+  FT_PBU: ['PUSH-BUTTON SWITCH', 'PN 13032'],
+  FT_RELAY3: ['RELAY UNIT (3-FOLD)', 'PN 13030'],
+  FT_PLC: ['PLC TRAINER  (OMRON CP1E series)', 'PN 13050'],
+  BREAKER: ['BREAKER', ''],
+};
+
+/**
+ * The photoreal panel: brushed aluminium with dark extrusion end caps on the
+ * rack panels, a printed title and the red Festech mark, and the unit's tag on
+ * the bottom cap. The hardware clamped to the air plate gets corner bolts instead.
+ */
+function PhotoChassis({ m, w, h }: { m: ModuleInstance; w: number; h: number }) {
+  const title = PANEL_TITLE[m.type];
+  const rackPanel = !!title;
+  return (
+    <g pointerEvents="none" style={{ userSelect: 'none' }}>
+      {rackPanel ? (
+        <>
+          <rect width={w} height={12} fill="url(#extrusionCap)" />
+          <rect y={h - 12} width={w} height={12} fill="url(#extrusionCap)" />
+          <rect width={5} height={h} fill="#3b4046" />
+          <rect x={w - 5} width={5} height={h} fill="#3b4046" />
+          <text x={w - 14} y={9.5} textAnchor="end" fontSize={7.5} className="t-mono" fill="#e4e6e8">
+            {m.id}
+            {title[1] && '  ·  ' + title[1]}
+          </text>
+        </>
+      ) : (
+        <>
+          <rect width={w} height={h} rx={2} fill="none" stroke="#8a9096" />
+          {[
+            [9, 9],
+            [w - 9, 9],
+            [9, h - 9],
+            [w - 9, h - 9],
+          ].map(([x, y]) => (
+            <g key={x + '-' + y}>
+              <circle cx={x} cy={y} r={4} fill="url(#brass)" />
+              <path d={`M${x - 2.4} ${y}H${x + 2.4}M${x} ${y - 2.4}V${y + 2.4}`} stroke="#3e4349" strokeWidth={1} />
+            </g>
+          ))}
+        </>
+      )}
+      <text x={rackPanel ? 16 : 20} y={rackPanel ? 28 : 24} fontSize={rackPanel ? 12 : 11} fontWeight={700} className="t-cond" fill="#1c1e21">
+        {title?.[0] ?? m.id}
+      </text>
+      {rackPanel && m.type.startsWith('FT_') && (
+        <text x={w - 16} y={28} textAnchor="end" fontSize={12} fontWeight={800} fontStyle="italic" className="t-cond" fill="#d12a24">
+          FESTECH
+        </text>
+      )}
+    </g>
+  );
+}
 
 /** The part-specific face inside a module's plate. */
 /** SVG arc path between two clock angles, measured from twelve o'clock. */
@@ -296,11 +357,25 @@ function Face({ m }: { m: ModuleInstance }) {
             onPointerCancel={() => holdButton(m.id, false)}
             style={{ cursor: 'pointer' }}
           >
-            {/* Chrome bezel ring, then the actuator cap sunk into it when held. */}
-            <circle cx={w / 2} cy={80} r={31} fill="url(#chrome)" stroke={p.screwStroke} strokeWidth={1} />
-            <circle cx={w / 2} cy={80} r={25} fill={p.recess} />
-            <circle cx={w / 2} cy={pressed ? 81 : 77} r={23} fill={pressed ? '#8f1d1d' : p.red} />
-            <circle cx={w / 2} cy={pressed ? 81 : 77} r={23} fill="url(#capGloss)" />
+            {/* Knurled bezel and its dark bore; the cap sinks and loses its shine when held. */}
+            <g transform={`translate(${w / 2} 80) scale(31)`}>
+              <circle r={1.06} cy={0.09} fill="#000000" opacity={0.45} />
+              <circle r={1} fill="url(#bzl)" />
+              <circle r={0.93} fill="none" stroke="#28313c" strokeWidth={0.06} strokeDasharray="0.035 0.055" opacity={0.65} />
+              <circle r={0.85} fill="url(#bzlIn)" />
+              <circle r={0.78} fill="#07090c" />
+              <g transform={pressed ? 'translate(0 0.05) scale(0.95)' : undefined} opacity={pressed ? 0.85 : 1}>
+                <circle r={0.72} fill="url(#capRed)" />
+                <circle r={0.72} fill="url(#dish)" />
+                {!pressed && (
+                  <>
+                    <ellipse cx={-0.16} cy={-0.34} rx={0.42} ry={0.18} fill="#ffffff" opacity={0.38} />
+                    <circle r={0.72} fill="none" stroke="#ffffff" strokeOpacity={0.22} strokeWidth={0.035} />
+                    <ellipse cx={0.3} cy={0.42} rx={0.22} ry={0.07} fill="#ffffff" opacity={0.18} />
+                  </>
+                )}
+              </g>
+            </g>
           </g>
           {status(122, pressed ? 'COM-NO' : 'COM-NC', pressed ? p.green : p.label)}
         </>
@@ -569,6 +644,8 @@ export function ModuleView({ m, focus }: { m: ModuleInstance; focus?: WireFocus 
   const beginMove = useBoard((s) => s.beginMove);
   const selected = useBoard((s) => s.selectedModuleIds.includes(m.id));
   const p = usePalette();
+  const photo = usePhotoreal();
+  const hardware = photo && PHOTO_PNEUMATIC.has(m.type);
   const getScale = useContext(ScaleContext);
   // Where every module being dragged started, so the group moves as one. The
   // anchor is the module actually grabbed; it decides the snapped delta.
@@ -590,10 +667,13 @@ export function ModuleView({ m, focus }: { m: ModuleInstance; focus?: WireFocus 
         return;
       }
 
+      // A switch bolted to a stroke is moved by moving its cylinder.
+      const grab = (m.mount && board.circuit.modules.find((c) => c.id === m.mount!.cylinderId)) || m;
+
       // Dragging an unselected module makes it the selection.
       let ids = board.selectedModuleIds;
-      if (!ids.includes(m.id)) {
-        ids = [m.id];
+      if (!ids.includes(grab.id)) {
+        ids = [grab.id];
         board.setSelectedModules(ids);
       }
 
@@ -603,7 +683,7 @@ export function ModuleView({ m, focus }: { m: ModuleInstance; focus?: WireFocus 
       for (const mod of board.circuit.modules) {
         if (ids.includes(mod.id)) origins[mod.id] = { x: mod.x, y: mod.y };
       }
-      drag.current = { px: e.clientX, py: e.clientY, anchor: { x: m.x, y: m.y }, origins };
+      drag.current = { px: e.clientX, py: e.clientY, anchor: { x: grab.x, y: grab.y }, origins };
 
       // Capture last: if it is refused, the drag should still work.
       try {
@@ -612,7 +692,7 @@ export function ModuleView({ m, focus }: { m: ModuleInstance; focus?: WireFocus 
         // No active pointer to capture; move events still reach the element.
       }
     },
-    [beginMove, m.id, m.x, m.y],
+    [beginMove, m],
   );
 
   const onMove = useCallback(
@@ -671,26 +751,34 @@ export function ModuleView({ m, focus }: { m: ModuleInstance; focus?: WireFocus 
         className="no-pan"
         width={pw}
         height={ph}
-        rx={8}
-        fill="url(#plate)"
-        stroke={p.moduleStroke}
+        rx={photo ? 2 : 8}
+        // Pneumatic hardware on the photoreal bench has no panel of its own; the
+        // invisible rect is still what you grab to move it.
+        fill={hardware ? 'transparent' : photo ? 'url(#alu)' : 'url(#plate)'}
+        stroke={photo ? 'none' : p.moduleStroke}
         strokeWidth={1.25}
-        filter="url(#lift)"
+        filter={hardware ? undefined : 'url(#lift)'}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
         style={{ cursor: 'grab' }}
       />
-      {/* Bevel: a lit top edge and a shaded bottom one. */}
-      <path d={`M 9 1.5 H ${pw - 9}`} stroke={p.bevelLight} strokeWidth={1.5} opacity={0.95} pointerEvents="none" />
-      <path d={`M 9 ${ph - 1.5} H ${pw - 9}`} stroke={p.bevelDark} strokeWidth={1.5} opacity={0.5} pointerEvents="none" />
+      {hardware ? null : photo ? (
+        <PhotoChassis m={m} w={pw} h={ph} />
+      ) : (
+        <>
+          {/* Bevel: a lit top edge and a shaded bottom one. */}
+          <path d={`M 9 1.5 H ${pw - 9}`} stroke={p.bevelLight} strokeWidth={1.5} opacity={0.95} pointerEvents="none" />
+          <path d={`M 9 ${ph - 1.5} H ${pw - 9}`} stroke={p.bevelDark} strokeWidth={1.5} opacity={0.5} pointerEvents="none" />
 
-      <Screw x={11} y={ph - 11} />
-      <Screw x={pw - 11} y={ph - 11} />
+          <Screw x={11} y={ph - 11} />
+          <Screw x={pw - 11} y={ph - 11} />
+          <LegendPlate w={pw} name={m.type === 'SUPPLY' ? 'POWER SUPPLY' : m.id} tag={TAG[m.type]} />
+        </>
+      )}
 
       <title>{moduleLabel(m)}</title>
-      <LegendPlate w={pw} name={m.type === 'SUPPLY' ? 'POWER SUPPLY' : m.id} tag={TAG[m.type]} />
       <Face m={m} />
       {part.pins.map((pin) => (
         <Terminal

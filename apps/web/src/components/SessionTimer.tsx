@@ -82,8 +82,8 @@ export function SessionTimer() {
   }, [menuOpen]);
 
   const chip =
-    'inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1.5 text-xs font-semibold transition';
-  const iconBtn = 'rounded-sm p-1 text-carbon-600 hover:bg-steel-200 hover:text-carbon-900';
+    'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition';
+  const iconBtn = 'rounded-md p-1 text-carbon-600 hover:bg-steel-200 hover:text-carbon-900';
 
   return (
     <div ref={wrap} className="relative flex items-center gap-1">
@@ -145,7 +145,7 @@ export function SessionTimer() {
 
       {menuOpen && (
         // On a phone the timer sits at the right edge, so the menu hangs leftwards from it.
-        <div className="absolute right-0 top-full z-50 mt-1.5 w-56 max-w-[calc(100vw-1rem)] rounded-sm sm:left-0 sm:right-auto border border-steel-400 bg-steel-50 p-3 shadow-xl">
+        <div className="absolute right-0 top-full z-50 mt-1.5 w-56 max-w-[calc(100vw-1rem)] rounded-md sm:left-0 sm:right-auto border border-steel-400 bg-steel-50 p-3 shadow-xl">
           <p className="engraved mb-2 text-[10px] font-bold text-carbon-600">Practice timer</p>
           <div className="grid grid-cols-4 gap-1.5">
             {PRESETS.map((m) => (
@@ -153,7 +153,7 @@ export function SessionTimer() {
                 key={m}
                 type="button"
                 onClick={() => start(m)}
-                className="rounded-sm border border-steel-400 bg-steel-100 py-1.5 font-mono text-[11px] text-carbon-900 hover:border-signal-amber hover:bg-signal-amber/10"
+                className="rounded-md border border-steel-400 bg-steel-100 py-1.5 font-mono text-[11px] text-carbon-900 hover:border-signal-amber hover:bg-signal-amber/10"
               >
                 {m}
               </button>
@@ -176,11 +176,11 @@ export function SessionTimer() {
               value={custom}
               onChange={(e) => setCustom(e.target.value)}
               placeholder="Custom"
-              className="w-full rounded-sm border border-steel-400 bg-steel-100 px-2 py-1 font-mono text-[11px] text-carbon-900 outline-none focus:border-signal-amber"
+              className="w-full rounded-md border border-steel-400 bg-steel-100 px-2 py-1 font-mono text-[11px] text-carbon-900 outline-none focus:border-signal-amber"
             />
             <button
               type="submit"
-              className="rounded-sm border border-run-green/40 bg-run-green/10 px-2.5 py-1 text-[11px] font-semibold text-run-green hover:bg-run-green/20"
+              className="rounded-md border border-run-green/40 bg-run-green/10 px-2.5 py-1 text-[11px] font-semibold text-run-green hover:bg-run-green/20"
             >
               Start
             </button>
@@ -190,7 +190,7 @@ export function SessionTimer() {
             <button
               type="button"
               onClick={stop}
-              className="mt-2 w-full rounded-sm border border-steel-400 bg-steel-100 py-1.5 text-[11px] font-semibold text-carbon-600 hover:bg-steel-200"
+              className="mt-2 w-full rounded-md border border-steel-400 bg-steel-100 py-1.5 text-[11px] font-semibold text-carbon-600 hover:bg-steel-200"
             >
               Turn timer off
             </button>

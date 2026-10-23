@@ -50,8 +50,8 @@ export function Popover({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         className={clsx(
-          'inline-flex items-center gap-1.5 rounded-sm border px-2 py-1.5 text-xs font-semibold transition',
-          open ? 'border-carbon-900 bg-steel-200 text-carbon-900' : 'border-steel-400 bg-steel-50 text-carbon-800 hover:bg-steel-200',
+          'inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition',
+          open ? 'border-signal-amber/60 bg-steel-200 text-carbon-900' : 'border-steel-400 bg-steel-100 text-carbon-900 hover:bg-steel-200',
           buttonClass,
         )}
       >
@@ -61,7 +61,7 @@ export function Popover({
       {open && (
         <div
           className={clsx(
-            'absolute top-full z-50 mt-1.5 rounded-sm border-2 border-carbon-900 bg-steel-50 p-2 shadow-lg',
+            'absolute top-full z-50 mt-1.5 rounded-xl border border-steel-400 bg-steel-50 p-2 shadow-2xl shadow-black/40',
             align === 'right' ? 'right-0' : 'left-0',
             panelClass,
           )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useBoard, useErrors } from '@/store/useBoard';
+import { useBoard, useErrors, usePhotoreal } from '@/store/useBoard';
 import { BOARD_H, BOARD_W } from '@/lib/geometry';
 import { usePalette } from '@/store/useTheme';
 
@@ -57,9 +57,46 @@ function TitleBlock() {
   );
 }
 
+/** How far the Festech bench reaches: its PLC hangs past the trainer's plate. */
+const BENCH_W = 2440;
+/** Where the electrical rack ends and the pneumatics plate begins. */
+const RACK_H = 470;
+
+/**
+ * The PLC Trainer Board as it stands in the lab: an aluminium frame, the
+ * electrical panels hung on chrome rails, then the
+ * slotted profile plate the valves and cylinders are clamped to.
+ */
+function PhotoBench() {
+  return (
+    <g pointerEvents="none">
+      {/* Rails the panels hang from, behind their top and bottom edges. */}
+      {[64, 392].map((y) => (
+        <rect key={y} x={0} y={y} width={BENCH_W} height={26} fill="url(#rackRail)" />
+      ))}
+      {/* The shelf between the zones. */}
+      <rect x={-12} y={RACK_H} width={BENCH_W + 24} height={22} fill="url(#rackRail)" />
+      <rect x={0} y={RACK_H + 30} width={BENCH_W} height={BOARD_H - RACK_H - 30} fill="url(#airPlate)" />
+      {/* The T-slots of the profile plate, every 50 mm. Plain rects: a pattern this size re-rasterises on every pan. */}
+      {Array.from({ length: Math.floor((BOARD_H - RACK_H - 30) / 50) }, (_, i) => RACK_H + 30 + i * 50 + 22).map((y) => (
+        <g key={y}>
+          <rect y={y - 1} width={BENCH_W} height={1} fill="#eef1f3" opacity={0.6} />
+          <rect y={y} width={BENCH_W} height={6} fill="#8f969d" />
+          <rect y={y + 1.5} width={BENCH_W} height={3} fill="#5d646b" />
+        </g>
+      ))}
+      {/* Two uprights and the top rail of the frame. */}
+      <rect x={-20} y={-20} width={18} height={BOARD_H + 40} rx={4} fill="url(#upright)" />
+      <rect x={BENCH_W + 2} y={-20} width={18} height={BOARD_H + 40} rx={4} fill="url(#upright)" />
+      <rect x={-20} y={-24} width={BENCH_W + 40} height={16} rx={4} fill="url(#rackRail)" />
+    </g>
+  );
+}
+
 /** The mounting plate every module is screwed onto. */
 export function BoardPlate() {
   const p = usePalette();
+  if (usePhotoreal()) return <PhotoBench />;
   return (
     <>
       <rect width={BOARD_W} height={BOARD_H} rx={10} fill="url(#backplate)" stroke={p.boardStroke} strokeWidth={2} />
@@ -128,10 +165,109 @@ export function BoardDefs() {
         <stop offset="45%" stopColor="#ffffff" stopOpacity="0.05" />
         <stop offset="100%" stopColor="#000000" stopOpacity="0.2" />
       </linearGradient>
+      {/* Photoreal Festech materials, used on the PLC Trainer Board. */}
+      <linearGradient id="alu" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#e9ebed" />
+        <stop offset="45%" stopColor="#cfd3d7" />
+        <stop offset="100%" stopColor="#dcdfe2" />
+      </linearGradient>
+      <linearGradient id="extrusionCap" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#6a7078" />
+        <stop offset="40%" stopColor="#33383e" />
+        <stop offset="100%" stopColor="#4c525a" />
+      </linearGradient>
+      <linearGradient id="rackRail" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#f1f3f5" />
+        <stop offset="35%" stopColor="#aab1b8" />
+        <stop offset="60%" stopColor="#d9dde1" />
+        <stop offset="100%" stopColor="#7d858d" />
+      </linearGradient>
+      <linearGradient id="upright" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stopColor="#7d858d" />
+        <stop offset="40%" stopColor="#eef1f3" />
+        <stop offset="70%" stopColor="#a9b0b7" />
+        <stop offset="100%" stopColor="#5c636a" />
+      </linearGradient>
+      <linearGradient id="airPlate" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#c9ced3" />
+        <stop offset="100%" stopColor="#b3b9bf" />
+      </linearGradient>
+      <linearGradient id="aluBlock" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#eef0f2" />
+        <stop offset="50%" stopColor="#cdd2d7" />
+        <stop offset="100%" stopColor="#a9b0b7" />
+      </linearGradient>
+      <linearGradient id="tubeGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#7d868f" />
+        <stop offset="18%" stopColor="#f7f9fb" />
+        <stop offset="40%" stopColor="#b4bcc4" />
+        <stop offset="62%" stopColor="#eef1f4" />
+        <stop offset="100%" stopColor="#596169" />
+      </linearGradient>
+      <linearGradient id="rodGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#6f7780" />
+        <stop offset="35%" stopColor="#ffffff" />
+        <stop offset="70%" stopColor="#a8b0b8" />
+        <stop offset="100%" stopColor="#4f565d" />
+      </linearGradient>
+      <linearGradient id="turnedGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#8f979f" />
+        <stop offset="25%" stopColor="#f4f6f8" />
+        <stop offset="55%" stopColor="#c2c9cf" />
+        <stop offset="100%" stopColor="#6d757d" />
+      </linearGradient>
+      <linearGradient id="blackGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#3a3e44" />
+        <stop offset="100%" stopColor="#0f1113" />
+      </linearGradient>
+      <radialGradient id="nickGrad" cx="40%" cy="35%" r="65%">
+        <stop offset="0%" stopColor="#fbfbf8" />
+        <stop offset="55%" stopColor="#aeb3b8" />
+        <stop offset="100%" stopColor="#4f545a" />
+      </radialGradient>
+      <radialGradient id="brassCapGrad" cx="38%" cy="32%" r="70%">
+        <stop offset="0%" stopColor="#fff0c4" />
+        <stop offset="50%" stopColor="#c9a046" />
+        <stop offset="100%" stopColor="#6b5014" />
+      </radialGradient>
+      <radialGradient id="sinter" cx="40%" cy="35%" r="70%">
+        <stop offset="0%" stopColor="#ead2a2" />
+        <stop offset="60%" stopColor="#b3905a" />
+        <stop offset="100%" stopColor="#6b5228" />
+      </radialGradient>
+      <linearGradient id="plcBody" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#3a3e44" />
+        <stop offset="100%" stopColor="#1c1f23" />
+      </linearGradient>
       <radialGradient id="brass" cx="35%" cy="30%">
         <stop offset="0%" stopColor={p.brass[0]} />
         <stop offset="55%" stopColor={p.brass[1]} />
         <stop offset="100%" stopColor={p.brass[2]} />
+      </radialGradient>
+      {/* Moulded shroud of a 4 mm socket: lit top-left, falling to shadow, over any colour. */}
+      <radialGradient id="shroud" cx="36%" cy="30%" r="70%">
+        <stop offset="0%" stopColor="#ffffff" stopOpacity="0.55" />
+        <stop offset="45%" stopColor="#ffffff" stopOpacity="0" />
+        <stop offset="100%" stopColor="#000000" stopOpacity="0.6" />
+      </radialGradient>
+      {/* 22 mm push button, drawn at radius 1: knurled chrome bezel, its bore, a concave red cap. */}
+      <radialGradient id="bzl" cx="35%" cy="30%" r="75%">
+        <stop offset="0%" stopColor="#f3f6f9" />
+        <stop offset="45%" stopColor="#aab5c3" />
+        <stop offset="100%" stopColor="#465161" />
+      </radialGradient>
+      <linearGradient id="bzlIn" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#2f3843" />
+        <stop offset="100%" stopColor="#cfd6de" />
+      </linearGradient>
+      <linearGradient id="capRed" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#7a0f14" />
+        <stop offset="55%" stopColor="#d8383e" />
+        <stop offset="100%" stopColor="#f47a7e" />
+      </linearGradient>
+      <radialGradient id="dish" cx="50%" cy="45%" r="55%">
+        <stop offset="70%" stopColor="#000000" stopOpacity="0" />
+        <stop offset="100%" stopColor="#000000" stopOpacity="0.35" />
       </radialGradient>
       <radialGradient id="lensOn" cx="38%" cy="32%">
         <stop offset="0%" stopColor={p.lensOn[0]} />

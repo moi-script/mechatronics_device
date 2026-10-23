@@ -109,19 +109,19 @@ export const LIGHT: Palette = {
 
 /** The same panel under low workshop light: dark cases, brighter signals. */
 export const DARK: Palette = {
-  plate: ['#2c3849', '#242f3e', '#1b2431'],
-  backplate: ['#1b2431', '#141b26'],
-  boardStroke: '#3d4b5e',
-  moduleStroke: '#3d4b5e',
+  plate: ['#232d3a', '#1c2531', '#18202b'],
+  backplate: ['#161e28', '#10161e'],
+  boardStroke: '#2e3a4a',
+  moduleStroke: '#2e3a4a',
   bevelLight: '#54637a',
   bevelDark: '#0e141d',
 
-  legendBg: '#0b1119',
-  legendText: '#e2e8f0',
+  legendBg: '#0a0f15',
+  legendText: '#e6edf5',
   legendTag: '#7d8fa3',
 
-  ink: '#e8eef5',
-  label: '#94a5b8',
+  ink: '#e6edf5',
+  label: '#93a3b6',
 
   recess: '#1b2431',
   recessStroke: '#46566b',
@@ -129,32 +129,87 @@ export const DARK: Palette = {
   chrome: ['#8a99ad', '#5a6b81', '#38455a'],
   housing: ['#33404f', '#232d3b'],
   housingInner: '#2b3746',
-  lensOff: ['#2f3b4a', '#1d2632'],
-  lensOn: ['#fffbe8', '#fcd34d', '#c2410c'],
+  lensOff: ['#5b6675', '#1b222b'],
+  lensOn: ['#fff6d5', '#ffc94a', '#e07a10'],
   brass: ['#f6dfa4', '#c99a34', '#7a5c10'],
   screwFill: '#46566b',
   screwStroke: '#6a7c93',
   screwSlot: '#8496ab',
   ledOff: '#33404f',
 
-  amber: '#f59e0b',
-  blue: '#38bdf8',
-  green: '#22c55e',
-  red: '#f05252',
+  amber: '#f5a524',
+  blue: '#3b82f6',
+  green: '#34d399',
+  red: '#e5484d',
   neutral: '#8496ab',
 
   // Still black, just deep enough to separate from the dark plate behind it.
   pinBlack: '#05090e',
-  pinRed: '#ef4444',
+  pinRed: '#d93636',
 
   titleFace: '#141b26',
-  titleBar: '#0b1119',
+  titleBar: '#0a0f15',
   titleBarText: '#e2e8f0',
   titleRule: '#46566b',
 
   plugPin: '#3a2c08',
   cableShadow: '#000000',
   cableShadowOpacity: 0.5,
+  glowOpacity: 0.45,
+};
+
+/**
+ * The PLC Trainer Board drawn as the Festech bench really looks: brushed
+ * aluminium panels with printed black legends and nickel socket inserts. It is
+ * the same in either theme, the way the real panels do not change with the
+ * room lights.
+ */
+export const PHOTO: Palette = {
+  plate: ['#e9ebed', '#cfd3d7', '#dcdfe2'],
+  backplate: ['#1d3c80', '#142a5c'],
+  boardStroke: '#7d858d',
+  moduleStroke: '#8a9096',
+  bevelLight: '#ffffff',
+  bevelDark: '#3b4046',
+
+  legendBg: '#2b2e33',
+  legendText: '#1c1e21',
+  legendTag: '#4c525a',
+
+  ink: '#1c1e21',
+  label: '#2a2d31',
+
+  recess: '#18191c',
+  recessStroke: '#55595f',
+  recessInner: '#2b2e33',
+  chrome: ['#ffffff', '#c5ccd3', '#6f7881'],
+  housing: ['#e3e6e9', '#a9b0b7'],
+  housingInner: '#cfd3d7',
+  lensOff: ['#d8dde2', '#4c535a'],
+  lensOn: ['#fff6d5', '#ffc94a', '#e07a10'],
+  brass: ['#fbfbf8', '#aeb3b8', '#4f545a'],
+  screwFill: '#c5ccd3',
+  screwStroke: '#5c646d',
+  screwSlot: '#3e4349',
+  ledOff: '#4c535a',
+
+  amber: '#f5a524',
+  blue: '#1890bd',
+  green: '#22b14c',
+  red: '#e3262b',
+  neutral: '#6f7881',
+
+  pinBlack: '#1d2024',
+  pinRed: '#cf1f24',
+
+  titleFace: '#cfd3d7',
+  titleBar: '#33383e',
+  titleBarText: '#f1f3f5',
+  titleRule: '#7d858d',
+
+  plugPin: '#4f545a',
+  cableShadow: '#06122e',
+  cableShadowOpacity: 0.55,
   glowOpacity: 0.45,
 };
 

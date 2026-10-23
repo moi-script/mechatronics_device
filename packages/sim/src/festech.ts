@@ -135,28 +135,30 @@ function relayUnit(): PartDef {
   };
 }
 
-export const FT_PLC_INPUT_ROWS = [132, 182];
-export const FT_PLC_OUTPUT_Y = 252;
+/** Input rows of six: CH 0 00-05, CH 0 06-11, CH 1 00-05. */
+export const FT_PLC_INPUT_ROWS = [132, 182, 246];
+/** Output rows of six: CH 100 00-05, then CH 100 06-07 and CH 101 00-03. */
+export const FT_PLC_OUTPUT_ROWS = [302, 352];
 
 /**
- * OMRON CP1E: inputs 00-11, relay outputs 00-07, and its own +24V / 0V posts.
+ * OMRON CP1E N30: 18 inputs, 12 relay outputs, and its own +24V / 0V posts.
  * Each output is a contact from COM to its post, thrown by the ladder.
  */
 function plc(): PartDef {
   const v = [fp('V1', '+24V', 'PASS', 40, 62, 'red'), fp('V2', '+24V', 'PASS', 80, 62, 'red')];
   const g = [fp('G1', '0V', 'PASS', 130, 62, 'blue'), fp('G2', '0V', 'PASS', 170, 62, 'blue')];
-  const inputs = Array.from({ length: 12 }, (_, i) =>
+  const inputs = Array.from({ length: 18 }, (_, i) =>
     fp(`I${two(i)}`, two(i), 'INPUT', 50 + (i % 6) * 62, FT_PLC_INPUT_ROWS[Math.floor(i / 6)], 'black'),
   );
-  const outputs = Array.from({ length: 8 }, (_, i) =>
-    fp(`Q${two(i)}`, two(i), 'PASS', 50 + i * 52, FT_PLC_OUTPUT_Y, 'black'),
+  const outputs = Array.from({ length: 12 }, (_, i) =>
+    fp(`Q${two(i)}`, two(i), 'PASS', 50 + (i % 6) * 62, FT_PLC_OUTPUT_ROWS[Math.floor(i / 6)], 'black'),
   );
   return {
     type: 'FT_PLC',
     label: 'PLC CP1E',
     width: 480,
-    height: 290,
-    pins: [...v, ...g, ...inputs, ...outputs, fp('COM', 'COM', 'PASS', 450, FT_PLC_OUTPUT_Y, 'red')],
+    height: 392,
+    pins: [...v, ...g, ...inputs, ...outputs, fp('COM', 'COM', 'PASS', 450, FT_PLC_OUTPUT_ROWS[0], 'red')],
     contactLines: 0,
     hasCoil: false,
     buses: [idsOf(v), idsOf(g)],
@@ -263,10 +265,10 @@ export const FESTECH_PARTS: Record<Extract<ModuleType, `FT_${string}`>, PartDef>
     pins: [
       fp('A', 'A', 'AIR', 50, 52),
       fp('B', 'B', 'AIR', 250, 52),
-      fp('S1_P', '+', 'PASS', 70, 146, 'red'),
-      fp('S1_O', 'OUT', 'PASS', 108, 146, 'black'),
-      fp('S2_P', '+', 'PASS', 220, 146, 'red'),
-      fp('S2_O', 'OUT', 'PASS', 258, 146, 'black'),
+      fp('S1_P', '+', 'PASS', 22, 146, 'red'),
+      fp('S1_O', 'OUT', 'PASS', 56, 146, 'black'),
+      fp('S2_P', '+', 'PASS', 92, 146, 'red'),
+      fp('S2_O', 'OUT', 'PASS', 126, 146, 'black'),
     ],
     contactLines: 0,
     hasCoil: false,
@@ -284,10 +286,10 @@ export const FESTECH_PARTS: Record<Extract<ModuleType, `FT_${string}`>, PartDef>
     // home the moment A vents. Same two reed sensors as the double-acting one.
     pins: [
       fp('A', 'A', 'AIR', 50, 52),
-      fp('S1_P', '+', 'PASS', 70, 146, 'red'),
-      fp('S1_O', 'OUT', 'PASS', 108, 146, 'black'),
-      fp('S2_P', '+', 'PASS', 220, 146, 'red'),
-      fp('S2_O', 'OUT', 'PASS', 258, 146, 'black'),
+      fp('S1_P', '+', 'PASS', 22, 146, 'red'),
+      fp('S1_O', 'OUT', 'PASS', 56, 146, 'black'),
+      fp('S2_P', '+', 'PASS', 92, 146, 'red'),
+      fp('S2_O', 'OUT', 'PASS', 126, 146, 'black'),
     ],
     contactLines: 0,
     hasCoil: false,

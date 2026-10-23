@@ -1,4 +1,4 @@
-import type { Circuit } from '@mech/sim';
+import { circuitStats, type BoardType, type Circuit } from '@mech/sim';
 
 export interface User {
   id: string;
@@ -11,6 +11,11 @@ export interface CircuitSummary {
   name: string;
   shareId?: string;
   updatedAt: string;
+  /** Absent from servers older than the library cards. */
+  board?: BoardType;
+  parts?: number;
+  leads?: number;
+  rungs?: number;
 }
 
 /**
@@ -166,7 +171,13 @@ const device: typeof cloud = {
 
   listCircuits: async () => ({
     circuits: readAll()
-      .map(({ id, name, updatedAt }) => ({ id, name, updatedAt }))
+      .map(({ id, name, updatedAt, circuit }) => ({
+        id,
+        name,
+        updatedAt,
+        board: circuit.board ?? 'trainer',
+        ...circuitStats(circuit),
+      }))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
   }),
   getCircuit: async (id) => {

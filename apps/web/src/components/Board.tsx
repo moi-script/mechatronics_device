@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { Maximize2, Minus, Plus, Redo2, Undo2 } from 'lucide-react';
+import { SelectionBar } from './SelectionBar';
 import { PARTS } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
 import { usePalette } from '@/store/useTheme';
-import { BOARD_H, BOARD_W, CANVAS_H, CANVAS_PAD, CANVAS_W, GRID_MAJOR, GRID_MINOR, wireFocus } from '@/lib/geometry';
+import { BOARD_H, BOARD_W, CANVAS_H, CANVAS_PAD, CANVAS_W, wireFocus } from '@/lib/geometry';
 import { ModuleView } from './ModuleView';
 import { Wires } from './Wires';
 import { ScaleContext } from './ScaleContext';
@@ -43,7 +44,6 @@ export function Board() {
   const [panMode, setPanMode] = useState(false);
 
   const hostRef = useRef<HTMLDivElement>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const zoomRef = useRef<ReactZoomPanPinchRef>(null);
   /** Once the user pans or zooms, stop re-fitting the view out from under them. */
@@ -62,29 +62,6 @@ export function Board() {
     else settle.current = setTimeout(() => hostRef.current?.classList.remove('board-moving'), 200);
   }, []);
   useEffect(() => () => clearTimeout(settle.current), []);
-
-  /**
-   * Rule the bench under the board. The ruling is painted on a fixed sheet the
-   * size of the viewport and simply re-offset as the board moves, so it costs
-   * nothing to pan forever: there is no edge to reach in any direction.
-   */
-  const paintGrid = useCallback((scale: number, x: number, y: number) => {
-    const grid = gridRef.current;
-    if (!grid) return;
-    const minor = GRID_MINOR * scale;
-    const major = GRID_MAJOR * scale;
-    // Board (0,0) in viewport pixels: where the ruling is pinned.
-    const ox = x + CANVAS_PAD * scale;
-    const oy = y + CANVAS_PAD * scale;
-    // Below a few pixels the fine ruling turns into noise, so it drops out
-    // and only the heavy lines survive, the way a drawing sheet reads.
-    const coarse = minor < 7;
-    grid.classList.toggle('grid-coarse', coarse);
-    grid.style.backgroundSize = coarse
-      ? major + 'px ' + major + 'px, ' + major + 'px ' + major + 'px'
-      : major + 'px ' + major + 'px, ' + major + 'px ' + major + 'px, ' + minor + 'px ' + minor + 'px, ' + minor + 'px ' + minor + 'px';
-    grid.style.backgroundPosition = ox + 'px ' + oy + 'px';
-  }, []);
 
   /** Run the clock only while something is actually on it. */
   useEffect(() => {
@@ -121,8 +98,7 @@ export function Board() {
     const px = (host.clientWidth - w * scale) / 2 - (x0 + CANVAS_PAD) * scale;
     const py = (host.clientHeight - h * scale) / 2 - (y0 + CANVAS_PAD) * scale;
     zoomRef.current?.setTransform(px, py, scale, 0);
-    paintGrid(scale, px, py);
-  }, [paintGrid]);
+  }, []);
 
   /** Re-frame when parts come out of the bin, unless the user has taken over. */
   useEffect(() => {
@@ -277,12 +253,14 @@ export function Board() {
 
   // 44px on touch screens so the targets clear the accessibility minimum.
   const ctlBtn =
-    'flex h-11 w-11 items-center justify-center rounded-md border border-steel-400 bg-steel-50/95 text-carbon-600 shadow-sm transition hover:bg-steel-200 hover:text-carbon-900 disabled:opacity-35 disabled:hover:bg-steel-50/95 md:h-9 md:w-9';
+    'flex h-11 w-11 items-center justify-center rounded-[7px] text-carbon-900 transition hover:bg-steel-200 disabled:opacity-35 disabled:hover:bg-transparent md:h-[34px] md:w-[34px]';
+  /** C groups the floating controls into one pill, so they read as a single instrument. */
+  const ctlGroup =
+    'flex gap-0.5 rounded-[10px] border border-steel-400 bg-steel-100 p-1 shadow-[0_8px_20px_rgba(0,0,0,0.4)]';
 
   return (
     <ScaleContext.Provider value={getScale}>
       <div ref={hostRef} className="board-grid relative h-full w-full overflow-hidden">
-        <div ref={gridRef} className="canvas-grid pointer-events-none absolute inset-0" />
         <TransformWrapper
           ref={zoomRef}
           minScale={0.04}
@@ -316,7 +294,6 @@ export function Board() {
             setMoving(true);
           }}
           onPinchingStop={() => setMoving(false)}
-          onTransformed={(_ref, state) => paintGrid(state.scale, state.positionX, state.positionY)}
         >
           <TransformComponent wrapperClass="!w-full !h-full" contentClass="!w-auto !h-auto">
             {/*
@@ -363,10 +340,12 @@ export function Board() {
           </TransformComponent>
         </TransformWrapper>
 
+        <SelectionBar hostRef={hostRef} />
+
         {/* Bottom right, within thumb reach. Undo and redo only appear here on
             small screens, where the toolbar has no room for them. */}
         <div className="absolute bottom-4 right-4 flex flex-col items-end gap-1.5">
-          <div className="flex gap-1.5 md:hidden">
+          <div role="group" aria-label="History" className={ctlGroup + ' md:hidden'}>
             <button type="button" title="Undo" aria-label="Undo" className={ctlBtn} onClick={undo} disabled={!canUndo}>
               <Undo2 className="h-5 w-5" />
             </button>
@@ -374,7 +353,7 @@ export function Board() {
               <Redo2 className="h-5 w-5" />
             </button>
           </div>
-          <div className="flex gap-1.5">
+          <div role="group" aria-label="Zoom" className={ctlGroup}>
             <button type="button" title="Zoom out" aria-label="Zoom out" className={ctlBtn} onClick={() => zoomRef.current?.zoomOut(0.2)}>
               <Minus className="h-5 w-5 md:h-4 md:w-4" />
             </button>

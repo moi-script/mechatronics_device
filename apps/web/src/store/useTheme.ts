@@ -1,7 +1,8 @@
 'use client';
 
 import { create } from 'zustand';
-import { LIGHT, paletteFor, WIRE_BY_MODE, WIRE_HI_BY_MODE, type Mode, type Palette, type ThemeChoice } from '@/lib/palette';
+import { usePhotoreal } from './useBoard';
+import { LIGHT, PHOTO, paletteFor, WIRE_BY_MODE, WIRE_HI_BY_MODE, type Mode, type Palette, type ThemeChoice } from '@/lib/palette';
 
 const KEY = 'mech-theme';
 
@@ -42,12 +43,13 @@ export const useTheme = create<ThemeStore>((set, get) => ({
   },
 
   sync: () => {
-    let stored: ThemeChoice = 'system';
+    // The Refined Workbench is a dark bench, so that is what a first visit sees.
+    let stored: ThemeChoice = 'dark';
     try {
       const raw = localStorage.getItem(KEY);
       if (raw === 'light' || raw === 'dark' || raw === 'system') stored = raw;
     } catch {
-      // Fall back to following the system.
+      // Blocked storage: stay on the default.
     }
     const mode = resolve(stored);
     apply(mode);
@@ -64,6 +66,14 @@ export const useTheme = create<ThemeStore>((set, get) => ({
   },
 }));
 
-export const usePalette = (): Palette => useTheme((s) => paletteFor(s.mode)) ?? LIGHT;
-export const useWireColors = () => useTheme((s) => WIRE_BY_MODE[s.mode]);
-export const useWireHighlights = () => useTheme((s) => WIRE_HI_BY_MODE[s.mode]);
+export const usePalette = (): Palette => {
+  const mode = useTheme((s) => s.mode);
+  return usePhotoreal() ? PHOTO : (paletteFor(mode) ?? LIGHT);
+};
+// Leads on the aluminium bench take the colours picked for a light panel.
+const useLeadMode = (): Mode => {
+  const mode = useTheme((s) => s.mode);
+  return usePhotoreal() ? 'light' : mode;
+};
+export const useWireColors = () => WIRE_BY_MODE[useLeadMode()];
+export const useWireHighlights = () => WIRE_HI_BY_MODE[useLeadMode()];
