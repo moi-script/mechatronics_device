@@ -63,7 +63,7 @@ function Btn({
       disabled={disabled}
       onClick={onClick}
       className={clsx(
-        'inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-medium transition',
+        'inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition sm:px-3',
         'disabled:cursor-not-allowed disabled:opacity-40',
         tone === 'danger' && 'border-safety-red/40 bg-safety-red/10 text-safety-red hover:bg-safety-red/20',
         // Save is the one action the bench is built around, so it is the one solid button.
@@ -381,7 +381,7 @@ export function Toolbar({
           </div>
           </div>
 
-          <div className="ml-auto flex items-center gap-1.5">
+          <div className="ml-auto flex items-center gap-1 sm:gap-1.5">
             <span className="hidden font-mono text-[11px] text-carbon-600 lg:inline">
               {String(wireCount).padStart(2, '0')} leads
             </span>

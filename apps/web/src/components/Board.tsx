@@ -203,14 +203,34 @@ export function Board() {
 
   /**
    * Left-dragging empty board draws a marquee and selects whatever it touches.
-   * Touch is left alone so one finger still pans the board on a phone.
+   * Touch is left alone so one finger still pans the board on a phone; a tap
+   * that never turns into a pan or pinch clears the selection instead.
    */
   const onBackgroundDown = useCallback(
     (e: React.PointerEvent) => {
       cancelWire();
       selectWire(null);
 
-      if (e.pointerType !== 'mouse' || e.button !== 0 || panMode) return;
+      if (e.pointerType !== 'mouse') {
+        const x0 = e.clientX;
+        const y0 = e.clientY;
+        let moved = false;
+        const onMove = (ev: PointerEvent) => {
+          if (ev.pointerId !== e.pointerId || Math.hypot(ev.clientX - x0, ev.clientY - y0) > 10) moved = true;
+        };
+        const onUp = (ev: PointerEvent) => {
+          if (ev.pointerId !== e.pointerId) return;
+          if (!moved && ev.type === 'pointerup') useBoard.getState().clearModuleSelection();
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+          window.removeEventListener('pointercancel', onUp);
+        };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+        window.addEventListener('pointercancel', onUp);
+        return;
+      }
+      if (e.button !== 0 || panMode) return;
       const start = toBoard(e.clientX, e.clientY);
       if (!start) return;
 

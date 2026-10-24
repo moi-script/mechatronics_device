@@ -39,7 +39,7 @@ export function WirePicker() {
         <>
           <span className="engraved hidden text-[10px] font-semibold text-carbon-600 sm:inline">Lead</span>
           {swatch(wireColor, 'h-4 w-4')}
-          <span className="capitalize">{wireColor}</span>
+          <span className="hidden capitalize sm:inline">{wireColor}</span>
           <ChevronDown className="h-3 w-3 text-carbon-600" />
         </>
       }
