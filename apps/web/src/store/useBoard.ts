@@ -18,6 +18,7 @@ import {
   type EndRef,
   type Inputs,
   type LadderRung,
+  type LimitMount,
   type SimError,
   type SimResult,
   type SimState,
@@ -64,6 +65,8 @@ interface BoardStore extends Core {
   setLadder(id: string, ladder: LadderRung[]): void;
   /** Change a PLC's address plan; unlike the ladder, the running program is left alone. */
   setIo(id: string, io: Record<string, string>): void;
+  /** Bolt a limit switch to one end of a cylinder's stroke, or loosen it with null. */
+  setMount(id: string, mount: LimitMount | null): void;
 
   /** Put a bench part down on the board, at its slot in the bench layout. */
   addModule(id: string): void;
@@ -182,6 +185,17 @@ export const useBoard = create<BoardStore>((set, get) => ({
   setIo: (id, io) =>
     set((s) => {
       const circuit = { ...s.circuit, modules: s.circuit.modules.map((m) => (m.id === id ? { ...m, io } : m)) };
+      return { ...resolve({ ...s, circuit }), ...remember(s), dirty: true };
+    }),
+  setMount: (id, mount) =>
+    set((s) => {
+      // Loosened, it stays where it was bolted; bolted, it jumps to its seat.
+      const modules = s.circuit.modules.map((m) => {
+        if (m.id !== id) return m;
+        const { mount: _, ...loose } = m;
+        return mount ? { ...loose, mount } : loose;
+      });
+      const circuit = { ...s.circuit, modules: seatLimits(modules) };
       return { ...resolve({ ...s, circuit }), ...remember(s), dirty: true };
     }),
   setLadder: (id, ladder) =>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeftRight, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, Link2, Plus, Trash2 } from 'lucide-react';
 import { PARTS, benchInventory, moduleLabel, type ModuleInstance, type ModuleType } from '@mech/sim';
 import { useBoard } from '@/store/useBoard';
 import { CATEGORIES } from './PartsBin';
@@ -24,7 +24,9 @@ export function SelectionBar({ hostRef }: { hostRef: React.RefObject<HTMLDivElem
   const replaceModule = useBoard((s) => s.replaceModule);
   const beginMove = useBoard((s) => s.beginMove);
   const moveModules = useBoard((s) => s.moveModules);
+  const setMount = useBoard((s) => s.setMount);
   const [replacing, setReplacing] = useState(false);
+  const [mounting, setMounting] = useState(false);
   const bar = useRef<HTMLDivElement>(null);
 
   const m = selected.length === 1 ? modules.find((x) => x.id === selected[0]) : undefined;
@@ -44,7 +46,19 @@ export function SelectionBar({ hostRef }: { hostRef: React.RefObject<HTMLDivElem
     };
   }, [m, modules, board]);
 
-  useEffect(() => setReplacing(false), [m?.id]);
+  // The cylinders on the board a limit switch can be bolted to.
+  const cylinders = useMemo(
+    () => (m?.type === 'FT_LIMIT' ? modules.filter((x) => x.type === 'FT_CYL' || x.type === 'FT_SCYL') : []),
+    [m?.type, modules],
+  );
+  // Who already sits at a seat, so two switches are not bolted to the same spot.
+  const seatedBy = (cylinderId: string, at: 'home' | 'out') =>
+    modules.find((x) => x.mount?.cylinderId === cylinderId && x.mount.at === at)?.id;
+
+  useEffect(() => {
+    setReplacing(false);
+    setMounting(false);
+  }, [m?.id]);
 
   useEffect(() => {
     if (!m) return;
@@ -106,11 +120,30 @@ export function SelectionBar({ hostRef }: { hostRef: React.RefObject<HTMLDivElem
                 ? 'Swap for another part of the same kind'
                 : 'Nothing else of the same kind on the bench'
           }
-          onClick={() => setReplacing((v) => !v)}
+          onClick={() => {
+            setReplacing((v) => !v);
+            setMounting(false);
+          }}
         >
           <ArrowLeftRight className="h-3.5 w-3.5" />
           Replace
         </button>
+        {m.type === 'FT_LIMIT' && (
+          <button
+            type="button"
+            className={btn + (mounting ? ' bg-steel-200 text-carbon-900' : ' text-carbon-900 hover:bg-steel-200')}
+            disabled={cylinders.length === 0 && !m.mount}
+            aria-expanded={mounting}
+            title={cylinders.length || m.mount ? 'Bolt it to a cylinder, so the rod trips it' : 'No cylinder on the board'}
+            onClick={() => {
+              setMounting((v) => !v);
+              setReplacing(false);
+            }}
+          >
+            <Link2 className="h-3.5 w-3.5" />
+            Mount
+          </button>
+        )}
         <button
           type="button"
           className={btn + ' text-red-ink hover:bg-safety-red/10'}
@@ -165,6 +198,57 @@ export function SelectionBar({ hostRef }: { hostRef: React.RefObject<HTMLDivElem
                 ))}
               </ul>
             </>
+          )}
+        </div>
+      )}
+
+      {mounting && (
+        <div className="absolute top-full left-1/2 mt-1.5 w-[260px] -translate-x-1/2 rounded-xl border border-steel-400 bg-steel-50 p-2 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+          <p className="px-1.5 pb-1 text-[11px] font-semibold text-carbon-600">Mount to cylinder · pick the end of its stroke</p>
+          <ul className="flex max-h-56 flex-col gap-0.5 overflow-y-auto">
+            {cylinders.map((c) => (
+              <li key={c.id} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1 text-xs text-carbon-900">
+                <span className="min-w-0 truncate">
+                  {moduleLabel(c)} <span className="font-mono text-[11px] text-carbon-600">{c.id}</span>
+                </span>
+                <span className="flex shrink-0 gap-1">
+                  {(['home', 'out'] as const).map((at) => {
+                    const here = m.mount?.cylinderId === c.id && m.mount.at === at;
+                    const taken = seatedBy(c.id, at);
+                    return (
+                      <button
+                        key={at}
+                        type="button"
+                        disabled={here || (!!taken && taken !== m.id)}
+                        title={here ? `${m.id} is mounted here` : taken ? `${taken} is already mounted here` : `Mount at the ${at} end`}
+                        onClick={() => {
+                          setMount(m.id, { cylinderId: c.id, at });
+                          setMounting(false);
+                        }}
+                        className={
+                          'rounded-md px-2 py-1 text-[11px] font-semibold capitalize transition disabled:cursor-not-allowed ' +
+                          (here ? 'bg-green-ink text-white' : 'bg-steel-200 hover:bg-steel-300 disabled:opacity-40')
+                        }
+                      >
+                        {at}
+                      </button>
+                    );
+                  })}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {m.mount && (
+            <button
+              type="button"
+              onClick={() => {
+                setMount(m.id, null);
+                setMounting(false);
+              }}
+              className="mt-1.5 w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-red-ink hover:bg-safety-red/10"
+            >
+              Unmount · press it by hand instead
+            </button>
           )}
         </div>
       )}

@@ -667,21 +667,27 @@ export function ModuleView({ m, focus }: { m: ModuleInstance; focus?: WireFocus 
         return;
       }
 
-      // A switch bolted to a stroke is moved by moving its cylinder.
-      const grab = (m.mount && board.circuit.modules.find((c) => c.id === m.mount!.cylinderId)) || m;
-
       // Dragging an unselected module makes it the selection.
       let ids = board.selectedModuleIds;
-      if (!ids.includes(grab.id)) {
-        ids = [grab.id];
+      if (!ids.includes(m.id)) {
+        ids = [m.id];
         board.setSelectedModules(ids);
       }
+
+      // A switch bolted to a stroke is picked on its own, so its mount can be
+      // changed, but moved by moving its cylinder.
+      const cylOf = (id: string) => {
+        const mod = board.circuit.modules.find((x) => x.id === id);
+        return (mod?.mount && board.circuit.modules.find((c) => c.id === mod.mount!.cylinderId)?.id) || id;
+      };
+      const grab = board.circuit.modules.find((c) => c.id === cylOf(m.id)) ?? m;
+      const moving = new Set(ids.map(cylOf));
 
       // One snapshot for the whole drag, not one per pointer move.
       beginMove();
       const origins: Record<string, { x: number; y: number }> = {};
       for (const mod of board.circuit.modules) {
-        if (ids.includes(mod.id)) origins[mod.id] = { x: mod.x, y: mod.y };
+        if (moving.has(mod.id)) origins[mod.id] = { x: mod.x, y: mod.y };
       }
       drag.current = { px: e.clientX, py: e.clientY, anchor: { x: grab.x, y: grab.y }, origins };
 
