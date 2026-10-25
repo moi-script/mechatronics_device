@@ -49,7 +49,45 @@ const blankRung = (addr: string): LadderRung => ({ blocks: [[[{ addr }]]], coil:
  * named by the device actually wired to it, so the ladder reads in the terms of
  * the board.
  */
+/** The panel can be pulled up to the toolbar or down to its header, and remembers where it was left. */
+const LADDER_HEIGHT_KEY = 'ladder-height';
+const MIN_LADDER = 120;
+const clampLadder = (h: number) => Math.round(Math.min(Math.max(h, MIN_LADDER), window.innerHeight - 140));
+
 export function LadderEditor({ moduleId, onClose }: { moduleId: string; onClose: () => void }) {
+  const [height, setHeight] = useState(() => {
+    let saved = NaN;
+    try {
+      saved = Number(localStorage.getItem(LADDER_HEIGHT_KEY));
+    } catch {
+      // Storage blocked: start at the default.
+    }
+    return clampLadder(saved > 0 ? saved : window.innerHeight * 0.45);
+  });
+
+  // Dragging the top edge: up makes the panel taller, down gives the board back.
+  const onResize = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startH = height;
+    let h = startH;
+    const move = (ev: PointerEvent) => {
+      h = clampLadder(startH + startY - ev.clientY);
+      setHeight(h);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      try {
+        localStorage.setItem(LADDER_HEIGHT_KEY, String(h));
+      } catch {
+        // Not remembered this time; the drag itself still worked.
+      }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
   const circuit = useBoard((s) => s.circuit);
   const sim = useBoard((s) => s.sim);
   const setLadder = useBoard((s) => s.setLadder);
@@ -239,8 +277,19 @@ export function LadderEditor({ moduleId, onClose }: { moduleId: string; onClose:
     // Docked under the board, not over it: the student presses buttons on the board and watches the rungs.
     <section
       aria-labelledby="ladder-title"
-      className="flex h-[45dvh] shrink-0 flex-col overflow-hidden border-t border-steel-300 bg-steel-50"
+      style={{ height }}
+      className="relative flex shrink-0 flex-col overflow-hidden border-t border-steel-300 bg-steel-50"
     >
+      <div
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Drag to resize the ladder panel"
+        title="Drag to resize"
+        onPointerDown={onResize}
+        className="group absolute inset-x-0 top-0 z-10 flex h-3 cursor-row-resize touch-none justify-center"
+      >
+        <span className="mt-1 h-1 w-12 rounded-full bg-steel-400 transition group-hover:bg-carbon-600" />
+      </div>
       <header className="flex items-center justify-between gap-3 border-b border-steel-300 px-4 py-2.5">
         <div className="flex min-w-0 flex-wrap items-center gap-3">
           <h2 id="ladder-title" className="font-cond text-sm font-bold tracking-[0.12em] text-carbon-900 uppercase">
