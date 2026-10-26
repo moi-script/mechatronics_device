@@ -41,7 +41,7 @@ const isInputPart = (t: ModuleType) =>
 // An output part is one the PLC can drive: anything with a coil.
 const isOutputPart = hasCoil;
 
-const blankRung = (addr: string): LadderRung => ({ blocks: [[[{ addr }]]], coil: { addr: 'Q00', kind: 'OUT' } });
+const blankRung = (first: LadderContact): LadderRung => ({ blocks: [[[first]]], coil: { addr: 'Q00', kind: 'OUT' } });
 
 /**
  * Writes the PLC's program as rungs: each rung a run of blocks in series to one
@@ -166,6 +166,8 @@ export function LadderEditor({ moduleId, onClose }: { moduleId: string; onClose:
   // The address a new contact is given: picked from the palette, else the first wired input.
   const [picked, setArmed] = useState<string | null>(null);
   const armed = picked ?? wiredInputs[0] ?? PLC_INPUTS.find((a) => plan[a]) ?? 'M00';
+  // A new contact starts the way its device is wired: picked as "I01 NC", it goes down as NC.
+  const fresh = (): LadderContact => (wired[armed]?.contact === 'NC' ? { addr: armed, nc: true } : { addr: armed });
   const bits = plcBits(circuit, sim, moduleId);
   const powered = !!sim.nets[sim.pinNet[`${moduleId}.V1`]]?.hot && !!sim.nets[sim.pinNet[`${moduleId}.G1`]]?.gnd;
   // Why the board is or is not following the ladder, in the order a student would fix it.
@@ -487,7 +489,7 @@ export function LadderEditor({ moduleId, onClose }: { moduleId: string; onClose:
                               )}
                               {block.length > 1 &&
                                 addOnWire(
-                                  () => edit((d) => void d[ri].blocks[ki][bi].push({ addr: armed })),
+                                  () => edit((d) => void d[ri].blocks[ki][bi].push(fresh())),
                                   b.length >= MAX_CONTACTS,
                                   'Add a contact in series inside this branch',
                                 )}
@@ -505,7 +507,7 @@ export function LadderEditor({ moduleId, onClose }: { moduleId: string; onClose:
                           type="button"
                           className="ml-2 rounded-md px-1 text-[10px] font-semibold text-carbon-600 hover:bg-steel-200 hover:text-carbon-900 disabled:opacity-40"
                           disabled={block.length >= MAX_BRANCHES}
-                          onClick={() => edit((d) => void d[ri].blocks[ki].push([{ addr: armed }]))}
+                          onClick={() => edit((d) => void d[ri].blocks[ki].push([fresh()]))}
                           title={`Add ${armed} in parallel here`}
                         >
                           + parallel
@@ -515,7 +517,7 @@ export function LadderEditor({ moduleId, onClose }: { moduleId: string; onClose:
                     <div className="relative flex h-14 shrink-0 items-start pr-1">
                       <div className={wire} />
                       {addOnWire(
-                        () => edit((d) => void d[ri].blocks.push([[{ addr: armed }]])),
+                        () => edit((d) => void d[ri].blocks.push([[fresh()]])),
                         r.blocks.length >= MAX_BLOCKS,
                         `Add ${armed} in series at the end of the rung`,
                       )}
@@ -608,7 +610,7 @@ export function LadderEditor({ moduleId, onClose }: { moduleId: string; onClose:
             type="button"
             className={`${tool} mt-3`}
             disabled={rungs.length >= MAX_RUNGS}
-            onClick={() => edit((d) => void d.push(blankRung(armed)))}
+            onClick={() => edit((d) => void d.push(blankRung(fresh())))}
           >
             <Plus className="h-3 w-3" /> rung
           </button>
