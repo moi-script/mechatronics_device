@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Fragment } from 'react';
 import Link from 'next/link';
-import { Download, Github, MoveRight } from 'lucide-react';
+import { Download, MoveRight } from 'lucide-react';
 import { BrandMark } from '@/components/BrandMark';
 import { HeroCircuit } from '@/components/landing/HeroCircuit';
 import { ApkDownloadLink, DownloadCount } from '@/components/ApkDownload';
@@ -30,7 +30,6 @@ const APK = {
   }),
   android: 'Android 6.0 and up',
 };
-const REPO = 'https://github.com/moi-script/mechatronics_device';
 
 /** The programs that take the mechatronics laboratory at NCST. */
 const PROGRAMS = [
@@ -113,15 +112,6 @@ export default function Page() {
             </a>
           </nav>
           <div className="flex-1" />
-          <a
-            href={REPO}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Source on GitHub"
-            className="text-carbon-800 hover:text-carbon-900"
-          >
-            <Github className="h-[18px] w-[18px]" />
-          </a>
           <Link
             href="/board"
             className="inline-flex h-10 items-center rounded-[9px] bg-signal-amber px-4 text-sm font-bold whitespace-nowrap text-[#1a1204] hover:brightness-110"
@@ -268,11 +258,7 @@ export default function Page() {
                 Android asks before installing anything that did not come from the Play Store, which is why it warns
                 you. Once installed, the app checks this page on startup and offers you the newer build when there is
                 one. Coming from a build older than 1.44 means uninstalling that one first — it was signed with a
-                temporary key, and Android will not update across a change of key. To build your own instead,{' '}
-                <a href={REPO} target="_blank" rel="noreferrer" className="font-semibold text-signal-amber hover:brightness-110">
-                  the source is on GitHub
-                </a>{' '}
-                and <code className="font-mono text-[13px]">npm run apk</code> makes this same file.
+                temporary key, and Android will not update across a change of key.
               </p>
             </div>
 
