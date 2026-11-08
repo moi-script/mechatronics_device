@@ -830,6 +830,7 @@ export function Library({ onClose }: { onClose: () => void }) {
   const user = useSession((s) => s.user);
   const status = useSession((s) => s.status);
   const error = useSession((s) => s.error);
+  const waking = useSession((s) => s.waking);
   const setUser = useSession((s) => s.setUser);
   const signOut = useSession((s) => s.signOut);
   const ensureSession = useSession((s) => s.ensure);
@@ -1001,6 +1002,10 @@ export function Library({ onClose }: { onClose: () => void }) {
               </div>
 
               {error && <p className="text-sm text-red-ink">{error}</p>}
+
+              {!error && waking && (
+                <p className="text-sm text-carbon-600">Waking up the server… this can take up to a minute.</p>
+              )}
 
               {!error && status === 'unknown' && (
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-3.5" aria-busy>
